@@ -43,6 +43,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         web.navigationDelegate = self
         web.uiDelegate = self
         web.scrollView.contentInsetAdjustmentBehavior = .never
+        web.allowsBackForwardNavigationGestures = true
         web.scrollView.bounces = false
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
