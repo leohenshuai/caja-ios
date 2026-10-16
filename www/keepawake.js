@@ -6,7 +6,7 @@
   var on = native ? window.__NATIVE_KEEP_AWAKE__ !== false : localStorage.getItem(KEY) !== '0';
   function push() { if (native) window.webkit.messageHandlers.keepAwake.postMessage(on); }
   var btn = document.createElement('div');
-  btn.style.cssText = 'position:fixed;right:10px;bottom:70px;z-index:99999;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:17px;line-height:34px;text-align:center;opacity:.6;user-select:none;-webkit-user-select:none;';
+  btn.style.cssText = 'position:fixed;right:10px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:99999;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:17px;line-height:34px;text-align:center;opacity:.6;user-select:none;-webkit-user-select:none;';
   function paint(note) {
     var active = native ? on : (on && lock && !lock.released);
     btn.textContent = active ? '☀️' : '🌙';

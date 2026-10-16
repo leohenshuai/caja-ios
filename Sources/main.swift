@@ -37,6 +37,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let www = Bundle.main.bundleURL.appendingPathComponent("www")
         cfg.setURLSchemeHandler(SchemeHandler(root: www), forURLScheme: "app")
         cfg.userContentController.add(self, name: "keepAwake")
+        cfg.userContentController.add(self, name: "native")
         let js = "window.__NATIVE_KEEP_AWAKE__=\(keepAwake ? "true" : "false");"
         cfg.userContentController.addUserScript(WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         cfg.allowsInlineMediaPlayback = true
@@ -68,20 +69,25 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         checkUpdate()
     }
 
-    func checkUpdate() {
-        if Date().timeIntervalSince(lastCheck) < 600 { return }
+    func checkUpdate(force: Bool = false, replyId: String? = nil) {
+        if !force && Date().timeIntervalSince(lastCheck) < 600 { return }
         lastCheck = Date()
         guard let url = URL(string: "https://api.github.com/repos/leohenshuai/caja-ios/releases/latest") else { return }
         var req = URLRequest(url: url, timeoutInterval: 15)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            guard let self = self, let data = data,
+            guard let self = self else { return }
+            guard let data = data,
                   let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let tag = j["tag_name"] as? String,
-                  let latest = Int(tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))) else { return }
+                  let latest = Int(tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))) else {
+                if let r = replyId { self.reply(r, ["ok": false, "error": "检查失败,请确认网络"]) }
+                return }
+            UserDefaults.standard.set(Date().timeIntervalSince1970 * 1000, forKey: "lastUpdateCheck")
             let cur = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
             let skipped = UserDefaults.standard.integer(forKey: "skipVersion")
-            guard latest > cur, latest != skipped else { return }
+            if let r = replyId { self.reply(r, ["ok": true, "latest": latest, "current": cur, "hasUpdate": latest > cur]) }
+            guard latest > cur, force || latest != skipped else { return }
             var link = j["html_url"] as? String ?? ""
             if let assets = j["assets"] as? [[String: Any]],
                let a = assets.first(where: { ($0["name"] as? String ?? "").hasSuffix(".ipa") }),
@@ -106,12 +112,127 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) {
-        if let b = m.body as? Bool {
+        if m.name == "keepAwake", let b = m.body as? Bool {
             keepAwake = b
             UserDefaults.standard.set(b, forKey: "keepAwake")
             apply()
+            return
+        }
+        guard m.name == "native", let d = m.body as? [String: Any],
+              let id = d["id"] as? String, let op = d["op"] as? String else { return }
+        let p = d["payload"] as? [String: Any] ?? [:]
+        switch op {
+        case "haptic": haptic(p["type"] as? String ?? "light"); reply(id, ["ok": true])
+        case "clipboardWrite":
+            UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
+        case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
+        case "shareFile": shareFile(id, p)
+        case "backupWrite": backupWrite(id, p)
+        case "backupList": backupList(id)
+        case "backupRead": backupRead(id, p)
+        case "backupDelete": backupDelete(id, p)
+        case "backupShare": backupShare(id, p)
+        case "checkUpdate": lastCheck = .distantPast; checkUpdate(force: true, replyId: id)
+        case "appInfo":
+            reply(id, ["ok": true, "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
+                       "lastUpdateCheck": UserDefaults.standard.double(forKey: "lastUpdateCheck")])
+        default: reply(id, ["ok": false, "error": "unknown op"])
         }
     }
+
+    func reply(_ id: String, _ obj: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: obj),
+              let json = String(data: data, encoding: .utf8) else { return }
+        DispatchQueue.main.async {
+            self.web.evaluateJavaScript("window.__nativeReply && window.__nativeReply(\(String(reflecting: id)), \(json))", completionHandler: nil)
+        }
+    }
+
+    // ---- 触觉 ----
+    func haptic(_ type: String) {
+        switch type {
+        case "success", "warning", "error":
+            let g = UINotificationFeedbackGenerator(); g.prepare()
+            g.notificationOccurred(type == "success" ? .success : (type == "warning" ? .warning : .error))
+        case "selection": let g = UISelectionFeedbackGenerator(); g.selectionChanged()
+        case "medium": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    // ---- 系统分享 ----
+    func present(share items: [Any]) {
+        let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let pop = vc.popoverPresentationController {
+            pop.sourceView = view
+            pop.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+            pop.permittedArrowDirections = []
+        }
+        (presentedViewController ?? self).present(vc, animated: true)
+    }
+    func shareFile(_ id: String, _ p: [String: Any]) {
+        let name = (p["name"] as? String ?? "export.json").replacingOccurrences(of: "/", with: "_")
+        guard let text = p["text"] as? String, let data = text.data(using: .utf8) else { return reply(id, ["ok": false, "error": "no data"]) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do { try data.write(to: url, options: .atomic) } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
+        present(share: [url]); reply(id, ["ok": true])
+    }
+
+    // ---- 备份保险箱 ----
+    var backupDir: URL {
+        let d = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Backups")
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
+    func safeName(_ s: String) -> String? {
+        let n = s.replacingOccurrences(of: "/", with: "")
+        return (n.isEmpty || n.hasPrefix(".") || !n.hasSuffix(".json")) ? nil : n
+    }
+    func backupWrite(_ id: String, _ p: [String: Any]) {
+        guard let kind = p["kind"] as? String, let text = p["text"] as? String, let data = text.data(using: .utf8) else {
+            return reply(id, ["ok": false, "error": "bad args"]) }
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd_HH-mm-ss"; f.locale = Locale(identifier: "en_US_POSIX")
+        let name = "\(kind)_\(f.string(from: Date())).json"
+        let fm = FileManager.default
+        do {
+            try data.write(to: backupDir.appendingPathComponent(name), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            try data.write(to: backupDir.appendingPathComponent("latest.json"), options: .atomic)
+        } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
+        // 滚动保留:自动备份最近 20 份,手动/快照最近 30 份
+        let limits = ["auto": 20, "manual": 30, "snapshot": 5]
+        if let lim = limits[kind], let files = try? fm.contentsOfDirectory(atPath: backupDir.path) {
+            let mine = files.filter { $0.hasPrefix(kind + "_") }.sorted(by: >)
+            for old in mine.dropFirst(lim) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
+        }
+        reply(id, ["ok": true, "name": name, "size": data.count])
+    }
+    func backupList(_ id: String) {
+        let fm = FileManager.default
+        let files = (try? fm.contentsOfDirectory(atPath: backupDir.path)) ?? []
+        var out: [[String: Any]] = []
+        for n in files where n.hasSuffix(".json") && n != "latest.json" {
+            let a = try? fm.attributesOfItem(atPath: backupDir.appendingPathComponent(n).path)
+            out.append(["name": n, "size": (a?[.size] as? Int) ?? 0,
+                        "mtime": ((a?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0) * 1000])
+        }
+        out.sort { ($0["mtime"] as? Double ?? 0) > ($1["mtime"] as? Double ?? 0) }
+        reply(id, ["ok": true, "files": out])
+    }
+    func backupRead(_ id: String, _ p: [String: Any]) {
+        guard let n = (p["name"] as? String).flatMap(safeName),
+              let t = try? String(contentsOf: backupDir.appendingPathComponent(n), encoding: .utf8) else {
+            return reply(id, ["ok": false, "error": "读取失败"]) }
+        reply(id, ["ok": true, "text": t])
+    }
+    func backupDelete(_ id: String, _ p: [String: Any]) {
+        guard let n = (p["name"] as? String).flatMap(safeName) else { return reply(id, ["ok": false, "error": "bad name"]) }
+        try? FileManager.default.removeItem(at: backupDir.appendingPathComponent(n)); reply(id, ["ok": true])
+    }
+    func backupShare(_ id: String, _ p: [String: Any]) {
+        guard let n = (p["name"] as? String).flatMap(safeName) else { return reply(id, ["ok": false, "error": "bad name"]) }
+        present(share: [backupDir.appendingPathComponent(n)]); reply(id, ["ok": true])
+    }
+
     func webView(_ w: WKWebView, decidePolicyFor a: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         if let u = a.request.url, u.scheme == "app" || u.scheme == "about" || u.scheme == "blob" || u.scheme == "data" {
             decisionHandler(.allow)

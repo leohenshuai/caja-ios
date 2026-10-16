@@ -1,0 +1,172 @@
+/* ============ iOS 26 "Liquid Glass" 风格层（须最后加载）============
+   玻璃只用在页头/底部栏/标签栏/弹窗这些少量面积大的元素上，卡片用半透明渐变+高光描边，避免卡顿。 */
+:root {
+  --g-fill: rgba(255,255,255,.07);
+  --g-fill-strong: rgba(255,255,255,.12);
+  --g-stroke: rgba(255,255,255,.16);
+  --g-hi: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(255,255,255,.04);
+  --g-shadow: 0 10px 30px rgba(0,0,0,.35);
+  --spring: cubic-bezier(.22,1.2,.36,1);
+}
+html { background: #070b18 !important; }
+body {
+  background:
+    radial-gradient(60% 40% at 12% 0%, rgba(56,189,248,.22), transparent 70%),
+    radial-gradient(55% 40% at 95% 25%, rgba(139,92,246,.20), transparent 70%),
+    radial-gradient(60% 45% at 50% 105%, rgba(16,185,129,.14), transparent 70%),
+    #0a1020 !important;
+  background-attachment: fixed !important;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
+
+/* ---------- 页头：玻璃导航栏 ---------- */
+.header {
+  background: rgba(20,28,48,.42) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  border-bottom: .5px solid rgba(255,255,255,.18) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.25);
+}
+.header h1 { font-size: 19px; letter-spacing: .2px; text-shadow: none !important; }
+
+/* ---------- 按钮：胶囊 + 高光 + 弹性按压 ---------- */
+button {
+  border-radius: 999px !important;
+  border: .5px solid var(--g-stroke);
+  box-shadow: var(--g-hi);
+  transition: transform .35s var(--spring), filter .2s ease, background .2s ease;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+button:hover { filter: none; box-shadow: var(--g-hi); }
+button:active { transform: scale(.94); filter: brightness(1.15); transition-duration: .12s; }
+.header-actions button, .header button { padding: 8px 14px; }
+
+/* ---------- 卡片：圆角 + 渐变玻璃质感 ---------- */
+.metric-card, .caja-card, .staff-card, .card, .app-card, .info-section, .progress-section,
+.quick-input, .action-section, .diff-display,
+.arrival-page .stat, .arrival-page .panel, .arrival-page .day-group, .platform-unified-panel {
+  border-radius: 26px !important;
+  border: .5px solid var(--g-stroke) !important;
+  background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)) !important;
+  box-shadow: var(--g-hi), var(--g-shadow) !important;
+}
+.metric-card:hover, .caja-card:hover, .staff-card:hover, .card:hover, .app-card:hover,
+.arrival-page .stat:hover, .arrival-page .panel:hover, .arrival-page .day-group:hover {
+  transform: none !important;
+  border-color: var(--g-stroke) !important;
+  box-shadow: var(--g-hi), var(--g-shadow) !important;
+}
+.app-card:active { transform: scale(.97) !important; transition: transform .3s var(--spring); }
+.metric-card::after, .caja-card::after, .staff-card::after, .card::after { display: none; }
+
+/* ---------- 输入框 ---------- */
+input, select, textarea {
+  border-radius: 16px !important;
+  background-color: rgba(255,255,255,.07) !important;
+  border: .5px solid rgba(255,255,255,.14) !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(56,189,248,.8) !important;
+  box-shadow: 0 0 0 3px rgba(56,189,248,.22) !important;
+}
+
+/* ---------- 标签栏：分段胶囊 ---------- */
+.tabs {
+  gap: 2px !important; padding: 4px !important; border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  border: .5px solid var(--g-stroke);
+  box-shadow: var(--g-hi);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  border-radius: 999px !important; border: none !important;
+  background: transparent !important; padding: 9px 16px !important;
+  transition: background .3s var(--spring), color .2s, box-shadow .3s;
+}
+.tab.active {
+  background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.14)) !important;
+  color: #fff !important;
+  box-shadow: var(--g-hi), 0 4px 14px rgba(0,0,0,.3);
+}
+
+/* ---------- 底部操作栏：悬浮玻璃胶囊 ---------- */
+.bottom-bar {
+  position: fixed !important;
+  left: 12px !important; right: 12px !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) * .45 + 8px) !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  gap: 8px !important;
+  border-radius: 34px !important;
+  border: .5px solid rgba(255,255,255,.22) !important;
+  background: rgba(24,32,54,.46) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
+  backdrop-filter: blur(30px) saturate(190%) !important;
+  box-shadow: var(--g-hi), 0 14px 36px rgba(0,0,0,.45) !important;
+}
+.bottom-bar button { border-radius: 26px !important; padding: 13px 8px !important; font-weight: 600; }
+.bottom-stats {
+  left: 24px !important; right: 24px !important;
+  bottom: calc(var(--bb-h, 60px) + env(safe-area-inset-bottom, 0px) * .45 + 18px) !important;
+  border-radius: 22px !important;
+  border: .5px solid var(--g-stroke) !important;
+  background: rgba(24,32,54,.46) !important;
+  -webkit-backdrop-filter: blur(24px) !important; backdrop-filter: blur(24px) !important;
+  box-shadow: var(--g-hi), var(--g-shadow);
+}
+body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* ---------- 弹窗：背景模糊 + 大圆角玻璃面板 ---------- */
+.modal {
+  background: rgba(0,0,0,.38) !important;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.modal-content {
+  border-radius: 32px !important;
+  border: .5px solid rgba(255,255,255,.22) !important;
+  background: linear-gradient(170deg, rgba(48,60,90,.80), rgba(22,30,52,.88)) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  box-shadow: var(--g-hi), 0 24px 60px rgba(0,0,0,.55) !important;
+  animation: iosPop .45s var(--spring);
+}
+@keyframes iosPop { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+.modal[style*="flex-end"] .modal-content, .modal-content { margin-bottom: calc(env(safe-area-inset-bottom, 0px) * .5 + 8px); }
+
+/* ---------- 其他细节 ---------- */
+.toast { border-radius: 999px !important; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+table { border-radius: 16px; }
+.progress-bar { border-radius: 999px !important; }
+::-webkit-scrollbar { width: 0; height: 0; }
+#vk-keypad { border-radius: 28px 28px 0 0 !important; -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); }
+
+/* 入场渐显不依赖过渡动画，避免动画不推进时卡片整块消失 */
+.fx-reveal, .fx-reveal.fx-shown { opacity: 1 !important; transform: none !important; transition: none !important; }
+
+/* ---------- 液态玻璃滑块（tabs-glass.js）---------- */
+.tabs { position: relative; }
+.tabs .tab { position: relative; z-index: 2; }
+.glass-ind {
+  position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,.14));
+  border: .5px solid rgba(255,255,255,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), inset 0 -8px 14px rgba(56,189,248,.14), 0 6px 18px rgba(0,0,0,.35);
+  -webkit-backdrop-filter: blur(6px) saturate(200%); backdrop-filter: blur(6px) saturate(200%);
+  opacity: 0; will-change: transform, width;
+}
+.tabs .tab.active { background: transparent !important; box-shadow: none !important; font-weight: 700; }
+.tab:active { transform: scale(.94); transition: transform .12s; }
+
+/* 自制数字键盘：保持方圆角矩形，不用胶囊 */
+#vk-keypad button { border-radius: 16px !important; box-shadow: none; }
+
+/* 原页面的 fadeIn 若动画不推进会停在透明，直接取消 */
+.caja-body, .tab-content { animation: none !important; opacity: 1 !important; }
+
+/* 首页应用卡片入场动画:不依赖动画推进,避免停在透明 */
+.app-card { animation: none !important; opacity: 1 !important; transform: none; }

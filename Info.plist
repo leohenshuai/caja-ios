@@ -4,6 +4,8 @@
 <key>CFBundleDevelopmentRegion</key><string>zh-Hans</string>
 <key>CFBundleLocalizations</key><array><string>zh-Hans</string><string>es</string><string>en</string></array>
 <key>CFBundleAllowMixedLocalizations</key><true/>
+<key>UIFileSharingEnabled</key><true/>
+<key>LSSupportsOpeningDocumentsInPlace</key><true/>
 <key>CFBundleIdentifier</key><string>com.leohenshuai.caja</string>
 <key>CFBundleName</key><string>Caja</string>
 <key>CFBundleDisplayName</key><string>Caja</string>
