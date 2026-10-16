@@ -62,7 +62,48 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         web.load(URLRequest(url: URL(string: "app://localhost/index.html")!))
         NotificationCenter.default.addObserver(self, selector: #selector(apply), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
-    @objc func apply() { UIApplication.shared.isIdleTimerDisabled = keepAwake }
+    var lastCheck = Date.distantPast
+    @objc func apply() {
+        UIApplication.shared.isIdleTimerDisabled = keepAwake
+        checkUpdate()
+    }
+
+    func checkUpdate() {
+        if Date().timeIntervalSince(lastCheck) < 600 { return }
+        lastCheck = Date()
+        guard let url = URL(string: "https://api.github.com/repos/leohenshuai/caja-ios/releases/latest") else { return }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            guard let self = self, let data = data,
+                  let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let tag = j["tag_name"] as? String,
+                  let latest = Int(tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))) else { return }
+            let cur = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
+            let skipped = UserDefaults.standard.integer(forKey: "skipVersion")
+            guard latest > cur, latest != skipped else { return }
+            var link = j["html_url"] as? String ?? ""
+            if let assets = j["assets"] as? [[String: Any]],
+               let a = assets.first(where: { ($0["name"] as? String ?? "").hasSuffix(".ipa") }),
+               let u = a["browser_download_url"] as? String { link = u }
+            let notes = (j["body"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            DispatchQueue.main.async { self.promptUpdate(latest, cur, link, notes) }
+        }.resume()
+    }
+
+    func promptUpdate(_ latest: Int, _ cur: Int, _ link: String, _ notes: String) {
+        if presentedViewController != nil { return }
+        let msg = "当前版本 \(cur),最新版本 \(latest)。\n下载后需要用 AltStore / Sideloadly 等工具重新签名安装。" + (notes.isEmpty ? "" : "\n\n" + notes)
+        let a = UIAlertController(title: "发现新版本", message: msg, preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "下载", style: .default) { _ in
+            if let u = URL(string: link) { UIApplication.shared.open(u) }
+        })
+        a.addAction(UIAlertAction(title: "跳过此版本", style: .destructive) { _ in
+            UserDefaults.standard.set(latest, forKey: "skipVersion")
+        })
+        a.addAction(UIAlertAction(title: "稍后", style: .cancel))
+        present(a, animated: true)
+    }
 
     func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) {
         if let b = m.body as? Bool {

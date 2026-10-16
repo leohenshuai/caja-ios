@@ -1,4 +1,6 @@
 name: build
+permissions:
+  contents: write
 on:
   workflow_dispatch:
   push:
@@ -15,6 +17,7 @@ jobs:
           mkdir -p build/Payload/Caja.app
           xcrun -sdk iphoneos swiftc -target arm64-apple-ios14.0 -sdk "$SDK" -O -o build/Payload/Caja.app/Caja Sources/main.swift
           cp Info.plist build/Payload/Caja.app/
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" build/Payload/Caja.app/Info.plist
           cp -R www build/Payload/Caja.app/www
           sips -z 120 120 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@2x.png
           sips -z 180 180 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@3x.png
@@ -23,3 +26,8 @@ jobs:
         with:
           name: Caja-ipa
           path: build/Caja.ipa
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ github.run_number }}" build/Caja.ipa --title "Caja build ${{ github.run_number }}" --notes "$(git log -1 --pretty=%s)"
