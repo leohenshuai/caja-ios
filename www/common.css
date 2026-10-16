@@ -1,0 +1,31 @@
+/* ===== 公共样式：自制数字键盘（inventory / monitor / payroll / finance 共用） ===== */
+/* 注意：splitter.html 使用定制版键盘样式，未使用本文件 */
+#vk-keypad { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9999; display: none; flex-direction: column; gap: 8px; padding: 10px; background: #161b22; border-top: 2px solid var(--cyan, #00e5ff); box-shadow: 0 -6px 24px rgba(0,0,0,.5); user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+#vk-keypad.vk-show { display: flex; }
+.vk-main { display: flex; gap: 8px; }
+.vk-toolbar { display: flex; gap: 8px; }
+.vk-toolbar button { flex: 1; min-height: 46px !important; font-size: 20px !important; background: #1a212b !important; }
+.vk-toolbar .vk-clear { color: #ff6b6b; font-size: 18px !important; }
+.vk-toolbar .vk-hide { color: var(--cyan, #00e5ff); font-size: 18px !important; }
+.vk-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.vk-side { display: flex; flex-direction: column; gap: 8px; width: 17%; }
+.vk-side button { flex: 1; min-height: 0; }
+#vk-keypad button { border: 1px solid #30363d; border-radius: 12px; background: #21262d; color: #fff; font-size: 34px; font-weight: 700; min-height: 74px; padding: 0; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; text-align: center; }
+#vk-keypad button:active { background: var(--cyan, #00e5ff); color: #000; transform: scale(.96); }
+.vk-func { font-size: 18px !important; }
+.vk-enter { font-size: 18px !important; } /* 与附近功能键（空格/⌫）样式一致 */
+body.vk-open { padding-bottom: 420px; }
+
+/* ===== 公共样式：全局基础（inventory / monitor / payroll / finance / arrival 共用） ===== */
+/* 补充变量：fx.css 的 :root 未覆盖 --blue / --grey，在此统一定义 */
+:root { --blue: #3b82f6; --grey: #64748b; }
+body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; overflow-x: hidden; padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); touch-action: manipulation; -webkit-touch-callout: none; }
+.header { position: sticky; top: 0; z-index: 100; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); display: flex; justify-content: space-between; align-items: center; }
+button { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+button:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) { button:active { transform: scale(0.95); } }
+button:hover { background: var(--surface-light); }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface); color: var(--text); padding: 12px 24px; border-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5); opacity: 0; transition: all 0.3s; z-index: 1000; font-size: 14px; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; }
+.modal.show { display: flex; }

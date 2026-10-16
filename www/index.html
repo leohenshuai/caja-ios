@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="管理系统PWA套件 - 六大系统整合门户">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>管理系统PWA套件</title>
+
+    <link rel="manifest" href="./manifest.webmanifest">
+<script src="./keepawake.js" defer></script>
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230ea5e9'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='white'%3E%F0%9F%92%BC%3C/text%3E%3C/svg%3E">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('[PWA] Portal ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('[PWA] Portal ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+
+    <style>
+        :root {
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --cyan: #06b6d4;
+            --purple: #8b5cf6;
+            --blue: #3b82f6;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            background: linear-gradient(90deg, var(--cyan), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Install prompt */
+        .install-bar {
+            display: none;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
+            margin: 16px;
+            padding: 14px 18px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .install-bar.show {
+            display: flex;
+        }
+
+        .install-bar-text {
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .install-bar-text strong {
+            color: var(--cyan);
+        }
+
+        .install-btn {
+            background: var(--cyan);
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .install-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.online {
+            background: var(--green);
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.offline {
+            background: var(--red);
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+        }
+
+        /* App Grid */
+        .container {
+            padding: 16px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 14px;
+            background: var(--cyan);
+            border-radius: 2px;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .app-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            color: var(--text);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--cyan), var(--purple));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .app-card:hover::before,
+        .app-card:active::before {
+            opacity: 1;
+        }
+
+        .app-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-card:active {
+            transform: scale(0.98);
+        }
+
+        .app-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .app-icon.finance {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
+            color: var(--cyan);
+        }
+
+        .app-icon.settlement {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%);
+            color: var(--green);
+        }
+
+        .app-icon.inventory {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
+            color: var(--purple);
+        }
+
+        .app-icon.caja {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(239, 68, 68, 0.25) 100%);
+            color: var(--yellow);
+        }
+
+        .app-icon.salary {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%);
+            color: #a78bfa;
+        }
+
+        .app-icon.arrival {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(239, 68, 68, 0.18) 100%);
+            color: #fbbf24;
+        }
+
+        .app-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .app-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .app-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .app-status.cached {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+        }
+
+        .app-status.uncached {
+            background: rgba(148, 163, 184, 0.1);
+            color: var(--text-muted);
+        }
+
+        .suite-backup-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 17px 18px;
+            margin: 0 0 16px;
+            border: 1px solid rgba(6, 182, 212, 0.28);
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.10), rgba(139, 92, 246, 0.08));
+        }
+
+        .suite-backup-title {
+            margin-bottom: 4px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .suite-backup-desc {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .suite-backup-btn {
+            flex: 0 0 auto;
+            min-height: 42px;
+            padding: 0 16px;
+            border: 1px solid rgba(6, 182, 212, 0.42);
+            border-radius: 11px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(139, 92, 246, 0.22));
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+        }
+
+        .suite-backup-btn:active { transform: scale(0.97); }
+        .suite-backup-btn:disabled { cursor: wait; opacity: 0.65; }
+
+        .suite-backup-actions {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 8px;
+        }
+
+        .suite-restore-btn {
+            background: rgba(15, 23, 42, 0.56);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        .suite-status-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.62);
+        }
+
+        .suite-status-main { min-width: 0; }
+        .suite-status-title { color: var(--text); font-size: 13px; font-weight: 700; }
+        .suite-status-list { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px; }
+        .suite-status-item { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+        .suite-status-item strong { color: var(--green); font-weight: 600; }
+        .suite-status-item.warning strong { color: #f59e0b; }
+        .suite-update-btn {
+            flex: 0 0 auto;
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid rgba(6, 182, 212, 0.36);
+            border-radius: 9px;
+            background: rgba(6, 182, 212, 0.10);
+            color: var(--cyan);
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .suite-update-btn:disabled { cursor: wait; opacity: 0.65; }
+
+        /* Info section */
+        .info-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 8px;
+        }
+
+        .info-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--cyan);
+            margin-bottom: 8px;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+
+        .info-text code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--cyan);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px 16px 40px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (min-width: 600px) {
+            .app-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 599px) {
+            .suite-status-panel { align-items: stretch; flex-direction: column; }
+            .suite-update-btn { width: 100%; }
+            .suite-backup-panel { align-items: stretch; flex-direction: column; }
+            .suite-backup-actions { width: 100%; }
+            .suite-backup-btn { flex: 1 1 0; padding: 0 10px; }
+        }
+
+        @media (min-width: 900px) {
+            .app-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .app-card {
+            animation: fadeIn 0.4s ease both;
+        }
+
+        .app-card:nth-child(1) { animation-delay: 0.05s; }
+        .app-card:nth-child(2) { animation-delay: 0.1s; }
+        .app-card:nth-child(3) { animation-delay: 0.15s; }
+        .app-card:nth-child(4) { animation-delay: 0.2s; }
+        .app-card:nth-child(5) { animation-delay: 0.25s; }
+        .app-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* ============ 特效（已精简：移除粒子画布/极光光晕/鼠标聚光灯/流星，
+           这些是持续每帧重绘或持续 filter:blur 动画，属于卡顿的主要来源） ============ */
+
+        /* 内容层提到特效之上 */
+        .header, .status-bar, .install-bar, .container, .footer {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 标题渐变流光 */
+        .header h1 {
+            background: linear-gradient(90deg, var(--cyan), var(--purple), var(--green), var(--cyan));
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientFlow 6s linear infinite;
+        }
+        @keyframes gradientFlow {
+            to { background-position: 300% 0; }
+        }
+
+        /* 头部图标悬浮 + 发光 */
+        .header-icon {
+            animation: iconFloat 3.5s ease-in-out infinite;
+            box-shadow: 0 0 24px rgba(6, 182, 212, 0.35);
+        }
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* 卡片玻璃拟态 + 光泽扫过 + 3D倾斜 */
+        .app-card {
+            transform-style: preserve-3d;
+            transition: transform 0.15s ease, box-shadow 0.25s ease, border-color 0.25s;
+            will-change: transform;
+        }
+        .app-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -80%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.6s ease;
+            pointer-events: none;
+        }
+        .app-card:hover::after {
+            left: 130%;
+        }
+        .app-card:hover {
+            border-color: rgba(6, 182, 212, 0.6);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 20px rgba(6, 182, 212, 0.18);
+        }
+        .app-icon { transition: transform 0.25s ease; }
+        .app-card:hover .app-icon { transform: scale(1.12) rotate(-4deg); }
+
+        /* 状态点呼吸 */
+        .status-dot.online {
+            animation: dotPulse 2s ease-in-out infinite;
+        }
+        @keyframes dotPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.5); }
+            50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.95); }
+        }
+
+        /* 点击涟漪 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.35);
+            transform: scale(0);
+            animation: rippleAnim 0.55s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes rippleAnim {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* 卡片霓虹流光边框（仅 hover 时播放） */
+        .app-card::before {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
+            background-size: 200% 100%;
+            animation: borderFlow 2.5s linear infinite;
+            opacity: 0;
+        }
+        .app-card:hover::before { opacity: 1; }
+        @keyframes borderFlow {
+            to { background-position: -200% 0; }
+        }
+
+        /* 标题霓虹光晕 + 副标题呼吸 */
+        .header h1 {
+            filter: drop-shadow(0 0 14px rgba(6,182,212,0.35));
+        }
+        .header p {
+            animation: subtitleBreath 4s ease-in-out infinite;
+        }
+        @keyframes subtitleBreath {
+            0%, 100% { opacity: 0.65; }
+            50% { opacity: 1; text-shadow: 0 0 10px rgba(139,92,246,0.5); }
+        }
+
+        /* 区块标题竖条流光 */
+        .section-title::before {
+            background: linear-gradient(180deg, var(--cyan), var(--purple));
+            box-shadow: 0 0 8px rgba(6,182,212,0.6);
+        }
+
+        /* 打字机光标 */
+        .type-cursor {
+            color: var(--cyan);
+            animation: cursorBlink 0.9s step-end infinite;
+        }
+        @keyframes cursorBlink {
+            50% { opacity: 0; }
+        }
+
+        /* 已缓存徽章发光 */
+        .app-status.cached {
+            box-shadow: 0 0 10px rgba(16,185,129,0.35);
+            animation: cachedGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes cachedGlow {
+            0%, 100% { box-shadow: 0 0 4px rgba(16,185,129,0.2); }
+            50% { box-shadow: 0 0 12px rgba(16,185,129,0.5); }
+        }
+    </style>
+    <link rel="stylesheet" href="./fx.css">
+</head>
+<body>
+
+<div class="header">
+    <div class="header-icon">&#x1F4BC;</div>
+    <h1>管理系统 PWA 套件</h1>
+    <p id="typewriter"><span id="typeText"></span><span class="type-cursor">|</span></p>
+</div>
+
+<div class="status-bar" id="statusBar">
+    <span class="status-dot online" id="statusDot"></span>
+    <span id="statusText">已连接网络</span>
+</div>
+
+<div class="install-bar" id="installBar">
+    <span class="install-bar-text">将此应用<strong>安装到主屏幕</strong>，可离线使用所有功能</span>
+    <button class="install-btn" id="installBtn" onclick="installPWA()">立即安装</button>
+</div>
+
+<div class="container">
+    <section class="suite-status-panel" aria-labelledby="suiteStatusTitle">
+        <div class="suite-status-main">
+            <div class="suite-status-title" id="suiteStatusTitle">版本与运行状态</div>
+            <div class="suite-status-list" aria-live="polite">
+                <span class="suite-status-item">版本：<strong id="suiteVersion">v44</strong></span>
+                <span class="suite-status-item">运行：<strong id="suiteRuntime">正在检测…</strong></span>
+                <span class="suite-status-item">更新：<strong id="suiteUpdateState">等待检查</strong></span>
+                <span class="suite-status-item">最近检查：<strong id="suiteLastCheck">尚未检查</strong></span>
+                <span class="suite-status-item warning">定时任务：<strong>页面打开时运行 · 错过后补执行</strong></span>
+            </div>
+        </div>
+        <button class="suite-update-btn" id="suiteUpdateBtn" type="button" onclick="checkSuiteUpdate()">立即检查更新</button>
+    </section>
+
+    <div class="section-title">应用列表</div>
+
+    <div class="app-grid">
+        <a class="app-card" href="./finance.html" onclick="return openApp(this.href)">
+            <div class="app-icon finance">&#x8D22;</div>
+            <div class="app-name">财务联动系统</div>
+            <div class="app-desc">现金清点、账目核算、加权系数、实时报表</div>
+            <div class="app-status uncached" id="status-finance">待缓存</div>
+        </a>
+
+        <a class="app-card" href="./splitter.html" onclick="return openApp(this.href)">
+            <div class="app-icon settlement">&#x62C6;</div>
+            <div class="app-name">大数拆分器</div>
+            <div class="app-desc">大数按上限智能拆分、手动/自动分段、备注配色</div>
+            <div class="app-status uncached" id="status-splitter">待缓存</div>
+        </a>
+
+        <a class="app-card" href="./inventory.html" onclick="return openApp(this.href)">
+            <div class="app-icon inventory">&#x5E93;</div>
+            <div class="app-name">现金箱清点</div>
+            <div class="app-desc">面值录入、差额监控、库存管理</div>
+            <div class="app-status uncached" id="status-inventory">待缓存</div>
+        </a>
+
+        <a class="app-card" href="./monitor.html" onclick="return openApp(this.href)">
+            <div class="app-icon caja">C</div>
+            <div class="app-name">CAJA 监控</div>
+            <div class="app-desc">多Caja实时监控、结算、关闭管理</div>
+            <div class="app-status uncached" id="status-caja">待缓存</div>
+        </a>
+
+        <a class="app-card" href="./payroll.html" onclick="return openApp(this.href)">
+            <div class="app-icon salary">&#x85AA;</div>
+            <div class="app-name">综合薪资管理</div>
+            <div class="app-desc">员工薪资录入、周期管理、对账报表</div>
+            <div class="app-status uncached" id="status-salary">待缓存</div>
+        </a>
+
+        <a class="app-card" href="./arrival.html" onclick="return openApp(this.href)">
+            <div class="app-icon arrival">&#x8D44;</div>
+            <div class="app-name">资金到账管理</div>
+            <div class="app-desc">Débito/Crédito/Prepaid 到账日程、自动结转、备份恢复</div>
+            <div class="app-status uncached" id="status-arrival">待缓存</div>
+        </a>
+    </div>
+
+    <div class="suite-backup-panel">
+        <div class="suite-backup-copy">
+            <div class="suite-backup-title">六系统总备份</div>
+            <div class="suite-backup-desc">统一导出或恢复财务、拆分器、现金箱、CAJA、薪资和资金到账的全部本地数据</div>
+        </div>
+        <div class="suite-backup-actions">
+            <button class="suite-backup-btn" id="suiteBackupBtn" type="button" onclick="exportAllSystemsBackup()">
+                <span aria-hidden="true">📦</span>
+                <span id="suiteBackupBtnText">导出全部备份</span>
+            </button>
+            <button class="suite-backup-btn suite-restore-btn" id="suiteRestoreBtn" type="button" onclick="document.getElementById('suiteRestoreFile').click()">
+                <span aria-hidden="true">♻️</span>
+                <span id="suiteRestoreBtnText">恢复全部备份</span>
+            </button>
+            <input id="suiteRestoreFile" type="file" accept="application/json,.json" hidden onchange="restoreAllSystemsBackup(event)">
+        </div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-title">使用提示</div>
+        <div class="info-text">
+            • 首次使用各系统时，Service Worker 会自动缓存，之后可<strong>离线使用</strong><br>
+            • 每个系统都是独立的 PWA，也可单独添加到主屏幕<br>
+            • 所有数据保存在本地浏览器中，不会上传到服务器<br>
+            • 支持 <code>导出/导入 JSON</code> 进行数据备份和迁移<br>
+            • 检测到新版本后会自动更新并刷新一次，无需清除浏览器数据<br>
+            • iOS Safari 用户请使用"添加到主屏幕"功能
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    管理系统PWA套件 v1.0 · 纯前端离线应用 · 数据存储于本地
+</div>
+
+<script>
+// ==========================================
+// All systems backup
+// ==========================================
+const SUITE_DATABASES = {
+    finance: ['financeDB', 'CashAllocationDB'],
+    inventory: ['CashBoxDB'],
+    monitor: ['CajaDB'],
+    payroll: ['SalaryDB']
+};
+
+function readAllLocalStorage() {
+    const result = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key !== null) result[key] = localStorage.getItem(key);
+    }
+    return result;
+}
+
+async function getExistingDatabaseNames() {
+    if (!indexedDB.databases) return null;
+    try {
+        const databases = await indexedDB.databases();
+        return new Set(databases.map(item => item.name).filter(Boolean));
+    } catch (_) {
+        return null;
+    }
+}
+
+function dumpObjectStore(db, storeName) {
+    return new Promise((resolve, reject) => {
+        try {
+            const transaction = db.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const valuesRequest = store.getAll();
+            const keysRequest = store.getAllKeys();
+            transaction.oncomplete = () => {
+                const values = valuesRequest.result || [];
+                const keys = keysRequest.result || [];
+                resolve({
+                    keyPath: store.keyPath,
+                    autoIncrement: store.autoIncrement,
+                    records: values.map((value, index) => ({ key: keys[index], value }))
+                });
+            };
+            transaction.onerror = () => reject(transaction.error || new Error('读取数据表失败'));
+            transaction.onabort = () => reject(transaction.error || new Error('读取数据表中止'));
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function dumpDatabase(name, existingNames) {
+    return new Promise((resolve) => {
+        if (existingNames && !existingNames.has(name)) {
+            resolve({ name, exists: false, version: null, stores: {} });
+            return;
+        }
+
+        let createdDuringCheck = false;
+        const request = indexedDB.open(name);
+        request.onupgradeneeded = () => { createdDuringCheck = true; };
+        request.onerror = () => resolve({ name, exists: false, error: '无法读取数据库', stores: {} });
+        request.onblocked = () => resolve({ name, exists: true, error: '数据库正被其他页面占用', stores: {} });
+        request.onsuccess = async () => {
+            const db = request.result;
+            if (createdDuringCheck && db.objectStoreNames.length === 0) {
+                const version = db.version;
+                db.close();
+                indexedDB.deleteDatabase(name);
+                resolve({ name, exists: false, version, stores: {} });
+                return;
+            }
+            const output = { name, exists: true, version: db.version, stores: {} };
+            try {
+                for (const storeName of Array.from(db.objectStoreNames)) {
+                    output.stores[storeName] = await dumpObjectStore(db, storeName);
+                }
+            } catch (error) {
+                output.error = error.message || String(error);
+            } finally {
+                db.close();
+            }
+            resolve(output);
+        };
+    });
+}
+
+async function exportAllSystemsBackup() {
+    const button = document.getElementById('suiteBackupBtn');
+    const buttonText = document.getElementById('suiteBackupBtnText');
+    if (button.disabled) return;
+    button.disabled = true;
+    buttonText.textContent = '正在整理六个系统…';
+
+    try {
+        if (!window.indexedDB) throw new Error('当前浏览器不支持读取本地数据库');
+        const existingNames = await getExistingDatabaseNames();
+        const databaseNames = [...new Set(Object.values(SUITE_DATABASES).flat())];
+        const dumps = {};
+        for (const name of databaseNames) dumps[name] = await dumpDatabase(name, existingNames);
+
+        const allLocalStorage = readAllLocalStorage();
+        const backup = {
+            backupType: 'management-suite-full-backup',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            systems: {
+                finance: { databases: SUITE_DATABASES.finance.map(name => dumps[name]) },
+                splitter: { persistentData: null, note: '大数拆分器不保存持久数据' },
+                inventory: { databases: SUITE_DATABASES.inventory.map(name => dumps[name]) },
+                monitor: {
+                    databases: SUITE_DATABASES.monitor.map(name => dumps[name]),
+                    localStorage: { caja_config: allLocalStorage.caja_config ?? null }
+                },
+                payroll: { databases: SUITE_DATABASES.payroll.map(name => dumps[name]) },
+                arrival: {
+                    localStorage: { 'fund-arrival-manager-v1': allLocalStorage['fund-arrival-manager-v1'] ?? null }
+                }
+            },
+            localStorageSnapshot: allLocalStorage
+        };
+
+        const date = new Date();
+        const pad = value => String(value).padStart(2, '0');
+        const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `六系统全部备份_${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        buttonText.textContent = '导出完成';
+        setTimeout(() => { buttonText.textContent = '导出全部备份'; }, 1800);
+    } catch (error) {
+        console.error('[Backup] Export failed:', error);
+        buttonText.textContent = '导出失败，请重试';
+        setTimeout(() => { buttonText.textContent = '导出全部备份'; }, 2200);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function restoreObjectStore(db, storeName, storeBackup) {
+    return new Promise((resolve, reject) => {
+        try {
+            const transaction = db.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            store.clear();
+            for (const record of storeBackup.records) {
+                if (store.keyPath === null) store.put(record.value, record.key);
+                else store.put(record.value);
+            }
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error || new Error(`恢复 ${storeName} 失败`));
+            transaction.onabort = () => reject(transaction.error || new Error(`恢复 ${storeName} 中止`));
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+function openDatabaseForRestore(databaseBackup, existingNames) {
+    return new Promise((resolve, reject) => {
+        const exists = existingNames ? existingNames.has(databaseBackup.name) : true;
+        const request = exists
+            ? indexedDB.open(databaseBackup.name)
+            : indexedDB.open(databaseBackup.name, Math.max(1, Number(databaseBackup.version) || 1));
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            for (const [storeName, storeBackup] of Object.entries(databaseBackup.stores)) {
+                if (!db.objectStoreNames.contains(storeName)) {
+                    const options = { autoIncrement: Boolean(storeBackup.autoIncrement) };
+                    if (storeBackup.keyPath !== null && storeBackup.keyPath !== undefined) options.keyPath = storeBackup.keyPath;
+                    db.createObjectStore(storeName, options);
+                }
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error(`无法打开 ${databaseBackup.name}`));
+        request.onblocked = () => reject(new Error(`${databaseBackup.name} 正被其他页面占用，请关闭其他系统页面后重试`));
+    });
+}
+
+function validateFullBackup(backup) {
+    const requiredSystems = ['finance', 'splitter', 'inventory', 'monitor', 'payroll', 'arrival'];
+    if (!backup || backup.backupType !== 'management-suite-full-backup' || Number(backup.version) !== 1) {
+        throw new Error('这不是本套件导出的总备份文件');
+    }
+    if (!backup.systems || !requiredSystems.every(name => Object.prototype.hasOwnProperty.call(backup.systems, name))) {
+        throw new Error('备份文件缺少系统数据');
+    }
+    const databases = [
+        ...(backup.systems.finance.databases || []),
+        ...(backup.systems.inventory.databases || []),
+        ...(backup.systems.monitor.databases || []),
+        ...(backup.systems.payroll.databases || [])
+    ];
+    for (const database of databases) {
+        if (!database || typeof database.name !== 'string' || typeof database.stores !== 'object') {
+            throw new Error('备份中的数据库格式不正确');
+        }
+        for (const store of Object.values(database.stores)) {
+            if (!store || !Array.isArray(store.records)) throw new Error('备份中的数据表格式不正确');
+        }
+    }
+    return databases.filter(database => database.exists !== false);
+}
+
+async function restoreAllSystemsBackup(event) {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const button = document.getElementById('suiteRestoreBtn');
+    const buttonText = document.getElementById('suiteRestoreBtnText');
+
+    try {
+        const backup = JSON.parse(await file.text());
+        const databases = validateFullBackup(backup);
+        const exportedTime = backup.exportedAt ? new Date(backup.exportedAt).toLocaleString() : '未知时间';
+        if (!window.confirm(`将使用 ${exportedTime} 的总备份覆盖六个系统当前数据。此操作不可撤销，是否继续？`)) return;
+
+        button.disabled = true;
+        buttonText.textContent = '正在恢复…';
+        const existingNames = await getExistingDatabaseNames();
+        for (const databaseBackup of databases) {
+            const db = await openDatabaseForRestore(databaseBackup, existingNames);
+            try {
+                for (const [storeName, storeBackup] of Object.entries(databaseBackup.stores)) {
+                    if (!db.objectStoreNames.contains(storeName)) throw new Error(`${databaseBackup.name} 缺少数据表 ${storeName}`);
+                    await restoreObjectStore(db, storeName, storeBackup);
+                }
+            } finally {
+                db.close();
+            }
+        }
+
+        if (backup.localStorageSnapshot && typeof backup.localStorageSnapshot === 'object') {
+            for (const [key, value] of Object.entries(backup.localStorageSnapshot)) {
+                if (typeof value === 'string') localStorage.setItem(key, value);
+            }
+        }
+        buttonText.textContent = '恢复完成';
+        window.alert('六个系统的数据已恢复完成，页面将自动刷新。');
+        window.location.reload();
+    } catch (error) {
+        console.error('[Backup] Restore failed:', error);
+        window.alert(`恢复失败：${error.message || '备份文件无效'}`);
+        buttonText.textContent = '恢复全部备份';
+    } finally {
+        button.disabled = false;
+        input.value = '';
+    }
+}
+
+// ==========================================
+// PWA Install Prompt
+// ==========================================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBar').classList.add('show');
+});
+
+window.addEventListener('appinstalled', () => {
+    document.getElementById('installBar').classList.remove('show');
+    deferredPrompt = null;
+    console.log('[PWA] App was installed');
+});
+
+function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('[PWA] User accepted install');
+        }
+        deferredPrompt = null;
+    });
+}
+
+// ==========================================
+// Network Status
+// ==========================================
+function updateOnlineStatus() {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    if (navigator.onLine) {
+        dot.className = 'status-dot online';
+        text.textContent = '已连接网络';
+    } else {
+        dot.className = 'status-dot offline';
+        text.textContent = '离线模式 - 所有功能仍可用';
+    }
+    updateSuiteRuntime();
+}
+
+function updateSuiteRuntime(cacheReady) {
+    const el = document.getElementById('suiteRuntime');
+    if (!el) return;
+    if (!navigator.onLine) {
+        el.textContent = '离线运行';
+    } else if (cacheReady === true) {
+        el.textContent = '在线 · 离线缓存已就绪';
+    } else {
+        el.textContent = '在线运行';
+    }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ==========================================
+// Cache Status Check
+// ==========================================
+async function checkCacheStatus() {
+    if (!('caches' in window)) return;
+    
+    try {
+        const pages = {
+            'finance': './finance.html',
+            'splitter': './splitter.html',
+            'inventory': './inventory.html',
+            'caja': './monitor.html',
+            'salary': './payroll.html',
+            'arrival': './arrival.html'
+        };
+        let allCached = true;
+        for (const [sys, url] of Object.entries(pages)) {
+            const cached = await caches.match(url, { ignoreSearch: true });
+            const el = document.getElementById('status-' + sys);
+            if (el && cached) {
+                el.className = 'app-status cached';
+                el.textContent = '已缓存';
+            } else {
+                allCached = false;
+            }
+        }
+        updateSuiteRuntime(allCached);
+        return allCached;
+    } catch (e) {
+        console.warn('Cache check failed:', e);
+        return false;
+    }
+}
+
+// ==========================================
+// Version and update status
+// ==========================================
+function formatUpdateTime(timestamp) {
+    if (!timestamp) return '尚未检查';
+    return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderSuiteUpdateStatus(detail) {
+    detail = detail || {};
+    const labels = {
+        idle: '等待检查', checking: '正在检查…', current: '已是最新版本',
+        updating: '发现更新，正在安装…', reloading: '更新完成，正在刷新…',
+        offline: '离线，暂不检查', unsupported: '不支持自动更新', error: '检查失败，可重试'
+    };
+    const version = document.getElementById('suiteVersion');
+    const state = document.getElementById('suiteUpdateState');
+    const last = document.getElementById('suiteLastCheck');
+    const button = document.getElementById('suiteUpdateBtn');
+    if (version) version.textContent = detail.version || 'v44';
+    if (state) state.textContent = labels[detail.state] || detail.message || '等待检查';
+    if (last) last.textContent = formatUpdateTime(detail.checkedAt);
+    if (button) {
+        const busy = detail.state === 'checking' || detail.state === 'updating' || detail.state === 'reloading';
+        button.disabled = busy;
+        button.textContent = busy ? '正在检查…' : '立即检查更新';
+    }
+}
+
+window.addEventListener('suite-update-status', event => renderSuiteUpdateStatus(event.detail));
+
+function checkSuiteUpdate() {
+    if (window.SuiteUpdater) {
+        window.SuiteUpdater.checkNow();
+    } else {
+        renderSuiteUpdateStatus({ state: 'unsupported', version: 'v44', checkedAt: Date.now() });
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.SuiteUpdater) renderSuiteUpdateStatus(window.SuiteUpdater.getState());
+    updateSuiteRuntime();
+});
+
+// 首次加载时 SW 可能尚未完成预缓存，轮询直到全部缓存完成
+(async function watchCacheStatus() {
+    for (let i = 0; i < 30; i++) {
+        const done = await checkCacheStatus();
+        if (done) return;
+        await new Promise(r => setTimeout(r, 2000));
+    }
+})();
+
+// SW 激活/更新完成后立即重新检测
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        setTimeout(checkCacheStatus, 500);
+    });
+    navigator.serviceWorker.ready.then(() => setTimeout(checkCacheStatus, 500));
+}
+
+// iOS 上从其他应用切回时重新检测一次
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkCacheStatus();
+});
+
+// ==========================================
+// App Launcher
+// ==========================================
+function openApp(href) {
+    // Normal navigation - the SW will handle offline serving
+    return true;
+}
+
+// ==========================================
+// 卡片3D倾斜 + 点击涟漪（仅在交互瞬间触发，成本很低）
+// ==========================================
+document.querySelectorAll('.app-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const rx = ((e.clientY - rect.top) / rect.height - 0.5) * -10;
+        const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 10;
+        card.style.transform = 'perspective(600px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) translateY(-3px)';
+    });
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+    card.addEventListener('click', e => {
+        const rect = card.getBoundingClientRect();
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+        ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+        card.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    });
+});
+
+// ==========================================
+// 打字机副标题
+// ==========================================
+(function () {
+    const el = document.getElementById('typeText');
+    const lines = ['财务 · 拆分 · 库存 · CAJA · 薪资 五大系统整合', '纯前端离线运行 · 数据存储于本地', '祝今天开张大吉，数钱数到手软'];
+    let li = 0, ci = 0, deleting = false;
+    function type() {
+        const line = lines[li];
+        if (!deleting) {
+            el.textContent = line.slice(0, ++ci);
+            if (ci === line.length) { deleting = true; setTimeout(type, 2200); return; }
+            setTimeout(type, 70);
+        } else {
+            el.textContent = line.slice(0, --ci);
+            if (ci === 0) { deleting = false; li = (li + 1) % lines.length; setTimeout(type, 400); return; }
+            setTimeout(type, 30);
+        }
+    }
+    type();
+})();
+</script>
+
+</body>
+</html>

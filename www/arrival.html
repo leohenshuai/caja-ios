@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="按具体日期管理 débito、crédito 与 prepaid 到账记录。">
+  <title>资金到账管理器</title>
+<script src="./keepawake.js" defer></script>
+  <link rel="stylesheet" href="./fx.css">
+  <link rel="stylesheet" href="./common.css">
+  <style>
+    :root{--ink:#17211b;--muted:#68736d;--paper:#f4f0e7;--card:#fffdf8;--line:#d9d4c8;--green:#1d5c45;--lime:#d7e6a2;--amber:#d48620;--red:#a44b43;--blue:#315b78;--shadow:0 10px 32px rgba(23,33,27,.08)}
+    *{box-sizing:border-box} body{margin:0;padding:0;background:var(--paper);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit} button{cursor:pointer}.shell{max-width:1240px;margin:auto;padding:28px 22px 60px}
+    header{display:flex;justify-content:space-between;gap:22px;align-items:flex-end;margin-bottom:28px}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);font-weight:800}.title{font-family:Georgia,serif;font-size:clamp(34px,5vw,58px);line-height:1;margin:6px 0 8px}.sub{color:var(--muted);max-width:620px;margin:0}.today{background:var(--ink);color:white;padding:12px 16px;border-radius:14px;white-space:nowrap}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}.stat small{color:var(--muted);display:block}.stat strong{font:700 28px/1.2 Georgia,serif;display:block;margin-top:5px}.stat.pending{background:var(--lime);border-color:#bdce80}
+    .layout{display:grid;grid-template-columns:360px 1fr;gap:18px}.panel{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.panel-head h2{font:700 22px Georgia,serif;margin:0}.panel-body{padding:20px}
+    label{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}.field{margin-bottom:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}input,select,textarea{width:100%;border:1px solid var(--line);background:#fff;padding:11px 12px;border-radius:11px;color:var(--ink);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(29,92,69,.1)}textarea{resize:vertical;min-height:70px}.hint{font-size:12px;color:var(--muted);margin-top:5px}.actions{display:flex;gap:8px}.primary,.secondary,.danger,.tiny{border:0;border-radius:11px;padding:11px 14px;font-weight:750}.primary{background:var(--green);color:#fff;flex:1}.secondary{background:#ece8de;color:var(--ink)}.danger{background:#f4dfdc;color:var(--red)}.tiny{padding:7px 10px;font-size:12px;background:#ece8de}
+    .settings{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line)}.settings h3{font-size:14px;margin:0 0 12px}.days{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.days input{padding:9px 7px;text-align:center}.days label{text-transform:none;letter-spacing:0;text-align:center;font-size:11px}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.toolbar input{width:180px}.toolbar select{width:auto}.table-wrap{overflow:auto}.records{width:100%;border-collapse:collapse;min-width:760px}.records th{text-align:left;padding:11px 14px;background:#f0ece3;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.records td{padding:14px;border-top:1px solid #ebe6dc;vertical-align:middle}.records tr:hover td{background:#fbf8f1}.money{font-weight:800;font-variant-numeric:tabular-nums}.type{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase}.debito{background:#dcebe3;color:var(--green)}.credito{background:#e0eaf1;color:var(--blue)}.prepaid{background:#f5e5ce;color:#855414}.status{font-size:12px;font-weight:750}.status.pending{color:var(--amber)}.status.arrived{color:var(--green)}.overdue{color:var(--red)}.date-note{display:block;font-size:11px;color:var(--muted)}.record-actions{display:flex;gap:5px}.empty{text-align:center;padding:70px 20px;color:var(--muted)}.empty b{display:block;color:var(--ink);font:700 22px Georgia,serif;margin-bottom:6px}.footnote{margin:14px 4px;color:var(--muted);font-size:12px}.modal{position:fixed;inset:0;background:rgba(23,33,27,.45);display:none;place-items:center;padding:20px}.modal.open{display:grid}.dialog{background:var(--card);padding:22px;border-radius:18px;max-width:420px;width:100%;box-shadow:0 22px 70px rgba(0,0,0,.24)}.dialog h3{font:700 24px Georgia,serif;margin:0 0 8px}.dialog p{color:var(--muted)}
+    @media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.layout{grid-template-columns:1fr}header{align-items:flex-start}.today{display:none}}@media(max-width:560px){.shell{padding:20px 12px 40px}.stats{grid-template-columns:1fr 1fr}.stat{padding:14px}.stat strong{font-size:21px}.row{grid-template-columns:1fr}.panel-head{align-items:flex-start;gap:12px;flex-direction:column}.toolbar{width:100%}.toolbar input{width:100%}.title{font-size:39px}}
+
+    /* 与管理系统 PWA 套件一致的深色科技风 */
+    :root{--ink:#f1f5f9;--muted:#94a3b8;--paper:#0f172a;--card:#1e293b;--line:#334155;--green:#10b981;--lime:rgba(16,185,129,.14);--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--cyan:#06b6d4;--purple:#8b5cf6;--shadow:0 12px 32px rgba(0,0,0,.28)}
+    body{background:radial-gradient(circle at 15% 0,rgba(6,182,212,.10),transparent 34%),radial-gradient(circle at 90% 18%,rgba(139,92,246,.10),transparent 30%),rgba(15,23,42,.50)}
+    .eyebrow{color:var(--cyan)}
+    .title{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+    .today{background:rgba(30,41,59,.92);border:1px solid var(--line);box-shadow:var(--shadow)}
+    .stat,.panel,.dialog{background:rgba(30,41,59,.50);border-color:var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+    .stat.pending{background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(6,182,212,.11));border-color:rgba(16,185,129,.45)}
+    .panel-head,.settings{border-color:var(--line)}
+    .panel-head h2,.dialog h3{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+    input,select,textarea{background:#0f172a;border-color:var(--line);color:var(--ink);color-scheme:dark}
+    input::placeholder,textarea::placeholder{color:#64748b}
+    input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(6,182,212,.14)}
+    .primary{background:linear-gradient(135deg,var(--cyan),#0891b2);color:#fff;box-shadow:0 6px 18px rgba(6,182,212,.18)}
+    .secondary,.tiny{background:#334155;color:var(--ink);border:1px solid #475569}
+    .danger{background:rgba(239,68,68,.16);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+    button{transition:transform .15s ease,filter .2s ease,box-shadow .2s ease}button:hover{filter:brightness(1.12);box-shadow:0 0 16px rgba(6,182,212,.16)}button:active{transform:scale(.97)}
+    .records th{background:#172033;color:var(--muted)}.records td{border-color:var(--line)}.records tr:hover td{background:rgba(51,65,85,.45)}
+    .debito{background:rgba(16,185,129,.16);color:#6ee7b7}.credito{background:rgba(59,130,246,.17);color:#93c5fd}.prepaid{background:rgba(245,158,11,.16);color:#fcd34d}
+    .status.arrived{color:#34d399}.status.pending{color:#fbbf24}.overdue{color:#f87171}
+    .modal{background:rgba(2,6,23,.76)}
+    /* 简洁布局与按日到账日程 */
+    .shell{max-width:1080px;padding-top:20px}header{align-items:center;margin-bottom:16px}.eyebrow{display:none}.title{font-size:clamp(27px,4vw,38px);margin:0}.sub{display:none}.stats{gap:9px;margin-bottom:12px}.stat{padding:13px 15px;border-radius:12px}.stat strong{font-family:inherit;font-size:21px}.panel{border-radius:13px}.panel-head{padding:13px 15px}.panel-head h2{font-size:17px}.panel-body{padding:15px}.layout{grid-template-columns:320px 1fr;gap:12px;align-items:start}
+    .schedule{margin-bottom:14px}.schedule-list{padding:8px 16px 16px;display:grid;gap:10px}.day-group{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:rgba(17,27,45,.50);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}.day-group.overdue-group{border-color:rgba(239,68,68,.55);box-shadow:0 0 0 1px rgba(239,68,68,.08)}.day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:rgba(23,32,51,.50)}.overdue-group .day-head{background:rgba(127,29,29,.22)}.day-title{font-weight:800}.day-title small{font-weight:500;color:var(--muted);margin-left:7px}.day-head-right{display:flex;align-items:center;gap:10px}.day-total{font-weight:800;color:#67e8f9;text-align:right}.day-confirm{padding:6px 9px;font-size:11px}.day-items{display:grid}.day-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line)}.day-item:first-child{border-top:0}.item-main{min-width:0}.item-main strong{margin-left:8px}.item-note{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}.item-amount{font-size:16px;font-weight:850;white-space:nowrap}.date-badge{display:inline-flex;padding:3px 8px;border-radius:999px;background:rgba(6,182,212,.14);color:#67e8f9;font-size:11px;font-weight:800}.date-badge.today{background:rgba(245,158,11,.16);color:#fbbf24}.date-badge.overdue{background:rgba(239,68,68,.16);color:#f87171}.schedule-empty{padding:34px 16px;text-align:center;color:var(--muted)}
+    label{text-transform:none;letter-spacing:0}.field{margin-bottom:11px}textarea{min-height:52px}.footnote{text-align:center}.history{margin-top:12px}.history summary{list-style:none;cursor:pointer;padding:13px 15px;font-weight:800}.history summary::-webkit-details-marker{display:none}.history summary::after{content:'展开';float:right;color:var(--cyan);font-size:12px}.history[open] summary::after{content:'收起'}.history .panel-head{border-bottom:0}.history[open] .panel-head{border-bottom:1px solid var(--line)}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.schedule-list{padding:8px 12px 12px}}
+    @media(max-width:560px){.shell{padding:14px 10px 32px}.panel,.stat{border-radius:12px}.title{font-size:28px}.sub{display:none}.stats{grid-template-columns:1fr 1fr}.stat.pending{grid-column:auto}.stat{min-height:110px;display:flex;flex-direction:column;justify-content:center}.stat small{font-size:13px}.stat strong{font-size:clamp(18px,5.2vw,27px);margin-top:10px}.day-head{align-items:flex-start;flex-direction:column}.day-head-right{width:100%;justify-content:space-between}.day-total{font-size:13px}.day-item{grid-template-columns:minmax(0,1fr) auto;gap:8px}.day-item .tiny{grid-column:1/-1;justify-self:stretch;justify-content:center}}
+
+    /* ===== iPhone 13 Pro 优化（390×844，刘海屏，iOS Safari）===== */
+    @media(max-width:430px){
+      /* 刘海/底部横条安全区 */
+      .shell{padding:calc(env(safe-area-inset-top,0px) + 12px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 32px) calc(env(safe-area-inset-left,0px) + 12px)}
+      /* iOS 输入框小于16px会自动放大页面，统一抬到16px */
+      input,select,textarea{font-size:16px;padding:13px 12px;border-radius:10px}
+      /* 触控目标≥44px（Apple HIG） */
+      .primary,.secondary,.danger{min-height:48px;font-size:16px}
+      .tiny{min-height:40px;padding:9px 14px;font-size:14px}
+      .record-actions{gap:7px}
+      /* 去掉 iOS 输入框默认内阴影，自绘下拉箭头 */
+      input,textarea{-webkit-appearance:none;appearance:none}
+      select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+      /* 头部与统计卡片紧凑化 */
+      header{margin-bottom:12px}
+      .title{font-size:26px}
+      .stats{gap:8px;margin-bottom:10px}
+      .stat{min-height:88px;padding:10px 12px}
+      .stat small{font-size:12px}
+      .stat strong{font-size:clamp(16px,4.8vw,22px);margin-top:6px}
+      /* 面板与表单收紧 */
+      .layout{gap:10px}
+      .panel-head{padding:12px 13px}
+      .panel-head h2{font-size:16px}
+      .panel-body{padding:13px}
+      .field{margin-bottom:12px}
+      label{font-size:13px;margin-bottom:5px}
+      .actions{gap:10px}
+      /* 日程卡片 */
+      .schedule-list{padding:8px 10px 12px;gap:8px}
+      .day-head{padding:10px 12px;gap:8px}
+      .day-title{font-size:14px}
+      .day-title small{font-size:12px;margin-left:5px}
+      .date-badge{font-size:10px;padding:3px 7px}
+      .day-total{font-size:13px}
+      .day-confirm{min-height:36px}
+      .day-item{padding:10px 12px;gap:6px}
+      .item-amount{font-size:15px}
+      .item-note{font-size:11px}
+      /* 历史区工具栏 */
+      .toolbar{gap:8px}
+      .toolbar .secondary{flex:1;min-height:44px;font-size:14px;padding:10px 8px}
+      .toolbar select{width:100%;min-height:44px}
+      /* 删除弹窗贴底，单手可达 */
+      .modal{padding:0;place-items:end center}
+      .dialog{border-radius:18px 18px 0 0;max-width:none;padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 20px)}
+      .footnote{font-size:11px;margin:10px 4px}
+    }
+    /* 按钮区域禁用双击缩放手势 */
+    button{touch-action:manipulation}
+
+    /* ===== 全部记录：窄屏紧凑行，点按展开操作按钮（高密度浏览）===== */
+    @media(max-width:560px){
+      .table-wrap{overflow:visible}
+      .records{min-width:0;border-collapse:separate;border-spacing:0 8px}
+      .records thead{display:none}
+      .records tbody{display:block}
+      .records tbody tr{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"type money status" "sale arrival arrival" "note note note" "acts acts acts";column-gap:10px;align-items:center;background:rgba(17,27,45,.50);border:1px solid var(--line);border-radius:13px;padding:10px 14px;box-shadow:var(--shadow);cursor:pointer;-webkit-tap-highlight-color:transparent}
+      .records tbody tr.open{border-color:rgba(6,182,212,.55);box-shadow:0 0 0 1px rgba(6,182,212,.25),var(--shadow)}
+      .records tbody tr:hover td{background:transparent}
+      .records tbody td{display:block;padding:0;border:0;text-align:left}
+      .records tbody td::before{font-size:11px;font-weight:800;color:var(--muted)}
+      .records td[data-label="交易"]{display:contents}
+      .records td[data-label="交易"]::before{content:none}
+      .records td[data-label="交易"] .type{grid-area:type}
+      .records td[data-label="交易"] .date-note{grid-area:note;margin:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .records td[data-label="交易"] .date-note:empty{display:none}
+      .records td.money{grid-area:money;text-align:right;font-size:16px;white-space:nowrap}
+      .records td.money::before{content:none}
+      .records td[data-label="状态"]{grid-area:status;text-align:right;white-space:nowrap}
+      .records td[data-label="状态"]::before{content:none}
+      .records td[data-label="交易日"]{grid-area:sale;font-size:12px;color:var(--muted);padding-top:6px;white-space:nowrap}
+      .records td[data-label="交易日"]::before{content:'交易 '}
+      .records td[data-label="到账日期"]{grid-area:arrival;font-size:12px;padding-top:6px;white-space:nowrap}
+      .records td[data-label="到账日期"]::before{content:'到账 ';color:#67e8f9}
+      .records td.cell-actions{grid-area:acts;display:none;padding-top:10px}
+      .records td.cell-actions::before{content:none}
+      .records tbody tr.open td.cell-actions{display:block}
+      .records .record-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      .records .record-actions .tiny{width:100%;min-height:42px;font-size:14px}
+    }
+  </style>
+</head>
+<body class="arrival-page">
+<main class="shell">
+  <header><div><div class="eyebrow">Cashflow desk</div><h1 class="title">资金到账</h1><p class="sub">记录资金并按日期查看到账安排。</p></div><div class="today" id="today"></div></header>
+  <section class="stats"><div class="stat pending"><small>待到账金额</small><strong id="sPending">$ 0</strong></div><div class="stat"><small>已到账金额</small><strong id="sArrived">$ 0</strong></div><div class="stat"><small>今日预计到账</small><strong id="sToday">$ 0</strong></div><div class="stat"><small>待处理笔数</small><strong id="sCount">0</strong></div></section>
+  <section class="layout">
+    <aside class="panel"><div class="panel-head"><h2 id="formTitle">新增交易</h2></div><div class="panel-body">
+      <form id="entryForm">
+        <div class="field"><label for="type">支付类型</label><select id="type" required><option value="debito">Débito</option><option value="credito">Crédito</option><option value="prepaid">Prepaid</option></select></div>
+        <div class="field"><label for="amount">金额</label><input id="amount" type="text" inputmode="decimal" placeholder="162.794,98" required><div class="hint" id="amountPreview"></div></div>
+        <div class="row"><div class="field"><label for="saleDate">交易日期</label><input id="saleDate" type="date" required></div><div class="field"><label for="arrivalDate">到账日期</label><input id="arrivalDate" type="date" required></div></div>
+        <div class="hint" id="arrivalPreview"></div>
+        <div class="field"><label for="note">备注</label><textarea id="note" maxlength="160" placeholder="可选"></textarea></div>
+        <div class="actions"><button class="primary" type="submit" id="saveBtn">保存交易</button><button class="secondary" type="button" id="cancelEdit" hidden>取消</button></div>
+      </form>
+    </div></aside>
+    <section class="panel schedule"><div class="panel-head"><h2>按日期查看到账</h2><span class="hint">昨天 · 今天 · 明天</span></div><div class="schedule-list" id="scheduleList"></div></section>
+  </section>
+  <details class="panel history"><summary>全部记录与管理</summary><div class="panel-head"><div class="toolbar"><input id="search" placeholder="搜索类型、金额、日期、状态或备注"><select id="filter"><option value="all" selected>全部状态</option><option value="arrived">已到账</option><option value="pending">待到账</option><option value="overdue">已逾期</option></select><button class="secondary" id="exportBtn" type="button">导出 CSV</button><button class="secondary" id="backupBtn" type="button">备份数据</button><button class="secondary" id="importBtn" type="button">恢复数据</button><input id="importFile" type="file" accept="application/json,.json" hidden></div></div>
+      <div class="table-wrap"><table class="records"><thead><tr><th>交易</th><th>金额</th><th>交易日</th><th>到账日期</th><th>状态</th><th>操作</th></tr></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty"><b>还没有交易</b>从左侧添加第一笔待到账资金。</div></div>
+  </details><p class="footnote">数据仅保存在当前浏览器，金额按币种分别显示。</p>
+</main>
+<div class="modal" id="confirmModal"><div class="dialog"><h3>删除这笔记录？</h3><p>删除后无法恢复。</p><div class="actions"><button class="danger" id="confirmDelete">删除</button><button class="secondary" id="closeModal">取消</button></div></div></div>
+<script>
+(() => {
+  const KEY='fund-arrival-manager-v1';
+  let items=JSON.parse(localStorage.getItem(KEY)||'[]'), editing=null, deleting=null, draftCurrency='ARS';
+  const $=id=>document.getElementById(id), pad=n=>String(n).padStart(2,'0');
+  const localISO=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const addDays=(iso,n)=>{const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+Number(n));return localISO(d)};
+  const displayDate=iso=>new Intl.DateTimeFormat('zh-CN',{month:'short',day:'numeric',year:'numeric'}).format(new Date(iso+'T12:00:00'));
+  const money=(n,c)=>new Intl.NumberFormat('es-AR',{style:'currency',currency:c,maximumFractionDigits:2}).format(n);
+  const totalsText=map=>Object.entries(map).map(([c,n])=>money(n,c)).join(' · ')||'$ 0';
+  const save=()=>localStorage.setItem(KEY,JSON.stringify(items));
+  function preview(){const sale=$('saleDate').value,arrival=$('arrivalDate').value;$('arrivalDate').min=sale||'';$('arrivalDate').setCustomValidity(arrival&&sale&&arrival<sale?'到账日期不能早于交易日期':'');$('arrivalPreview').textContent=arrival?`将在 ${displayDate(arrival)} 到账`:''}
+  // 解析金额：同时支持阿根廷格式（162.794,98 = 点千分位、逗号小数）与英文格式（162,794.98 / 162794.98）
+  function parseAmount(raw){
+    if(raw==null)return NaN;
+    let s=String(raw).trim().replace(/\s+/g,'').replace(/\$/g,'');
+    if(!s)return NaN;
+    if(!/^[\d.,]+$/.test(s))return NaN;
+    const lastDot=s.lastIndexOf('.'),lastComma=s.lastIndexOf(',');
+    if(lastDot>-1&&lastComma>-1){
+      // 两种分隔符都有：靠后的是小数点
+      if(lastComma>lastDot)s=s.replace(/\./g,'').replace(',','.');
+      else s=s.replace(/,/g,'');
+    }else if(lastComma>-1){
+      // 只有逗号：阿根廷格式，逗号是小数点
+      s=s.replace(/\./g,'').replace(',','.');
+    }else if(lastDot>-1){
+      const parts=s.split('.');
+      // 多个点，或单个点后跟3位以上数字 → 视为千分位
+      if(parts.length>2||parts[1].length>2)s=s.replace(/\./g,'');
+    }
+    const n=Number(s);
+    return Number.isFinite(n)?Math.round(n*100)/100:NaN;
+  }
+  function fmtAmountInput(n){return Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2})}
+  function amountPreview(){
+    const el=$('amount'),n=parseAmount(el.value);
+    el.setCustomValidity(!el.value.trim()||(!Number.isFinite(n)||n<=0)?'请输入有效金额，如 162.794,98':'');
+    $('amountPreview').textContent=Number.isFinite(n)&&n>0?`= ${money(n,draftCurrency)}`:'';
+  }
+  function resetForm(){editing=null;draftCurrency='ARS';$('entryForm').reset();$('amount').setCustomValidity('');$('amountPreview').textContent='';$('saleDate').value=localISO();$('arrivalDate').value=localISO();$('formTitle').textContent='新增交易';$('saveBtn').textContent='保存交易';$('cancelEdit').hidden=true;preview()}
+  function statusOf(x){if(x.arrived)return'arrived';return x.arrivalDate<localISO()?'overdue':'pending'}
+  function dayLabel(iso){const today=localISO(),yesterday=addDays(today,-1),tomorrow=addDays(today,1);if(iso===yesterday)return'昨天';if(iso===today)return'今天';if(iso===tomorrow)return'明天';return new Intl.DateTimeFormat('zh-CN',{weekday:'short'}).format(new Date(iso+'T12:00:00'))}
+  function renderSchedule(){
+    const today=localISO(),dates=[addDays(today,-1),today,addDays(today,1)];
+    $('scheduleList').innerHTML=dates.map(date=>{const list=items.filter(x=>!x.arrived&&x.arrivalDate===date),totals=list.reduce((m,x)=>(m[x.currency||'ARS']=(m[x.currency||'ARS']||0)+Number(x.amount),m),{}),badge=date<today?'overdue':date===today?'today':'',overdue=date<today?' overdue-group':'',content=list.length?list.map(x=>`<div class="day-item"><div class="item-main"><span class="type ${x.type}">${x.type}</span><span class="item-note">${esc(x.note||'')}</span></div><div class="item-amount">${money(x.amount,x.currency||'ARS')}</div><button class="tiny" data-schedule-toggle="${x.id}">确认到账</button></div>`).join(''):'<div class="schedule-empty">暂无待到账</div>';return `<section class="day-group${overdue}"><div class="day-head"><div class="day-title">${displayDate(date)} <span class="date-badge ${badge}">${dayLabel(date)}</span><small>${list.length} 笔</small></div><div class="day-head-right"><div class="day-total">${totalsText(totals)}</div>${list.length?`<button class="tiny day-confirm" data-day-confirm="${date}">当天全部到账</button>`:''}</div></div><div class="day-items">${content}</div></section>`}).join('')
+  }
+  function render(){
+    const q=$('search').value.trim().toLowerCase(), f=$('filter').value;
+    const shown=items.filter(x=>{const s=statusOf(x),statusText=s==='arrived'?'已到账':s==='overdue'?'已逾期':'待到账',haystack=[x.type,x.amount,x.saleDate,x.arrivalDate,statusText,x.note,x.reference,x.currency,money(x.amount,x.currency||'ARS')].join(' ').toLowerCase();return(!q||haystack.includes(q))&&(f==='all'||f===s)}).sort((a,b)=>a.arrivalDate.localeCompare(b.arrivalDate));
+    $('empty').style.display=shown.length?'none':'block';$('tbody').innerHTML=shown.map(x=>{const s=statusOf(x),label=s==='arrived'?'已到账':s==='overdue'?'已逾期':'待到账';return `<tr><td data-label="交易"><span class="type ${x.type}">${x.type}</span><span class="date-note">${esc(x.note||'')}</span></td><td class="money" data-label="金额">${money(x.amount,x.currency||'ARS')}</td><td data-label="交易日">${displayDate(x.saleDate)}</td><td data-label="到账日期">${displayDate(x.arrivalDate)}</td><td data-label="状态"><span class="status ${s}">${label}</span></td><td class="cell-actions"><div class="record-actions"><button class="tiny" data-act="toggle" data-id="${x.id}">${x.arrived?'撤销到账':'确认到账'}</button><button class="tiny" data-act="copy" data-id="${x.id}">复制</button><button class="tiny" data-act="edit" data-id="${x.id}">编辑</button><button class="tiny" data-act="delete" data-id="${x.id}">删除</button></div></td></tr>`}).join('');
+    const sum=(pred)=>items.filter(pred).reduce((a,x)=>(a[x.currency]=(a[x.currency]||0)+Number(x.amount),a),{});
+    $('sPending').textContent=totalsText(sum(x=>!x.arrived));$('sArrived').textContent=totalsText(sum(x=>x.arrived));$('sToday').textContent=totalsText(sum(x=>!x.arrived&&x.arrivalDate===localISO()));$('sCount').textContent=items.filter(x=>!x.arrived).length;renderSchedule();
+  }
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  $('entryForm').addEventListener('submit',e=>{e.preventDefault();const old=items.find(x=>x.id===editing),saleDate=$('saleDate').value,arrivalDate=$('arrivalDate').value;if(arrivalDate<saleDate){$('arrivalDate').setCustomValidity('到账日期不能早于交易日期');$('arrivalDate').reportValidity();return}$('arrivalDate').setCustomValidity('');const amount=parseAmount($('amount').value);if(!Number.isFinite(amount)||amount<=0){$('amount').setCustomValidity('请输入有效金额，如 162.794,98');$('amount').reportValidity();return}$('amount').setCustomValidity('');const data={id:editing||crypto.randomUUID(),type:$('type').value,amount,currency:draftCurrency,saleDate,arrivalDate,reference:'',note:$('note').value.trim(),arrived:old?.arrived||false};items=editing?items.map(x=>x.id===editing?data:x):[...items,data];save();resetForm();render()});
+  function fillForm(x,copy=false){editing=copy?null:x.id;draftCurrency=x.currency||'ARS';$('type').value=x.type;$('amount').value=fmtAmountInput(x.amount);$('saleDate').value=x.saleDate;$('arrivalDate').value=x.arrivalDate;$('note').value=x.note||'';$('formTitle').textContent=copy?'复制交易':'编辑交易';$('saveBtn').textContent=copy?'保存新交易':'保存修改';$('cancelEdit').hidden=false;preview();amountPreview();scrollTo({top:0,behavior:'smooth'})}
+  $('tbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const x=items.find(i=>i.id===b.dataset.id);if(b.dataset.act==='toggle'){x.arrived=!x.arrived;save();render()}if(b.dataset.act==='copy')fillForm(x,true);if(b.dataset.act==='edit')fillForm(x);if(b.dataset.act==='delete'){deleting=x.id;$('confirmModal').classList.add('open')}});
+  /* 窄屏紧凑行：点按记录行展开/收起操作按钮（桌面端无视觉影响） */
+  $('tbody').addEventListener('click',e=>{if(e.target.closest('button'))return;const tr=e.target.closest('tr');if(!tr)return;[...$('tbody').children].forEach(r=>{if(r!==tr)r.classList.remove('open')});tr.classList.toggle('open')});
+  $('scheduleList').addEventListener('click',e=>{const one=e.target.closest('[data-schedule-toggle]'),day=e.target.closest('[data-day-confirm]');if(one){const x=items.find(i=>i.id===one.dataset.scheduleToggle);if(x){x.arrived=true;save();render()}}if(day){items.forEach(x=>{if(!x.arrived&&x.arrivalDate===day.dataset.dayConfirm)x.arrived=true});save();render()}});
+  $('confirmDelete').onclick=()=>{items=items.filter(x=>x.id!==deleting);save();$('confirmModal').classList.remove('open');render()};$('closeModal').onclick=()=> $('confirmModal').classList.remove('open');$('cancelEdit').onclick=resetForm;
+  ['saleDate','arrivalDate'].forEach(id=>$(id).addEventListener('change',preview));['search','filter'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
+  $('amount').addEventListener('input',amountPreview);
+  $('amount').addEventListener('blur',()=>{const n=parseAmount($('amount').value);if(Number.isFinite(n)&&n>0)$('amount').value=fmtAmountInput(n);amountPreview()});
+  $('exportBtn').onclick=()=>{if(!items.length)return;const head=['类型','金额','交易日期','到账日期','备注','状态'];const rows=items.map(x=>[x.type,x.amount,x.saleDate,x.arrivalDate,x.note,x.arrived?'已到账':'待到账']);const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`到账记录-${localISO()}.csv`;a.click();URL.revokeObjectURL(a.href)};
+  function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+  $('backupBtn').onclick=()=>download(`资金到账备份-${localISO()}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),items},null,2),'application/json');
+  $('importBtn').onclick=()=>$('importFile').click();
+  $('importFile').addEventListener('change',async()=>{const file=$('importFile').files[0];if(!file)return;try{const parsed=JSON.parse(await file.text()),source=Array.isArray(parsed)?parsed:parsed.items;if(!Array.isArray(source))throw Error('格式错误');const date=/^\d{4}-\d{2}-\d{2}$/;const restored=source.filter(x=>x&&['debito','credito','prepaid'].includes(x.type)&&Number.isFinite(Number(x.amount))&&Number(x.amount)>0&&date.test(x.saleDate)&&date.test(x.arrivalDate)).map(x=>({id:String(x.id||crypto.randomUUID()),type:x.type,amount:Number(x.amount),currency:String(x.currency||'ARS').slice(0,5),saleDate:x.saleDate,arrivalDate:x.arrivalDate,reference:String(x.reference||'').slice(0,60),note:String(x.note||'').slice(0,160),arrived:Boolean(x.arrived)}));if(!restored.length&&source.length)throw Error('没有有效记录');if(!confirm(`将用备份中的 ${restored.length} 笔记录替换当前 ${items.length} 笔记录，是否继续？`))return;items=restored;save();resetForm();render();alert('数据恢复完成')}catch(err){alert('无法恢复：请选择本工具导出的 JSON 备份文件')}finally{$('importFile').value=''}});
+  $('today').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date());resetForm();render();
+})();
+</script>
+<script src="./fx.js"></script>
+<script src="./common.js"></script>
+</body>
+</html>

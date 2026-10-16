@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0f1115" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png" />
+<title>大数拆分器</title>
+<script src="./keepawake.js" defer></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function (reg) { console.log('[PWA] Splitter ServiceWorker registered:', reg.scope); })
+        .catch(function (err) { console.log('[PWA] Splitter ServiceWorker registration failed:', err); });
+    });
+  }
+</script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --card2: #22262f;
+    --line: #2a2f3a;
+    --accent: #4f8cff;
+    --green: #34d399;
+    --warn: #fbbf24;
+    --text: #f2f4f8;
+    --muted: #8b93a3;
+    --danger: #ff6b6b;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+  }
+  body {
+    padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  header { text-align: center; margin-bottom: 18px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: 1px; }
+  header p { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    border: 1px solid var(--line);
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  input[type="text"] {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid #333a47;
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 17px;
+    padding: 12px 13px;
+    outline: none;
+    transition: border-color .15s;
+    -webkit-appearance: none;
+  }
+  input:focus { border-color: var(--accent); }
+  input.invalid { border-color: var(--danger); }
+
+  .row { display: flex; gap: 10px; }
+  .row > div {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .row label { flex-shrink: 0; }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 14px;
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #4f8cff, #3457d5);
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(79,140,255,.3);
+  }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-primary:disabled { opacity: .4; box-shadow: none; }
+
+  .btn-ghost {
+    border: 1px solid #333a47;
+    background: var(--card2);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-ghost:active { background: #2c313c; }
+
+  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; line-height: 1.5; }
+  .msg.error { color: var(--danger); }
+  .msg.warn { color: var(--warn); }
+
+  .mode-desc {
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--card2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    line-height: 1.7;
+  }
+  .mode-desc b { color: var(--text); }
+
+  /* 分段编辑区 */
+  .seg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .seg-row .idx {
+    flex: 0 0 28px;
+    width: 28px; height: 28px;
+    min-width: 28px; max-width: 28px;
+    min-height: 28px; max-height: 28px;
+    line-height: 1;
+    border-radius: 50%;
+    background: rgba(79,140,255,.15);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .seg-row .idx.auto {
+    background: rgba(52,211,153,.15);
+    color: var(--green);
+  }
+  .seg-row input { flex: 1; font-size: 15px; padding: 10px 12px; min-width: 0; }
+  .seg-row input.seg-text { flex: 0 0 92px; }
+  .seg-row input::placeholder { color: #5b6373; font-size: 13px; }
+  .seg-row .del {
+    flex: 0 0 30px;
+    width: 30px; height: 30px;
+    min-width: 30px; max-width: 30px;
+    min-height: 30px; max-height: 30px;
+    padding: 0;
+    margin: 0;
+    line-height: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,107,107,.12);
+    color: var(--danger);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .btn-add {
+    width: 100%;
+    border: 1px dashed #333a47;
+    background: transparent;
+    color: var(--accent);
+    border-radius: 12px;
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 2px;
+  }
+  .btn-add:active { background: rgba(79,140,255,.08); }
+  .diff-hint { font-size: 13px; margin-top: 12px; color: var(--muted); line-height: 1.7; }
+  .diff-hint.ok { color: var(--green); }
+  .diff-hint.bad { color: var(--danger); }
+  .diff-hint b { color: inherit; }
+
+  /* 伸缩卡片 */
+  .seg-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 2px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .seg-toggle-sub { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 6px; }
+  .chev { color: var(--muted); font-size: 13px; transition: transform .2s; flex-shrink: 0; margin-left: 8px; }
+  .chev.open { transform: rotate(180deg); }
+  .seg-body {
+    overflow: hidden;
+    max-height: 2000px;
+    opacity: 1;
+    transition: max-height .28s ease, opacity .2s ease;
+  }
+  .seg-body.collapsed { max-height: 0; opacity: 0; }
+  .seg-body > .mode-desc { margin-top: 12px; }
+
+  /* 结果面板 */
+  .stats { display: flex; gap: 10px; }
+  .stat {
+    flex: 1;
+    background: var(--card2);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat .num { font-size: 24px; font-weight: 800; color: var(--accent); }
+  .stat .num.shrink { font-size: 16px; line-height: 34px; }
+  .stat .num.green { color: var(--green); }
+  .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* 可视化占比条 */
+  .viz-wrap { margin-top: 16px; }
+  .viz-title { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .viz-bar {
+    display: flex;
+    height: 34px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--card2);
+  }
+  .viz-seg { height: 100%; min-width: 3px; transition: width .3s; }
+  .viz-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .viz-legend .dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: -1px;
+  }
+
+  .result-list {
+    margin-top: 14px;
+    max-height: 40vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .result-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card2);
+    border-radius: 12px;
+    padding: 10px 9px;
+    margin-bottom: 8px;
+    animation: pop .18s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .result-item .dotc { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; }
+  .result-item .no { color: var(--muted); font-size: 12px; min-width: 24px; flex-shrink: 0; }
+  /* 数字优先：永不折行，过长时自动缩小字号 */
+  .result-item .val {
+    font-size: 16px; font-weight: 600;
+    flex: 1 1 auto; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .result-item .val.long { font-size: 14px; }
+  .result-item .val.xlong { font-size: 12px; }
+  .result-item.manual .val { color: var(--warn); }
+  .result-item .tag {
+    flex: 0 1 64px;
+    width: 64px;
+    min-width: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(79,140,255,.12);
+    border-radius: 6px;
+    padding: 3px 5px;
+  }
+  .result-item.paid .tag { color: var(--muted); background: rgba(139,147,163,.12); }
+  .result-item input.tag {
+    border: 1px dashed transparent;
+    outline: none;
+    font-family: inherit;
+    text-align: center;
+    cursor: text;
+    -webkit-appearance: none;
+  }
+  .result-item input.tag:focus {
+    border-color: var(--accent);
+    background: var(--card);
+  }
+  .result-item input.tag::placeholder { color: #5b6373; }
+  .result-item .pay {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  /* 窄屏隐藏「已支付」文字，只留勾选框，把空间让给数字 */
+  @media (max-width: 480px) {
+    .result-item .pay .payt { display: none; }
+  }
+  .result-item .paybox {
+    width: 22px; height: 22px;
+    border-radius: 7px;
+    border: 1.5px solid #3a4150;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all .15s;
+  }
+  .result-item.paid .paybox {
+    background: var(--green);
+    border-color: var(--green);
+    color: #06281c;
+  }
+  .result-item.paid .pay { color: var(--green); }
+  .result-item.paid .val { color: var(--muted); text-decoration: line-through; }
+  .all-paid {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px;
+    border-radius: 10px;
+    background: rgba(52,211,153,.12);
+    color: var(--green);
+  }
+  .all-paid.partial {
+    background: var(--card2);
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .empty { color: var(--muted); text-align: center; font-size: 14px; padding: 20px 0; }
+  .actions { display: flex; gap: 10px; margin-top: 12px; }
+  .actions .btn-ghost { flex: 1; }
+  .hidden { display: none; }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 40px);
+    transform: translateX(-50%);
+    background: #2c313c;
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ===== 自制数字键盘 ===== */
+  #vk-keypad { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9999; display: none; flex-direction: column; gap: 8px; padding: 10px; background: #161b22; border-top: 2px solid var(--accent, #4f8cff); box-shadow: 0 -6px 24px rgba(0,0,0,.5); user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  #vk-keypad.vk-show { display: flex; }
+  .vk-main { display: flex; gap: 8px; }
+  .vk-toolbar { display: flex; gap: 8px; }
+  .vk-toolbar button { flex: 1; min-height: 46px !important; font-size: 20px !important; background: #1a212b !important; }
+  .vk-toolbar .vk-clear { color: #ff6b6b; font-size: 18px !important; }
+  .vk-toolbar .vk-hide { color: var(--accent, #4f8cff); font-size: 18px !important; }
+  .vk-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .vk-side { display: flex; flex-direction: column; gap: 8px; width: 17%; }
+  .vk-side button { flex: 1; min-height: 0; }
+  #vk-keypad button { border: 1px solid #30363d; border-radius: 12px; background: #21262d; color: #fff; font-size: 34px; font-weight: 700; min-height: 74px; padding: 0; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; text-align: center; }
+  #vk-keypad button:active { background: var(--accent, #4f8cff); color: #000; transform: scale(.96); }
+  .vk-func { font-size: 18px !important; }
+  .vk-enter { font-size: 18px !important; } /* 与附近功能键（空格/⌫）样式一致 */
+  body.vk-open { padding-bottom: 420px; }
+</style>
+    <link rel="stylesheet" href="./fx.css">
+</head>
+<body>
+
+<header>
+  <h1>🔢 大数拆分器</h1>
+  <p>填了值的段按你的来，没填的自动「尽量装满」</p>
+</header>
+
+<!-- 基础输入 -->
+<div class="card">
+  <div class="row">
+    <div>
+      <label for="bigNum">要拆分的大数</label>
+      <input type="text" id="bigNum" inputmode="numeric" placeholder="例如：100000 或 1234.56" />
+    </div>
+    <div>
+      <label for="limitNum">每段上限（留空或 0 = 无上限）</label>
+      <input type="text" id="limitNum" inputmode="numeric" placeholder="例如：9999.99" />
+    </div>
+  </div>
+</div>
+
+<!-- 分段设置（合并模式，伸缩卡片） -->
+<div class="card">
+  <button class="seg-toggle" id="segToggle" type="button">
+    <span>🧩 分段设置<span class="seg-toggle-sub">填值 = 手动 · 留空 = 自动装满</span></span>
+    <span class="chev" id="segChev">▾</span>
+  </button>
+  <div class="seg-body collapsed" id="segBody">
+    <div class="mode-desc">
+      <b>规则：</b><br>
+      · 某段<b>填了具体值</b> → 按你填的来（不能超过上限）<br>
+      · 某段<b>留空</b> → 自动按「尽量装满」分配<br>
+      · 所有段之后的<b>剩余尾数</b> → 自动按「尽量装满」追加<br>
+      · <b>拆分次数不设限</b>，由自动分配决定
+    </div>
+    <div id="segRows" style="margin-top:14px;"></div>
+    <button class="btn-add" id="btnAddRow" type="button">＋ 添加一段</button>
+    <div class="diff-hint" id="diffHint"></div>
+  </div>
+  <button class="btn-primary" id="btnSplit" type="button">开始拆分</button>
+  <div class="msg" id="msgMain"></div>
+</div>
+
+<!-- 结果面板 -->
+<div class="card" id="resultCard">
+  <div class="stats">
+    <div class="stat">
+      <div class="num" id="splitCount">0</div>
+      <div class="lbl">拆分次数</div>
+    </div>
+    <div class="stat">
+      <div class="num green" id="sumCheck">0</div>
+      <div class="lbl">拆分后总和</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="matchBadge" style="font-size:20px;line-height:30px;">—</div>
+      <div class="lbl">与原数一致</div>
+    </div>
+  </div>
+
+  <div class="viz-wrap hidden" id="vizWrap">
+    <div class="viz-title">各段占比（有备注的段按备注配色，同色 = 同一备注）</div>
+    <div class="viz-bar" id="vizBar"></div>
+    <div class="viz-legend" id="vizLegend"></div>
+  </div>
+
+  <div class="all-paid hidden" id="paidBadge"></div>
+
+  <div class="result-list" id="resultList">
+    <div class="empty">拆分结果将显示在这里</div>
+  </div>
+
+  <div class="actions hidden" id="actionBar">
+    <button class="btn-ghost" id="btnCopy" type="button">📋 复制全部</button>
+    <button class="btn-ghost" id="btnClear" type="button">🗑 清空结果</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">已复制</div>
+
+<script>
+(function () {
+  // ===== 元素 =====
+  var $ = function (id) { return document.getElementById(id); };
+  var bigNumInput = $("bigNum"), limitInput = $("limitNum");
+  var segRows = $("segRows"), btnAddRow = $("btnAddRow"), diffHint = $("diffHint");
+  var btnSplit = $("btnSplit"), msgMain = $("msgMain");
+  var resultList = $("resultList"), splitCountEl = $("splitCount");
+  var sumCheckEl = $("sumCheck"), matchBadge = $("matchBadge");
+  var vizWrap = $("vizWrap"), vizBar = $("vizBar"), vizLegend = $("vizLegend");
+  var paidBadge = $("paidBadge");
+  var actionBar = $("actionBar"), btnCopy = $("btnCopy"), btnClear = $("btnClear");
+  var toast = $("toast");
+
+  var lastParts = [];
+  var lastResult = null;
+  var segInputs = [];
+
+  // ===== 伸缩卡片 =====
+  var segToggle = $("segToggle"), segBody = $("segBody"), segChev = $("segChev");
+  segToggle.addEventListener("click", function () {
+    var collapsed = segBody.classList.toggle("collapsed");
+    segChev.classList.toggle("open", !collapsed);
+  });
+
+  var PALETTE = ["#4f8cff","#34d399","#f472b6","#a78bfa","#38bdf8","#fb923c","#4ade80","#e879f9","#f87171","#94a3b8"];
+  var MANUAL_COLOR = "#fbbf24";
+
+  // ===== 输入净化（预览防抖，避免每个按键都重算） =====
+  var pvTimer = null;
+  function schedulePreview() {
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(preview, 120);
+  }
+  // ===== 小数支持：内部统一按「分」换算成整数（×100）计算，拆分逻辑不变 =====
+  var SCALE = 100n;
+
+  // 输入净化：只保留数字和一个小数点，小数最多两位
+  function cleanDec(v) {
+    v = (v || "").replace(/[^\d.]/g, "");
+    var i = v.indexOf(".");
+    if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "");
+    var p = v.split(".");
+    if (p.length > 1) v = p[0] + "." + p[1].slice(0, 2);
+    return v;
+  }
+
+  [bigNumInput, limitInput].forEach(function (el) {
+    el.addEventListener("input", function () {
+      el.value = cleanDec(el.value);
+      schedulePreview();
+    });
+  });
+
+  // 解析正数（支持最多两位小数），返回按分换算后的 BigInt；非法返回 null
+  function parsePositive(str) {
+    str = (str || "").trim();
+    if (!str) return null;
+    if (!/^\d+(\.\d{1,2})?$/.test(str)) return null;
+    var p = str.split(".");
+    var cents = BigInt(p[0]) * SCALE + BigInt(((p[1] || "") + "00").slice(0, 2));
+    return cents > 0n ? cents : null;
+  }
+  // 显示用：按分换算值 → 带千分位的小数字符串（去掉末尾多余的 0）
+  function fmt(n) {
+    var intPart = (n / SCALE).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    var frac = n % SCALE;
+    if (frac === 0n) return intPart;
+    var f = frac.toString().padStart(2, "0");
+    return intPart + "." + f;
+  }
+  // 次数/段数用：纯整数 + 千分位（不经过分换算）
+  function fmtInt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  // 导出用：不带千分位的小数字符串
+  function fmtPlain(n) {
+    var intPart = (n / SCALE).toString();
+    var frac = n % SCALE;
+    if (frac === 0n) return intPart;
+    var f = frac.toString().padStart(2, "0");
+    return intPart + "." + f;
+  }
+  function setMsg(el, text, type) {
+    el.textContent = text || "";
+    el.className = "msg" + (type ? " " + type : "");
+  }
+
+  // ===== 分段行 =====
+  function addRow() {
+    var row = document.createElement("div");
+    row.className = "seg-row";
+    var idx = document.createElement("span");
+    idx.className = "idx";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.setAttribute("inputmode", "numeric");
+    input.placeholder = "留空 = 自动装满";
+    input.addEventListener("input", function () {
+      input.value = cleanDec(input.value);
+      schedulePreview();
+    });
+    var text = document.createElement("input");
+    text.type = "text";
+    text.className = "seg-text";
+    text.placeholder = "备注";
+    text.maxLength = 12;
+    text.addEventListener("input", schedulePreview);
+    var del = document.createElement("button");
+    del.className = "del";
+    del.type = "button";
+    del.textContent = "×";
+    var entry = { v: input, t: text };
+    del.addEventListener("click", function () {
+      segRows.removeChild(row);
+      segInputs = segInputs.filter(function (x) { return x !== entry; });
+      renumber();
+      preview();
+    });
+    row.appendChild(idx);
+    row.appendChild(input);
+    row.appendChild(text);
+    row.appendChild(del);
+    segRows.appendChild(row);
+    segInputs.push(entry);
+    renumber();
+    preview();
+  }
+  function renumber() {
+    var rows = segRows.querySelectorAll(".seg-row");
+    for (var i = 0; i < rows.length; i++) {
+      var idxEl = rows[i].querySelector(".idx");
+      var inp = rows[i].querySelector("input");
+      var isAuto = inp.value.trim() === "";
+      idxEl.textContent = i + 1;
+      idxEl.classList.toggle("auto", isAuto);
+    }
+  }
+  btnAddRow.addEventListener("click", function () { addRow(); });
+
+  // ===== 核心计算 =====
+  // 返回 { parts:[{v,manual}], total, limit } 或 { error }
+  // limit 为有效上限（无上限时 = total）
+  function compute() {
+    var total = parsePositive(bigNumInput.value);
+    if (total === null) return { error: "请输入一个大于 0 的数作为要拆分的大数（最多两位小数）" };
+
+    var limitRaw = (limitInput.value || "").trim();
+    var limit;
+    if (limitRaw === "" || /^0+(\.0+)?$/.test(limitRaw)) {
+      limit = total; // 无上限，但单段不能超过大数本身
+    } else {
+      limit = parsePositive(limitRaw);
+      if (limit === null) return { error: "每段上限必须是大于 0 的数（最多两位小数），或留空表示无上限" };
+    }
+
+    // 校验手动段
+    var manualSum = 0n, autoCount = 0, invalidIdx = -1;
+    for (var i = 0; i < segInputs.length; i++) {
+      var s = segInputs[i].v.value.trim();
+      if (s === "") { autoCount++; continue; }
+      var v = parsePositive(s);
+      if (v === null || v > limit) { invalidIdx = i; break; }
+      manualSum += v;
+    }
+    if (invalidIdx >= 0) {
+      return { error: "第 " + (invalidIdx + 1) + " 段无效：必须是 0.01 ~ " + fmt(limit) + " 之间的数（最多两位小数）", invalidIdx: invalidIdx, limit: limit, total: total };
+    }
+    if (manualSum > total) {
+      return { error: "手动填写的总和已超出大数 " + fmt(manualSum - total) + "，请调小某些段", limit: limit, total: total };
+    }
+
+    var remaining = total - manualSum;
+
+    // 每个自动段至少分 1
+    if (remaining < BigInt(autoCount)) {
+      return { error: "剩余 " + fmt(remaining) + " 不够分给 " + autoCount + " 个自动段（每段至少为 0.01），请删掉几个留空的段", limit: limit, total: total };
+    }
+
+    var parts = [];
+    for (var i = 0; i < segInputs.length; i++) {
+      var s = segInputs[i].v.value.trim();
+      var txt = segInputs[i].t.value.trim();
+      if (s !== "") {
+        parts.push({ v: parsePositive(s), manual: true, text: txt });
+      } else {
+        autoCount--;
+        // 尽量装满：本段尽量取到上限，但要给后面的自动段各留 1
+        var give = remaining - BigInt(autoCount);
+        if (give > limit) give = limit;
+        if (give < 1n) give = 1n;
+        parts.push({ v: give, manual: false, text: txt });
+        remaining -= give;
+      }
+    }
+    // 所有段之后的剩余尾数：自动按尽量装满追加
+    // 不逐段展开（大数/小上限时会有上千万次循环导致卡顿），直接用除法算数量
+    var full = remaining / limit;   // 能完整装满的段数
+    var tail = remaining % limit;   // 最后一段的余数
+
+    return { parts: parts, full: full, tail: tail, total: total, limit: limit };
+  }
+
+  // 总段数（BigInt，避免天文数字溢出）
+  function totalCount(r) {
+    return BigInt(r.parts.length) + r.full + (r.tail > 0n ? 1n : 0n);
+  }
+
+  // 展开尾数段，最多展开 cap 条；返回剩余未展开的满段数与尾段
+  function expandParts(r, cap) {
+    var out = r.parts.slice();
+    var f = r.full;
+    while (f > 0n && out.length < cap) {
+      out.push({ v: r.limit, manual: false, text: "" });
+      f--;
+    }
+    var tailHidden = false;
+    if (r.tail > 0n) {
+      if (f === 0n && out.length < cap) out.push({ v: r.tail, manual: false, text: "" });
+      else tailHidden = true;
+    }
+    return { list: out, hiddenFull: f, tailHidden: tailHidden };
+  }
+
+  // ===== 实时预览提示 =====
+  function preview() {
+    renumber();
+    var r = compute();
+    if (r.error) {
+      // 大数/上限未填时不报错，只清空提示
+      if (!parsePositive(bigNumInput.value)) {
+        diffHint.textContent = "";
+        diffHint.className = "diff-hint";
+      } else {
+        diffHint.className = "diff-hint bad";
+        diffHint.textContent = r.error;
+      }
+      btnSplit.disabled = true;
+      return false;
+    }
+    var manualCount = 0, autoCount = 0, manualSum = 0n;
+    for (var i = 0; i < r.parts.length; i++) {
+      if (r.parts[i].manual) { manualCount++; manualSum += r.parts[i].v; }
+      else autoCount++;
+    }
+    var totalSegs = totalCount(r);
+    var autoTotal = totalSegs - BigInt(manualCount);
+    var limitDesc = (limitInput.value.trim() === "" || /^0+(\.0+)?$/.test(limitInput.value.trim()))
+      ? "无上限" : fmt(r.limit);
+    diffHint.className = "diff-hint ok";
+    diffHint.innerHTML =
+      "上限：<b>" + limitDesc + "</b>　预计拆分：<b>" + fmtInt(totalSegs) + "</b> 次" +
+      (manualCount > 0 ? "<br>手动指定 <b>" + manualCount + "</b> 段（共 " + fmt(manualSum) + "）" : "") +
+      (autoTotal > 0n ? "<br>自动装满 <b>" + fmtInt(autoTotal) + "</b> 段" : "");
+    btnSplit.disabled = false;
+    return true;
+  }
+
+  // ===== 拆分按钮 =====
+  btnSplit.addEventListener("click", function () {
+    setMsg(msgMain, "");
+    var r = compute();
+    if (r.error) { setMsg(msgMain, r.error, "error"); return; }
+    render(r);
+    var total = totalCount(r);
+    var manualCount = r.parts.filter(function (p) { return p.manual; }).length;
+    if (manualCount > 0) {
+      showToast("已拆分 " + fmtInt(total) + " 段（手动 " + manualCount + " + 自动 " + fmtInt(total - BigInt(manualCount)) + "）");
+    } else {
+      showToast("已按尽量装满拆成 " + fmtInt(total) + " 段");
+    }
+  });
+
+  // 初始给 2 个空行
+  addRow();
+  addRow();
+  preview();
+
+  // ===== 渲染结果 + 可视化 =====
+  var MAX_RENDER = 1500; // 逐条显示上限，超出部分折叠为汇总行，防止 DOM 爆炸卡死
+  function render(r) {
+    var total = r.total;
+    var ex = expandParts(r, MAX_RENDER);
+    var parts = ex.list;
+    lastParts = parts;
+    lastResult = r;
+    resultList.innerHTML = "";
+    vizBar.innerHTML = "";
+    vizLegend.innerHTML = "";
+
+    var sum = 0n;
+    for (var i = 0; i < parts.length; i++) sum += parts[i].v;
+    sum += ex.hiddenFull * r.limit + (ex.tailHidden ? r.tail : 0n);
+
+    splitCountEl.textContent = fmtInt(totalCount(r));
+    sumCheckEl.textContent = fmt(sum);
+    sumCheckEl.classList.toggle("shrink", fmt(sum).length > 9);
+    var match = sum === total;
+    matchBadge.textContent = match ? "✓" : "✗";
+    matchBadge.style.color = match ? "var(--green)" : "var(--danger)";
+
+    var totalNum = Number(total % 9007199254740991n);
+    var frag = document.createDocumentFragment();
+    var colors = computeColors(parts);
+
+    for (var i = 0; i < parts.length; i++) {
+      var manual = parts[i].manual;
+      var txt = parts[i].text || "";
+      var c = colors[i];
+      var pct = Number(parts[i].v % 9007199254740991n) / totalNum * 100;
+
+      var seg = document.createElement("div");
+      seg.className = "viz-seg";
+      seg.style.width = pct + "%";
+      seg.style.background = c;
+      vizBar.appendChild(seg);
+
+      var item = document.createElement("div");
+      item.className = "result-item" + (manual ? " manual" : "");
+      var dot = document.createElement("span");
+      dot.className = "dotc";
+      dot.style.background = c;
+      var no = document.createElement("span");
+      no.className = "no";
+      no.textContent = "#" + (i + 1);
+      var val = document.createElement("span");
+      var vtxt = fmt(parts[i].v);
+      val.className = "val" + (vtxt.length > 12 ? " xlong" : vtxt.length > 9 ? " long" : "");
+      val.textContent = vtxt;
+      // 结果区可直接添加 / 修改备注，配色实时联动
+      var tag = document.createElement("input");
+      tag.className = "tag";
+      tag.value = txt;
+      tag.placeholder = "备注";
+      tag.maxLength = 12;
+      (function (idx) {
+        tag.addEventListener("input", function () {
+          lastParts[idx].text = tag.value.trim();
+          refreshColors();
+        });
+      })(i);
+      var pay = document.createElement("button");
+      pay.className = "pay";
+      pay.type = "button";
+      pay.innerHTML = '<span class="paybox">✓</span><span class="payt">已支付</span>';
+      (function (it) {
+        pay.addEventListener("click", function () {
+          it.classList.toggle("paid");
+          updatePaidStatus();
+        });
+      })(item);
+      item.appendChild(dot);
+      item.appendChild(no);
+      item.appendChild(val);
+      item.appendChild(tag);
+      item.appendChild(pay);
+      frag.appendChild(item);
+    }
+
+    // 超出逐条显示上限时，追加汇总行
+    if (ex.hiddenFull > 0n || ex.tailHidden) {
+      var more = document.createElement("div");
+      more.className = "result-item";
+      var mVal = document.createElement("span");
+      mVal.className = "val";
+      mVal.style.color = "var(--muted)";
+      mVal.style.whiteSpace = "normal";
+      var partsDesc = [];
+      if (ex.hiddenFull > 0n) partsDesc.push("每段 " + fmt(r.limit) + " × " + fmtInt(ex.hiddenFull) + " 段");
+      if (ex.tailHidden) partsDesc.push("尾段 " + fmt(r.tail));
+      mVal.textContent = "… 另有 " + partsDesc.join("，") + "（未逐条显示，复制全部可导出完整数据）";
+      more.appendChild(mVal);
+      frag.appendChild(more);
+    }
+    buildLegend(parts, colors);
+
+  // 备注 → 颜色：相同备注同色；无备注手动段黄色；无备注自动段按调色板
+  function computeColors(parts) {
+    var map = {}, ti = 0, ai = 0, colors = [];
+    for (var i = 0; i < parts.length; i++) {
+      var txt = parts[i].text || "";
+      if (txt) {
+        if (!map[txt]) map[txt] = PALETTE[(ti++) % PALETTE.length];
+        colors.push(map[txt]);
+      } else if (parts[i].manual) {
+        colors.push(MANUAL_COLOR);
+      } else {
+        colors.push(PALETTE[(ai++) % PALETTE.length]);
+      }
+    }
+    return colors;
+  }
+
+  function buildLegend(parts, colors) {
+    vizLegend.innerHTML = "";
+    if (parts.length > 12) return;
+    for (var i = 0; i < parts.length; i++) {
+      var lg = document.createElement("span");
+      var lgDot = document.createElement("span");
+      lgDot.className = "dot";
+      lgDot.style.background = colors[i];
+      lg.appendChild(lgDot);
+      lg.appendChild(document.createTextNode(
+        "第" + (i + 1) + "段" + (parts[i].manual ? "（手动）" : "") + (parts[i].text ? " · " + parts[i].text : "")
+      ));
+      vizLegend.appendChild(lg);
+    }
+  }
+
+  // 备注被修改后：重算配色并同步到占比条、圆点和图例
+  function refreshColors() {
+    if (!lastParts.length) return;
+    var colors = computeColors(lastParts);
+    var segs = vizBar.children;
+    var items = resultList.querySelectorAll(".result-item");
+    for (var i = 0; i < lastParts.length; i++) {
+      if (segs[i]) segs[i].style.background = colors[i];
+      if (items[i]) items[i].querySelector(".dotc").style.background = colors[i];
+    }
+    buildLegend(lastParts, colors);
+  }
+    resultList.appendChild(frag);
+    vizWrap.classList.remove("hidden");
+    actionBar.classList.remove("hidden");
+    updatePaidStatus();
+  }
+
+  // 支付状态汇总：全部勾选后显示「全部已支付」
+  function updatePaidStatus() {
+    var items = resultList.querySelectorAll(".result-item");
+    if (!items.length) { paidBadge.classList.add("hidden"); return; }
+    var paid = resultList.querySelectorAll(".result-item.paid").length;
+    paidBadge.classList.remove("hidden");
+    if (paid === items.length) {
+      paidBadge.textContent = "✓ 全部已支付（" + paid + "/" + items.length + "）";
+      paidBadge.classList.remove("partial");
+    } else {
+      paidBadge.textContent = "已支付 " + paid + "/" + items.length;
+      paidBadge.classList.add("partial");
+    }
+  }
+
+  btnClear.addEventListener("click", function () {
+    lastParts = [];
+    lastResult = null;
+    resultList.innerHTML = '<div class="empty">拆分结果将显示在这里</div>';
+    vizBar.innerHTML = "";
+    vizLegend.innerHTML = "";
+    vizWrap.classList.add("hidden");
+    splitCountEl.textContent = "0";
+    sumCheckEl.textContent = "0";
+    matchBadge.textContent = "—";
+    matchBadge.style.color = "var(--accent)";
+    paidBadge.classList.add("hidden");
+    actionBar.classList.add("hidden");
+  });
+
+  btnCopy.addEventListener("click", function () {
+    if (!lastResult) return;
+    var ex = expandParts(lastResult, 50000);
+    var lines = ex.list.map(function (p) {
+      return (p.text ? p.text + " " : "") + fmtPlain(p.v);
+    });
+    // 超大结果：逐条展开到 5 万为止，其余压缩成「单值 × 段数」行
+    if (ex.hiddenFull > 0n) lines.push(fmt(lastResult.limit) + " × " + fmtInt(ex.hiddenFull) + " 段");
+    if (ex.tailHidden) lines.push(fmtPlain(lastResult.tail));
+    var text = lines.join("\n");
+    var done = function () { showToast("已复制 " + fmtInt(totalCount(lastResult)) + " 个数"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+    } else {
+      fallbackCopy(text); done();
+    }
+  });
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  var toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 2000);
+  }
+})();
+</script>
+
+<!-- ===== 自制数字键盘 ===== -->
+<div id="vk-keypad">
+    <div class="vk-toolbar">
+        <button type="button" data-k="home" title="句首">|◀</button>
+        <button type="button" data-k="left" title="左移">◀</button>
+        <button type="button" data-k="right" title="右移">▶</button>
+        <button type="button" data-k="end" title="句末">▶|</button>
+        <button type="button" data-k="clear" class="vk-clear" title="清空">清空</button>
+        <button type="button" data-k="hide" class="vk-hide" title="收起键盘">收起</button>
+    </div>
+    <div class="vk-main">
+    <div class="vk-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="00">00</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+    <div class="vk-side">
+        <button type="button" data-k="back" class="vk-func">⌫</button>
+        <button type="button" data-k=" " class="vk-func">空格</button>
+        <button type="button" data-k="enter" class="vk-enter">回车</button>
+    </div>
+    </div>
+</div>
+<script>
+(function () {
+    var keypad = document.getElementById('vk-keypad');
+    // 只对数字类输入框（大数 / 上限 / 分段数值）启用自制键盘；
+    // 「备注」等纯文本框不接管，保留系统键盘以便输入文字
+    var isTargetInput = function (el) {
+        return el && el.tagName === 'INPUT' &&
+            (el.type === 'text' || el.type === 'number') &&
+            el.dataset.vk === '1' && !el.disabled;
+    };
+
+    // 1) 抑制系统键盘：把数字输入框（原生 inputmode="numeric"）标记并改为 inputmode="none"
+    var suppressSystemKeyboard = function () {
+        document.querySelectorAll('input[inputmode="numeric"]').forEach(function (el) {
+            el.dataset.vk = '1';
+            el.setAttribute('inputmode', 'none');
+        });
+    };
+    suppressSystemKeyboard();
+    new MutationObserver(suppressSystemKeyboard).observe(document.body, { childList: true, subtree: true });
+
+    // 2) 聚焦时弹出自制键盘，失焦时收起
+    document.addEventListener('focusin', function (e) {
+        if (!isTargetInput(e.target)) return;
+        e.target.dataset.vkStart = e.target.value;
+        keypad.classList.add('vk-show');
+        document.body.classList.add('vk-open');
+        // 等键盘弹出与 vk-open padding 布局稳定后，只把输入框被键盘遮住的部分补滚出来，
+        // 不做整屏居中，避免视图持续下移、输入框被居中到键盘背后
+        setTimeout(function () {
+            try {
+                var keypadH = keypad.offsetHeight || 460;
+                var visibleBottom = window.innerHeight - keypadH - 12;
+                var r = e.target.getBoundingClientRect();
+                if (r.bottom > visibleBottom) {
+                    window.scrollBy({ top: r.bottom - visibleBottom, behavior: 'smooth' });
+                } else if (r.top < 8) {
+                    window.scrollBy({ top: r.top - 8, behavior: 'smooth' });
+                }
+            } catch (_) {}
+        }, 250);
+    });
+    document.addEventListener('focusout', function () {
+        setTimeout(function () {
+            var a = document.activeElement;
+            if (!isTargetInput(a)) {
+                keypad.classList.remove('vk-show');
+                document.body.classList.remove('vk-open');
+            }
+        }, 60);
+    });
+
+    // 3) 按键逻辑（拦截触摸默认行为，防止焦点丢失和"幽灵点击"穿透到键盘下方界面）
+    var lastActivateAt = 0;
+    var activate = function (btn) {
+        lastActivateAt = Date.now();
+        var k = btn.dataset.k;
+        // 「收起」不依赖输入框状态：已结算后输入框被 disabled，isTargetInput 会失败导致键盘收不起来
+        if (k === 'hide') {
+            var el = document.activeElement;
+            if (isTargetInput(el)) {
+                // 值有变化先提交，再失焦收起键盘
+                if (el.value !== (el.dataset.vkStart != null ? el.dataset.vkStart : el.value)) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                el.blur();
+            }
+            keypad.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+            return;
+        }
+
+        var el = document.activeElement;
+        if (!isTargetInput(el)) return;
+
+        if (k === 'enter') {
+            // 值有变化先提交 change，再走原有的 Enter 导航/确认逻辑
+            if (el.value !== (el.dataset.vkStart != null ? el.dataset.vkStart : el.value)) {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dataset.vkStart = el.value;
+            }
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            return;
+        }
+
+        var s = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+        var t = (el.selectionEnd != null) ? el.selectionEnd : s;
+        if (k === 'home') { el.setSelectionRange(0, 0); return; }
+        if (k === 'end') { el.setSelectionRange(el.value.length, el.value.length); return; }
+        if (k === 'left') { var pl = s === t ? Math.max(0, s - 1) : s; el.setSelectionRange(pl, pl); return; }
+        if (k === 'right') { var pr = s === t ? Math.min(el.value.length, s + 1) : t; el.setSelectionRange(pr, pr); return; }
+        if (k === 'clear') {
+            el.value = '';
+            el.setSelectionRange(0, 0);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+        if (k === 'back') {
+            if (s === t && s > 0) {
+                el.value = el.value.slice(0, s - 1) + el.value.slice(t);
+                el.setSelectionRange(s - 1, s - 1);
+            } else if (s !== t) {
+                el.value = el.value.slice(0, s) + el.value.slice(t);
+                el.setSelectionRange(s, s);
+            }
+        } else {
+            el.value = el.value.slice(0, s) + k + el.value.slice(t);
+            el.setSelectionRange(s + k.length, s + k.length);
+        }
+        // 触发 input 事件，让实时预览 / 校验逻辑照常工作
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    var pick = function (e) { var btn = e.target.closest('button[data-k]'); if (btn) activate(btn); };
+
+    keypad.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+    keypad.addEventListener('pointerup', function (e) { e.preventDefault(); pick(e); });
+    keypad.addEventListener('pointercancel', function (e) { e.preventDefault(); });
+    // 阻止移动端把这次触摸再合成为 click 落到键盘下方的元素上
+    keypad.addEventListener('touchstart', function (e) { e.preventDefault(); }, { passive: false });
+    keypad.addEventListener('touchend', function (e) { e.preventDefault(); }, { passive: false });
+    // 桌面鼠标兜底（移动端 click 已被上面拦截，500ms 内去重避免重复触发）
+    keypad.addEventListener('click', function (e) { e.stopPropagation(); if (Date.now() - lastActivateAt > 500) pick(e); });
+})();
+</script>
+    <script src="./fx.js"></script>
+</body>
+</html>

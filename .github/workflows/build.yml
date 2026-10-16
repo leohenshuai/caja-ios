@@ -1,0 +1,25 @@
+name: build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned IPA
+        run: |
+          set -e
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          mkdir -p build/Payload/Caja.app
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios14.0 -sdk "$SDK" -O -o build/Payload/Caja.app/Caja Sources/main.swift
+          cp Info.plist build/Payload/Caja.app/
+          cp -R www build/Payload/Caja.app/www
+          sips -z 120 120 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@2x.png
+          sips -z 180 180 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@3x.png
+          cd build && zip -qr Caja.ipa Payload && ls -l Caja.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Caja-ipa
+          path: build/Caja.ipa

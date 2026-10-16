@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="CAJA监控清单系统 - PWA离线版">
+    <title>CAJA监控清单</title>
+<script src="./keepawake.js" defer></script>
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Caja套件">
+    <style>
+        :root { --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; --bg: #0f172a; --surface: #1e293b; --surface-light: #334155; --text: #f1f5f9; --text-muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* body / .header / button / .toast / .modal 基础样式已提取到 common.css；本页差异覆盖见 common.css 引用之后的 style 块 */
+        .header h1 { margin: 0 0 12px 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .header-stats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+        .stat-item { display: flex; align-items: center; gap: 6px; }
+        .stat-label { color: var(--text-muted); }
+        .stat-value { font-weight: 600; font-family: 'Courier New', monospace; }
+        .stat-value.target { color: var(--cyan); } .stat-value.remaining { color: var(--yellow); } .stat-value.settled { color: var(--green); }
+        .progress-section { padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+        .progress-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); border-radius: 4px; transition: width 0.3s ease; }
+        .progress-fill.over { background: linear-gradient(90deg, var(--yellow), var(--red)); }
+        .quick-input { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; }
+        .quick-input input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 6px; font-size: 14px; font-family: 'Courier New', monospace; }
+        .quick-input input::placeholder { color: var(--text-muted); font-size: 12px; }
+        .quick-input input:focus { outline: none; border-color: var(--cyan); }
+        button.primary { background: var(--cyan); color: white; border-color: var(--cyan); }
+        button.success { background: var(--green); color: white; border-color: var(--green); }
+        button.danger { background: var(--red); color: white; border-color: var(--red); }
+        button.warning { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .caja-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 16px; }
+        .caja-card { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 0; position: relative; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
+        .caja-card.active { border-color: var(--cyan); box-shadow: 0 0 15px rgba(6, 182, 212, 0.15); }
+        .caja-card.settled { border-color: var(--green); opacity: 0.85; }
+        .caja-card.closed { border-color: var(--red); opacity: 0.7; }
+        .caja-card.ghost { border-color: var(--blue); border-style: dashed; }
+        .caja-body { max-height: 0; opacity: 0; padding: 0 16px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, padding 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .caja-card.expanded .caja-body { max-height: 400px; opacity: 1; padding: 0 16px 16px 16px; }
+        .caja-collapsed-diff { display: none; font-size: 14px; font-family: 'Courier New', monospace; font-weight: 700; margin-right: 8px; white-space: nowrap; }
+        .caja-card.collapsed .caja-collapsed-diff { display: block; }
+        .caja-card.expanded .caja-collapsed-diff { display: none; }
+        .caja-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; transition: background 0.2s; }
+        .caja-header:active { background: rgba(255, 255, 255, 0.03); }
+        .caja-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .caja-status-icon { font-size: 16px; font-weight: bold; }
+        .status-settled { color: var(--green); } .status-closed { color: var(--red); } .status-ghost { color: var(--blue); }
+        .caja-actions { display: flex; gap: 6px; }
+        .caja-actions button { padding: 8px 12px; font-size: 13px; border-radius: 8px; min-width: 44px; min-height: 44px; }
+        .caja-card.collapsed .caja-actions button { padding: 8px 14px; font-size: 14px; }
+        .value-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; padding-top: 4px; }
+        .value-item { text-align: center; padding: 12px 8px; background: var(--bg); border-radius: 8px; }
+        .value-item label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+        .value-item .value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; }
+        .value-item .value.raw { color: var(--purple); } .value-item .value.target { color: var(--yellow); } .value-item .value.diff-positive { color: var(--red); } .value-item .value.diff-negative { color: var(--green); } .value-item .value.grey { color: var(--grey); } .value-item .value.blue { color: var(--blue); }
+        .input-section { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .input-section input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-size: 14px; text-align: right; font-family: 'Courier New', monospace; }
+        .input-section input:focus { outline: none; border-color: var(--cyan); }
+        .input-section input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .input-section button { padding: 10px 16px; }
+        .bottom-stats { position: fixed; bottom: var(--bb-h, 60px); left: 0; right: 0; background: rgba(15, 23, 42, 0.98); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; justify-content: space-around; font-size: 13px; backdrop-filter: blur(10px); z-index: 100; }
+        .bottom-stat { display: flex; align-items: center; gap: 6px; }
+        .bottom-stat .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.active { background: var(--purple); } .dot.ghost { background: var(--blue); } .dot.closed { background: var(--red); } .dot.settled { background: var(--green); }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.98); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; justify-content: space-around; gap: 8px; backdrop-filter: blur(10px); z-index: 100; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+        .bottom-bar button { flex: 1; justify-content: center; padding: 12px 4px; font-size: 13px; white-space: nowrap; }
+        .toast.success { border-color: var(--green); color: var(--green); } .toast.error { border-color: var(--red); color: var(--red); } .toast.warning { border-color: var(--yellow); color: var(--yellow); }
+        .modal-content { background: var(--surface); width: 90%; max-width: 400px; border-radius: 12px; padding: 24px; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { font-size: 16px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+        .modal-body { margin-bottom: 20px; font-size: 14px; line-height: 1.6; text-align: center; color: var(--text-muted); }
+        .modal-body strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 16px; }
+        .modal-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 6px; font-size: 16px; font-family: 'Courier New', monospace; margin-top: 12px; }
+        .modal-footer { display: flex; gap: 12px; }
+        .modal-footer button { flex: 1; padding: 12px; }
+        @media (max-width: 768px) { .caja-grid { grid-template-columns: 1fr; } .value-grid { gap: 8px; } .value-item .value { font-size: 16px; } .header-stats { gap: 12px; } }
+        /* 防止 iOS 聚焦时页面缩放 */
+        input[inputmode="numeric"],
+        input[inputmode="decimal"] {
+            font-size: 16px; /* iOS 上小于 16px 聚焦会强制缩放 */
+            -webkit-text-size-adjust: 100%;
+        }
+        /* 如果未来误改成 type=number，隐藏难看箭头 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* 键盘弹出时：弹窗整体上移到键盘上方，避免遮挡 */
+        body.vk-open .modal.show { align-items: flex-start; padding-top: 8px; }
+        body.vk-open .modal.show .modal-content { max-height: calc(100vh - var(--vk-h, 460px) - 16px); overflow-y: auto; }
+    </style>
+    <link rel="stylesheet" href="./fx.css">
+    <link rel="stylesheet" href="./common.css">
+    <style>
+        /* ===== 本页与 common.css 的差异覆盖（须置于 common.css 之后） ===== */
+        body { padding-bottom: calc(var(--bb-h, 60px) + 48px + env(safe-area-inset-bottom, 0px)); }
+        .header { display: block; }
+        button { background: var(--surface-light); padding: 8px 14px; border-radius: 6px; justify-content: center; gap: 4px; }
+        button:hover { background: var(--border); }
+        .toast { bottom: 180px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📦 CAJA监控清单</h1>
+    <div class="header-stats">
+        <div class="stat-item"><span class="stat-label">总目标:</span><span class="stat-value target" id="totalTarget">300,000</span></div>
+        <div class="stat-item"><span class="stat-label">剩余:</span><span class="stat-value remaining" id="remainingQuota">300,000</span></div>
+        <div class="stat-item"><span class="stat-label">已结算:</span><span class="stat-value settled" id="settledTotal">0</span></div>
+    </div>
+</div>
+
+<div class="progress-section">
+    <div class="progress-header"><span>进度</span><span id="progressText">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+</div>
+
+<div class="quick-input">
+    <input type="text" id="quickCmd" placeholder="快捷指令: f1 结算 | g1 关闭 | c1 清空 | 1 5000 录入 | b300000 改总额 | x 全清 | undo 撤销" onkeydown="if(event.key==='Enter')app.executeQuickCmd(this.value)">
+    <button onclick="app.executeQuickCmd(document.getElementById('quickCmd').value)">执行</button>
+</div>
+
+<div class="caja-grid" id="cajaContainer"></div>
+
+<div class="bottom-stats">
+    <div class="bottom-stat"><span class="dot active"></span><span>运营: <b id="activeCount">0</b></span></div>
+    <div class="bottom-stat"><span class="dot ghost"></span><span>待开: <b id="ghostCount">0</b></span></div>
+    <div class="bottom-stat"><span class="dot closed"></span><span>隔离: <b id="closedCount">0</b></span></div>
+    <div class="bottom-stat"><span class="dot settled"></span><span>已结: <b id="settledCount">0</b></span></div>
+</div>
+
+<div class="bottom-bar">
+    <button onclick="app.saveData(true)" class="success">💾 保存</button>
+    <button onclick="app.fullReset()" class="danger">🗑️ 全清</button>
+    <button onclick="app.undo()" class="warning">↩️ 撤销</button>
+    <button onclick="app.openTargetModal()" class="primary">📝 修改总额</button>
+</div>
+
+<div class="modal" id="targetModal">
+    <div class="modal-content">
+        <div class="modal-header">修改总目标金额</div>
+        <div class="modal-body"><input type="text" id="targetInput" placeholder="输入新目标金额" class="modal-input" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+        <div class="modal-footer"><button onclick="app.closeTargetModal(false)">取消</button><button onclick="app.closeTargetModal(true)" class="primary">确认</button></div>
+    </div>
+</div>
+
+<div class="modal" id="confirmModal">
+    <div class="modal-content">
+        <div class="modal-header" id="confirmTitle">⚠️ 确认操作</div>
+        <div class="modal-body" id="confirmMessage">确定要执行此操作吗？</div>
+        <div class="modal-footer"><button onclick="app.closeConfirmModal(false)">取消</button><button onclick="app.closeConfirmModal(true)" class="danger" id="confirmBtn">确认</button></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DB_NAME = 'CajaDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'data';
+
+class DBHelper {
+    static async init() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) { reject(new Error('IndexedDB not supported')); return; }
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'key' }); };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    static async get(db, key) {
+        return new Promise((resolve) => {
+            if (!db) { resolve(null); return; }
+            try { const tx = db.transaction([STORE_NAME], 'readonly'); const store = tx.objectStore(STORE_NAME); const req = store.get(key); req.onsuccess = () => resolve(req.result ? req.result.value : null); req.onerror = () => resolve(null); } catch (e) { resolve(null); }
+        });
+    }
+    static async put(db, key, value) {
+        return new Promise((resolve) => {
+            if (!db) { resolve(false); return; }
+            try { const tx = db.transaction([STORE_NAME], 'readwrite'); const store = tx.objectStore(STORE_NAME); const req = store.put({ key, value }); req.onsuccess = () => resolve(true); req.onerror = () => resolve(false); } catch (e) { resolve(false); }
+        });
+    }
+    static async delete(db, key) {
+        return new Promise((resolve) => {
+            if (!db) { resolve(false); return; }
+            try { const tx = db.transaction([STORE_NAME], 'readwrite'); const store = tx.objectStore(STORE_NAME); const req = store.delete(key); req.onsuccess = () => resolve(true); req.onerror = () => resolve(false); } catch (e) { resolve(false); }
+        });
+    }
+}
+
+const DEFAULT_TOTAL = 300000;
+const CAJAS = ["Caja 1", "Caja 2", "Caja 3", "Caja 4"];
+const NUM_CAJAS = 4;
+const CONFIG_LS_KEY = 'caja_config'; // localStorage 键：独立镜像 总目标 + 默认关闭，避免清缓存后丢失
+
+class CajaApp {
+    constructor() {
+        this.db = null; this.state = this.defaultState(); this.confirmCallback = null; this.expandedCards = new Set();
+        this.config = this.loadConfig(); this.applyConfig();
+        this.renderCajaCards(); this.updateUI();
+        DBHelper.init().then(db => { this.db = db; return this.loadState(); }).then(() => { this.applyConfig(); this.saveConfig(); this.renderCajaCards(); this.updateUI(); }).catch(err => { console.error('[CajaDB] Init failed:', err); });
+    }
+    // 配置独立于业务数据：即使 IndexedDB 被清缓存删掉，localStorage 里仍能找回总目标和默认关闭
+    loadConfig() {
+        const cfg = { total_target: null, default_closed: [false, false, false, false] };
+        try {
+            const raw = localStorage.getItem(CONFIG_LS_KEY);
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (typeof p.total_target === 'number' && p.total_target >= 0) cfg.total_target = p.total_target;
+                if (Array.isArray(p.default_closed)) { for (let i = 0; i < NUM_CAJAS; i++) cfg.default_closed[i] = !!p.default_closed[i]; }
+            }
+        } catch (e) { console.error('Config load error:', e); }
+        return cfg;
+    }
+    saveConfig() {
+        this.config.total_target = this.state.total_target;
+        try { localStorage.setItem(CONFIG_LS_KEY, JSON.stringify(this.config)); } catch (e) { console.error('Config save error:', e); }
+        if (this.db) DBHelper.put(this.db, 'caja_config', this.config);
+    }
+    applyConfig() {
+        if (this.config.total_target !== null) this.state.total_target = this.config.total_target;
+        for (let i = 0; i < NUM_CAJAS; i++) if (this.config.default_closed[i]) this.state.is_closed[i] = true;
+    }
+    defaultState() { return { total_target: DEFAULT_TOTAL, raw_inputs: [0, 0, 0, 0], is_settled: [false, false, false, false], is_closed: [false, false, false, false], settled_total: 0, settled_amounts: [0, 0, 0, 0], settle_exempt: [false, false, false, false], history: [] }; }
+    async loadState() {
+        try { const saved = await DBHelper.get(this.db, 'caja_state'); if (saved) { const defaultState = this.defaultState(); for (let key in defaultState) if (saved[key] !== undefined) defaultState[key] = saved[key]; this.state = defaultState; } } catch (e) { console.error('Load error:', e); }
+    }
+    async saveState(backup = false) {
+        if (!this.db) return false;
+        try { await DBHelper.put(this.db, 'caja_state', this.state); if (backup) { const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); await DBHelper.put(this.db, 'caja_backup_' + timestamp, this.state); } return true; } catch (e) { console.error('Save error:', e); return false; }
+    }
+    pushHistory(actionDesc) {
+        const snapshot = { raw_inputs: [...this.state.raw_inputs], is_settled: [...this.state.is_settled], is_closed: [...this.state.is_closed], settled_total: this.state.settled_total, settled_amounts: [...this.state.settled_amounts], settle_exempt: [...this.state.settle_exempt], total_target: this.state.total_target };
+        const last = this.state.history.length > 0 ? this.state.history[this.state.history.length - 1] : null;
+        if (last && JSON.stringify(last.snapshot) === JSON.stringify(snapshot)) return;
+        this.state.history.push({ action: actionDesc, snapshot });
+        if (this.state.history.length > 20) this.state.history = this.state.history.slice(-20);
+    }
+    undo() {
+        if (this.state.history.length === 0) { this.showToast('没有可撤销的操作', 'error'); return false; }
+        const last = this.state.history.pop(); const snap = last.snapshot;
+        this.state.raw_inputs = snap.raw_inputs; this.state.is_settled = snap.is_settled; this.state.is_closed = snap.is_closed; this.state.settled_total = snap.settled_total; this.state.settled_amounts = snap.settled_amounts; this.state.settle_exempt = snap.settle_exempt || [false, false, false, false]; this.state.total_target = snap.total_target;
+        this.saveConfig(); this.updateUI(); this.showToast(`已撤销: ${last.action}`, 'success'); return true;
+    }
+    calcTargets() {
+        const remaining = Math.max(0, this.state.total_target - this.state.settled_total);
+        const validPool = []; for (let i = 0; i < NUM_CAJAS; i++) if (!this.state.is_closed[i] && !this.state.is_settled[i]) validPool.push(i);
+        const validCount = validPool.length; const targets = [0, 0, 0, 0]; const ghostTargets = [0, 0, 0, 0]; const diffs = [0, 0, 0, 0];
+        if (validCount > 0) { const baseQuota = remaining / validCount; for (let i of validPool) { if (this.state.raw_inputs[i] > 0) { targets[i] = baseQuota; diffs[i] = baseQuota - this.state.raw_inputs[i]; } else { ghostTargets[i] = baseQuota; } } }
+        return { targets, ghostTargets, diffs, remaining };
+    }
+    toggleSettle(idx) {
+        if (this.state.is_closed[idx]) { this.showToast(`${CAJAS[idx]} 已硬关闭，不能结算`, 'error'); return; }
+        if (!this.state.is_settled[idx] && this.state.raw_inputs[idx] === 0) { this.showToast(`不能结算原始数为零的 ${CAJAS[idx]}`, 'error'); return; }
+        if (this.state.is_settled[idx]) { this.state.settled_total -= this.state.settled_amounts[idx]; this.state.settled_amounts[idx] = 0; this.state.is_settled[idx] = false; this.state.settle_exempt[idx] = true; this.pushHistory(`取消结算 ${CAJAS[idx]}`); this.showToast(`${CAJAS[idx]} 已取消结算并豁免自动结算（重新录入金额后恢复）`, 'success'); }
+        else { this.state.settled_amounts[idx] = this.state.raw_inputs[idx]; this.state.settled_total += this.state.raw_inputs[idx]; this.state.is_settled[idx] = true; this.state.settle_exempt[idx] = false; this.pushHistory(`结算 ${CAJAS[idx]}`); }
+        this.updateUI();
+    }
+    toggleClose(idx) {
+        if (!this.state.is_closed[idx]) {
+            if (this.state.raw_inputs[idx] !== 0) { this.showToast(`不能关闭原始数不为零的 ${CAJAS[idx]}，请先清空`, 'error'); return; }
+            if (this.state.is_settled[idx]) { this.state.settled_total -= this.state.settled_amounts[idx]; this.state.settled_amounts[idx] = 0; this.state.is_settled[idx] = false; this.state.settle_exempt[idx] = false; }
+            this.state.raw_inputs[idx] = 0; this.state.is_closed[idx] = true; this.pushHistory(`硬关闭 ${CAJAS[idx]}`);
+        } else { this.state.is_closed[idx] = false; this.pushHistory(`解除硬关闭 ${CAJAS[idx]}`); }
+        this.updateUI();
+    }
+    clearCaja(idx) {
+        if (this.state.is_settled[idx]) { this.state.settled_total -= this.state.settled_amounts[idx]; this.state.settled_amounts[idx] = 0; this.state.is_settled[idx] = false; }
+        this.state.is_closed[idx] = !!this.config.default_closed[idx]; this.state.raw_inputs[idx] = 0; this.state.settle_exempt[idx] = false; this.pushHistory(`清空 ${CAJAS[idx]}`); this.updateUI();
+    }
+    toggleDefaultClose(idx) {
+        if (!this.config.default_closed[idx]) {
+            if (this.state.raw_inputs[idx] !== 0) { this.showToast(`不能默认关闭原始数不为零的 ${CAJAS[idx]}，请先清空`, 'error'); return; }
+            if (this.state.is_settled[idx]) { this.state.settled_total -= this.state.settled_amounts[idx]; this.state.settled_amounts[idx] = 0; this.state.is_settled[idx] = false; this.state.settle_exempt[idx] = false; }
+            this.state.raw_inputs[idx] = 0; this.state.is_closed[idx] = true; this.config.default_closed[idx] = true;
+            this.pushHistory(`默认关闭 ${CAJAS[idx]}`); this.showToast(`${CAJAS[idx]} 已默认关闭（全清后仍保持关闭）`, 'success');
+        } else {
+            this.config.default_closed[idx] = false; this.state.is_closed[idx] = false;
+            this.pushHistory(`解除默认关闭 ${CAJAS[idx]}`); this.showToast(`${CAJAS[idx]} 已解除默认关闭`, 'success');
+        }
+        this.saveConfig(); this.updateUI();
+    }
+    fullReset() {
+        const keepClosed = this.config.default_closed.some(v => v);
+        this.showConfirmModal('🗑️ 确认全清', `<strong>确定要重置所有数据吗？</strong>此操作将清空所有台的原始数、结算状态、关闭状态（已结算金额将保留在统计中）。${keepClosed ? '默认关闭的台将保持关闭。' : ''}`, () => {
+            this.pushHistory('全部重置'); this.state.raw_inputs = [0, 0, 0, 0]; this.state.is_settled = [false, false, false, false]; this.state.settled_total = 0; this.state.settled_amounts = [0, 0, 0, 0]; this.state.settle_exempt = [false, false, false, false];
+            for (let i = 0; i < NUM_CAJAS; i++) this.state.is_closed[i] = !!this.config.default_closed[i];
+            this.expandedCards.clear(); this.updateUI(); this.showToast(keepClosed ? '全部重置完成（总额与默认关闭保持不变）' : '全部重置完成（总额保持不变）', 'success');
+        });
+    }
+    showConfirmModal(title, message, callback) { this.confirmCallback = callback; document.getElementById('confirmTitle').textContent = title; document.getElementById('confirmMessage').textContent = message; document.getElementById('confirmModal').classList.add('show'); }
+    closeConfirmModal(confirmed) { document.getElementById('confirmModal').classList.remove('show'); if (confirmed && typeof this.confirmCallback === 'function') this.confirmCallback(); this.confirmCallback = null; }
+    openTargetModal() { document.getElementById('targetInput').value = this.state.total_target; document.getElementById('targetModal').classList.add('show'); }
+    toggleCardExpand(idx) {
+        const card = document.getElementById(`caja-card-${idx}`); if (!card) return;
+        if (this.expandedCards.has(idx)) {
+            this.expandedCards.delete(idx); card.classList.remove('expanded'); card.classList.add('collapsed');
+        } else {
+            for (let i of Array.from(this.expandedCards)) { const otherCard = document.getElementById(`caja-card-${i}`); if (otherCard) { otherCard.classList.remove('expanded'); otherCard.classList.add('collapsed'); } }
+            this.expandedCards.clear(); this.expandedCards.add(idx); card.classList.remove('collapsed'); card.classList.add('expanded');
+            const input = document.getElementById(`caja-input-${idx}`); if (input && !input.disabled) { input.focus(); input.select(); }
+            // 滚动定位统一交给键盘脚本的 focusin 遮挡补滚逻辑处理，此处不再居中
+        }
+    }
+    stopPropagation(e) { e.stopPropagation(); }
+    setRaw(idx, value, isAbsolute = true) {
+        if (this.state.is_closed[idx]) { this.showToast(`${CAJAS[idx]} 已硬关闭，请先解除`, 'error'); return false; }
+        let newVal = value;
+        if (!isAbsolute && typeof value === 'object') {
+            const op = value.op; const val = value.val; const oldVal = this.state.raw_inputs[idx];
+            if (op === '+') newVal = oldVal + val; else if (op === '-') newVal = oldVal - val; else if (op === '*') newVal = oldVal * val; else if (op === '/') { if (val === 0) { this.showToast('除数不能为零', 'error'); return false; } newVal = oldVal / val; }
+        }
+        let clamped = Math.min(this.state.total_target, newVal); if (clamped < 0) clamped = 0;
+        if (clamped !== newVal) this.showToast(`金额超过总目标，已截断至 ${Math.floor(clamped).toLocaleString()}`, 'warning');
+        const oldVal = this.state.raw_inputs[idx]; this.state.raw_inputs[idx] = clamped; this.state.settle_exempt[idx] = false; // 重新录入金额 → 解除豁免，恢复自动结算资格
+        this.pushHistory(`修改 ${CAJAS[idx]} 金额: ${Math.floor(oldVal).toLocaleString()} → ${Math.floor(clamped).toLocaleString()}`); this.updateUI(); return true;
+    }
+    parseIndices(spec) {
+        spec = spec.trim().toLowerCase(); if (spec === 'all') return [0, 1, 2, 3];
+        if (spec.includes('-')) { const parts = spec.split('-'); if (parts.length === 2) { const start = parseInt(parts[0]) - 1; const end = parseInt(parts[1]) - 1; if (start <= end && start >= 0 && end < NUM_CAJAS) { const indices = []; for (let i = start; i <= end; i++) indices.push(i); return indices; } } }
+        if (spec.includes(',')) { const indices = []; for (let p of spec.split(',')) { const idx = parseInt(p.trim()) - 1; if (idx >= 0 && idx < NUM_CAJAS) indices.push(idx); } return indices; }
+        const idx = parseInt(spec) - 1; if (idx >= 0 && idx < NUM_CAJAS) return [idx]; return [];
+    }
+    batchOperation(op, spec) {
+        const indices = this.parseIndices(spec); let changed = false;
+        for (let i of indices) {
+            if (op === 'f') { if (!this.state.is_settled[i] && this.state.raw_inputs[i] > 0 && !this.state.is_closed[i]) { this.state.is_settled[i] = true; this.state.settled_total += this.state.raw_inputs[i]; this.state.settled_amounts[i] += this.state.raw_inputs[i]; this.state.settle_exempt[i] = false; changed = true; } }
+            else if (op === 'g') { if (!this.state.is_closed[i] && this.state.raw_inputs[i] === 0) { this.state.is_closed[i] = true; this.config.default_closed[i] = true; changed = true; } }
+            else if (op === 'c') { if (!this.state.is_settled[i]) { this.state.raw_inputs[i] = 0; this.state.is_closed[i] = !!this.config.default_closed[i]; this.state.settle_exempt[i] = false; changed = true; } }
+        }
+        if (changed) { this.pushHistory(`batch ${op}`); this.saveConfig(); this.updateUI(); this.saveState(); }
+    }
+    executeQuickCmd(cmd) {
+        cmd = cmd.trim().toLowerCase(); document.getElementById('quickCmd').value = '';
+        if (!cmd) return;
+        if (cmd === 'undo') { this.undo(); return; }
+        if (cmd === 'x') { this.fullReset(); return; }
+        if (cmd.startsWith('b')) {
+            const val = cmd.substring(1);
+            if (val) { const num = parseFloat(val); if (!isNaN(num) && num >= 0) { this.pushHistory(`修改总目标为 ${this.state.total_target.toLocaleString()}`); this.state.total_target = num; this.saveConfig(); this.updateUI(); this.showToast(`总目标已修改为 ${num.toLocaleString()}`, 'success'); } }
+            else { this.openTargetModal(); }
+            return;
+        }
+        const batchMatch = cmd.match(/^([fgc])\s+(.+)$/);
+        if (batchMatch) { const op = batchMatch[1]; const spec = batchMatch[2]; this.batchOperation(op, spec); return; }
+        const singleCmd = cmd.match(/^([fgcmr])([1-4])?$/);
+        if (singleCmd) {
+            const action = singleCmd[1]; const idx = singleCmd[2] ? parseInt(singleCmd[2]) - 1 : null;
+            if (action === 'f' && idx !== null) { this.toggleSettle(idx); return; }
+            if (action === 'g' && idx !== null) { this.toggleDefaultClose(idx); return; }
+            if (action === 'c' && idx !== null) { this.clearCaja(idx); return; }
+            if (action === 'r' && idx !== null) { const card = document.getElementById(`caja-card-${idx}`); if (card && !this.expandedCards.has(idx)) this.toggleCardExpand(idx); return; }
+        }
+        const spaceMatch = cmd.match(/^([1-4])\s+(.+)$/);
+        if (spaceMatch) {
+            const idx = parseInt(spaceMatch[1]) - 1; const expr = spaceMatch[2].trim();
+            if (this.state.is_closed[idx]) { this.showToast(`${CAJAS[idx]} 已硬关闭，请先解除`, 'error'); return; }
+            if (this.state.is_settled[idx]) { this.showToast(`${CAJAS[idx]} 已结算，不能录入`, 'error'); return; }
+            const card = document.getElementById(`caja-card-${idx}`); if (card && !this.expandedCards.has(idx)) this.toggleCardExpand(idx);
+            let val = parseFloat(expr); if (!isNaN(val)) { this.setRaw(idx, { op: '+', val }, false); return; }
+        }
+        const numVal = parseFloat(cmd);
+        if (!isNaN(numVal)) {
+            for (let i = 0; i < NUM_CAJAS; i++) {
+                if (!this.state.is_closed[i] && !this.state.is_settled[i]) {
+                    const card = document.getElementById(`caja-card-${i}`); if (card && !this.expandedCards.has(i)) this.toggleCardExpand(i);
+                    this.setRaw(i, { op: '+', val: numVal }, false); return;
+                }
+            }
+            this.showToast('没有可用的台进行录入', 'error'); return;
+        }
+        this.showToast('无效指令', 'error');
+    }
+    closeTargetModal(confirm) {
+        if (confirm) {
+            const val = parseFloat(document.getElementById('targetInput').value);
+            if (!isNaN(val) && val >= 0) { this.pushHistory(`修改总目标为 ${this.state.total_target.toLocaleString()}`); this.state.total_target = val; this.saveConfig(); this.updateUI(); this.showToast(`总目标已修改为 ${val.toLocaleString()}`, 'success'); }
+        }
+        document.getElementById('targetModal').classList.remove('show');
+    }
+    renderCajaCards() {
+        const container = document.getElementById('cajaContainer'); container.innerHTML = '';
+        for (let i = 0; i < NUM_CAJAS; i++) {
+            const card = document.createElement('div'); const isExpanded = this.expandedCards.has(i);
+            card.className = `caja-card ${isExpanded ? 'expanded' : 'collapsed'}`; card.id = `caja-card-${i}`;
+            card.innerHTML = `
+                <div class="caja-header" onclick="app.toggleCardExpand(${i})">
+                    <div class="caja-title">${CAJAS[i]}<span class="caja-status-icon" id="caja-icon-${i}"></span></div>
+                    <div class="caja-collapsed-diff" id="caja-collapsed-diff-${i}">--</div>
+                    <div class="caja-actions" onclick="app.stopPropagation(event)">
+                        <button onclick="app.toggleSettle(${i})" title="结算/取消">✓</button>
+                        <button onclick="app.toggleDefaultClose(${i})" title="默认关闭/解除（全清不重置）">🔒</button>
+                        <button onclick="app.clearCaja(${i})" title="清空">🗑️</button>
+                    </div>
+                </div>
+                <div class="caja-body">
+                    <div class="value-grid">
+                        <div class="value-item"><label>原始数</label><div class="value raw" id="caja-raw-${i}">0</div></div>
+                        <div class="value-item"><label>目标值</label><div class="value target" id="caja-target-${i}">0</div></div>
+                        <div class="value-item"><label>补足数</label><div class="value diff-positive" id="caja-diff-${i}">0</div></div>
+                    </div>
+                    <div class="input-section">
+                        <input type="text" id="caja-input-${i}" placeholder="输入金额累加" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')app.addToCaja(${i}, this.value)">
+                        <button onclick="app.addToCaja(${i}, document.getElementById('caja-input-${i}').value)">+</button>
+                        <button onclick="app.setCajaValue(${i}, document.getElementById('caja-input-${i}').value)">=</button>
+                    </div>
+                </div>`;
+            container.appendChild(card);
+        }
+    }
+    addToCaja(idx, value) {
+        const num = parseFloat(value); if (isNaN(num)) { this.showToast('请输入有效数字', 'error'); return; }
+        this.setRaw(idx, { op: '+', val: num }, false);
+        const input = document.getElementById(`caja-input-${idx}`); input.value = ''; input._skipBlur = true;
+    }
+    setCajaValue(idx, value) {
+        const num = parseFloat(value); if (isNaN(num)) { this.showToast('请输入有效数字', 'error'); return; }
+        this.setRaw(idx, num, true);
+        const input = document.getElementById(`caja-input-${idx}`); input.value = ''; input._skipBlur = true;
+    }
+    // 自动结算：原始数达到/超过当前目标值的运营台 → 自动标记为已结算
+    // 结算会改变剩余配额 → 其他台目标重算 → 可能连锁触发，循环直到收敛
+    autoSettle() {
+        const settledNames = [];
+        let guard = 0;
+        while (guard++ < NUM_CAJAS) {
+            const { diffs } = this.calcTargets();
+            let hit = -1;
+            for (let i = 0; i < NUM_CAJAS; i++) {
+                if (!this.state.is_closed[i] && !this.state.is_settled[i] && !this.state.settle_exempt[i] && this.state.raw_inputs[i] > 0 && diffs[i] <= 0) { hit = i; break; }
+            }
+            if (hit === -1) break;
+            this.state.settled_amounts[hit] = this.state.raw_inputs[hit];
+            this.state.settled_total += this.state.raw_inputs[hit];
+            this.state.is_settled[hit] = true;
+            settledNames.push(CAJAS[hit]);
+        }
+        if (settledNames.length > 0) {
+            this.pushHistory(`自动结算 ${settledNames.join('、')}`);
+            this.showToast(`已自动结算: ${settledNames.join('、')}`, 'success');
+        }
+    }
+    updateUI() {
+        this.autoSettle();
+        const { targets, ghostTargets, diffs, remaining } = this.calcTargets();
+        let activeCount = 0, ghostCount = 0, closedCount = 0, settledCount = 0, totalRaw = 0, activeRawSum = 0;
+        for (let i = 0; i < NUM_CAJAS; i++) {
+            const raw = this.state.raw_inputs[i]; const isSettled = this.state.is_settled[i]; const isClosed = this.state.is_closed[i];
+            if (isClosed) { closedCount++; } else if (isSettled) { settledCount++; totalRaw += raw; } else { totalRaw += raw; if (raw > 0) { activeCount++; activeRawSum += raw; } else { ghostCount++; } }
+        }
+        document.getElementById('totalTarget').textContent = Math.floor(this.state.total_target).toLocaleString();
+        const remainingQuota = Math.max(0, remaining - activeRawSum);
+        document.getElementById('remainingQuota').textContent = Math.floor(remainingQuota).toLocaleString();
+        document.getElementById('settledTotal').textContent = Math.floor(this.state.settled_total).toLocaleString();
+        const progress = this.state.total_target > 0 ? Math.min(100, (totalRaw / this.state.total_target) * 100) : 0;
+        const over = totalRaw > this.state.total_target;
+        document.getElementById('progressText').textContent = Math.floor(progress) + '%' + (over ? ' (超支)' : '');
+        document.getElementById('progressFill').style.width = Math.min(100, progress) + '%';
+        document.getElementById('progressFill').className = over ? 'progress-fill over' : 'progress-fill';
+        document.getElementById('activeCount').textContent = activeCount; document.getElementById('ghostCount').textContent = ghostCount;
+        document.getElementById('closedCount').textContent = closedCount; document.getElementById('settledCount').textContent = settledCount;
+        for (let i = 0; i < NUM_CAJAS; i++) {
+            const card = document.getElementById(`caja-card-${i}`); const icon = document.getElementById(`caja-icon-${i}`);
+            const rawEl = document.getElementById(`caja-raw-${i}`); const targetEl = document.getElementById(`caja-target-${i}`);
+            const diffEl = document.getElementById(`caja-diff-${i}`); const input = document.getElementById(`caja-input-${i}`);
+            const collapsedDiffEl = document.getElementById(`caja-collapsed-diff-${i}`);
+            const raw = this.state.raw_inputs[i]; const isSettled = this.state.is_settled[i]; const isClosed = this.state.is_closed[i];
+            const isExpanded = this.expandedCards.has(i); card.className = `caja-card ${isExpanded ? 'expanded' : 'collapsed'}`;
+            rawEl.className = 'value raw'; targetEl.className = 'value target'; diffEl.className = 'value diff-positive'; input.disabled = false; icon.style.color = '';
+            let diffText = '0', diffColor = 'var(--grey)';
+            if (isSettled) {
+                card.classList.add('settled'); icon.textContent = '√'; icon.className = 'caja-status-icon status-settled';
+                rawEl.textContent = Math.floor(raw).toLocaleString(); rawEl.className = 'value grey'; targetEl.textContent = '0'; targetEl.className = 'value grey';
+                diffEl.textContent = '0'; diffEl.className = 'value grey'; diffText = '已结算'; diffColor = 'var(--green)'; input.disabled = true;
+            } else if (isClosed) {
+                const isDefaultClosed = !!this.config.default_closed[i];
+                card.classList.add('closed'); icon.textContent = isDefaultClosed ? '🔒' : '✗'; icon.className = 'caja-status-icon status-closed';
+                rawEl.textContent = '0'; rawEl.className = 'value grey'; targetEl.textContent = '0'; targetEl.className = 'value grey';
+                diffEl.textContent = '0'; diffEl.className = 'value grey'; diffText = isDefaultClosed ? '默认关' : '已隔离'; diffColor = 'var(--red)'; input.disabled = true;
+            } else if (raw === 0) {
+                card.classList.add('ghost'); icon.textContent = '~'; icon.className = 'caja-status-icon status-ghost';
+                rawEl.textContent = '0'; rawEl.className = 'value grey'; targetEl.textContent = Math.floor(ghostTargets[i]).toLocaleString(); targetEl.className = 'value blue';
+                diffEl.textContent = Math.floor(ghostTargets[i]).toLocaleString(); diffEl.className = 'value blue'; diffText = Math.floor(ghostTargets[i]).toLocaleString(); diffColor = 'var(--blue)';
+            } else {
+                card.classList.add('active'); icon.textContent = '';
+                rawEl.textContent = Math.floor(raw).toLocaleString(); rawEl.className = 'value raw'; targetEl.textContent = Math.floor(targets[i]).toLocaleString(); targetEl.className = 'value target';
+                const diff = diffs[i]; if (diff > 0) { diffEl.textContent = Math.floor(diff).toLocaleString(); diffEl.className = 'value diff-positive'; diffText = Math.floor(diff).toLocaleString(); diffColor = 'var(--red)'; }
+                else if (this.state.settle_exempt[i]) { diffEl.textContent = '免结算'; diffEl.className = 'value grey'; diffText = '免结算'; diffColor = 'var(--yellow)'; icon.textContent = '⊘'; icon.className = 'caja-status-icon'; icon.style.color = 'var(--yellow)'; }
+                else { diffEl.textContent = 'DONE'; diffEl.className = 'value diff-negative'; diffText = 'DONE'; diffColor = 'var(--green)'; }
+            }
+            if (collapsedDiffEl) { collapsedDiffEl.textContent = diffText; collapsedDiffEl.style.color = diffColor; }
+        }
+        if (typeof syncBottomBars === 'function') syncBottomBars();
+        this.saveState();
+    }
+    saveData(backup = false) { if (this.saveState(backup)) this.showToast(backup ? '已保存并备份' : '已保存', 'success'); else this.showToast('保存失败', 'error'); }
+    showToast(message, type = 'info') {
+        const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `toast ${type} show`;
+        if (toast._timer) clearTimeout(toast._timer); toast._timer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+    }
+}
+
+const app = new CajaApp();
+
+// 实测底部按钮栏高度写入 --bb-h，统计栏与页面留白跟着它走，避免不同机型/字体下遮挡
+function syncBottomBars() {
+    const bb = document.querySelector('.bottom-bar');
+    if (bb) document.documentElement.style.setProperty('--bb-h', bb.offsetHeight + 'px');
+}
+window.addEventListener('resize', syncBottomBars);
+window.addEventListener('load', syncBottomBars);
+
+document.addEventListener('DOMContentLoaded', () => { app.updateUI(); syncBottomBars(); setTimeout(syncBottomBars, 300); setTimeout(() => { app.showToast('CAJA系统已加载', 'success'); }, 1000); });
+
+// ===== 核心修复：blur 时输入框为空只保持空白，绝不清零已保存的数据 =====
+// 历史教训：旧版在 blur 且值为空时把 raw_inputs 归零，导致「收起键盘」误清当前台数据。
+// 清零一台请用卡片上的 🗑️ 按钮或快捷指令 c1~c4，blur 不再代劳。
+(function() {
+    document.addEventListener('blur', (e) => {
+        const input = e.target;
+        if (!input.id || !input.id.startsWith('caja-input-')) return;
+        if (input._skipBlur) { input._skipBlur = false; return; }
+        // 空值仅保持输入框空白（不强制填 0），不触碰 state
+        if (input.value.trim() === '') input.value = '';
+    }, true);
+})();
+</script>
+<!-- ===== 自制数字键盘 ===== -->
+<div id="vk-keypad">
+    <div class="vk-toolbar">
+        <button type="button" data-k="home" title="句首">|◀</button>
+        <button type="button" data-k="left" title="左移">◀</button>
+        <button type="button" data-k="right" title="右移">▶</button>
+        <button type="button" data-k="end" title="句末">▶|</button>
+        <button type="button" data-k="clear" class="vk-clear" title="清空">清空</button>
+        <button type="button" data-k="hide" class="vk-hide" title="收起键盘">收起</button>
+    </div>
+    <div class="vk-main">
+    <div class="vk-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="00">00</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+    <div class="vk-side">
+        <button type="button" data-k="back" class="vk-func">⌫</button>
+        <button type="button" data-k=" " class="vk-func">空格</button>
+        <button type="button" data-k="enter" class="vk-enter">回车</button>
+    </div>
+    </div>
+</div>
+<script>
+(function () {
+    const keypad = document.getElementById('vk-keypad');
+
+    // 0) 全局解析兼容千分位：所有 parseFloat/parseInt 自动剔除逗号，避免 "500,000" 被截断成 500
+    const _pf = window.parseFloat, _pi = window.parseInt;
+    window.parseFloat = (v) => _pf(typeof v === 'string' ? v.replace(/,/g, '') : v);
+    window.parseInt = (v, r) => _pi(typeof v === 'string' ? v.replace(/,/g, '') : v, r);
+    const isTargetInput = (el) => el && el.tagName === 'INPUT' &&
+        (el.type === 'text' || el.type === 'number') &&
+        el.id !== 'quickCmd' && !el.disabled;
+
+    // 1) 抑制系统键盘逻辑已提取到 common.js
+
+    // 1.5) 输入时自动加千分位（只处理纯整数；含空格求和/算式/小数点的内容原样保留）
+    const formatThousands = (el) => {
+        const raw = el.value;
+        if (!raw || !/^[\d,]+$/.test(raw)) return;
+        const caret = (el.selectionStart != null) ? el.selectionStart : raw.length;
+        const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digits = raw.replace(/\D/g, '');
+        if (!digits) { el.value = ''; return; }
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (formatted === raw) return;
+        el.value = formatted;
+        let pos = 0, seen = 0;
+        while (pos < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[pos])) seen++; pos++; }
+        el.setSelectionRange(pos, pos);
+    };
+    // 捕获阶段在原有 oninput 处理之前执行，保证后续逻辑拿到的是格式化后的值
+    document.addEventListener('input', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+    // 聚焦时把已有数值也补上千分位
+    document.addEventListener('focusin', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+
+    // 2) 聚焦时弹出自制键盘，失焦时收起
+    document.addEventListener('focusin', (e) => {
+        if (!isTargetInput(e.target)) return;
+        e.target.dataset.vkStart = e.target.value;
+        keypad.classList.add('vk-show');
+        document.body.classList.add('vk-open');
+        document.documentElement.style.setProperty('--vk-h', (keypad.offsetHeight || 460) + 'px');
+        // 等键盘弹出与 vk-open padding 布局稳定后，只把输入框被键盘遮住的部分补滚出来，
+        // 保证输入框始终完整位于键盘上方，不做整屏居中避免视图漂移
+        const target = e.target;
+        const revealAboveKeypad = () => {
+            try {
+                const keypadH = keypad.offsetHeight || 460;
+                const visibleBottom = window.innerHeight - keypadH - 12;
+                const r = target.getBoundingClientRect();
+                if (r.bottom > visibleBottom) {
+                    window.scrollBy({ top: r.bottom - visibleBottom, behavior: 'smooth' });
+                } else if (r.top < 8) {
+                    window.scrollBy({ top: r.top - 8, behavior: 'smooth' });
+                }
+            } catch (_) {}
+        };
+        // 卡片展开有 0.35s 动画，分两次补滚：动画中途一次、动画结束键盘稳定后一次
+        setTimeout(revealAboveKeypad, 250);
+        setTimeout(revealAboveKeypad, 450);
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!isTargetInput(a)) {
+                keypad.classList.remove('vk-show');
+                document.body.classList.remove('vk-open');
+            }
+        }, 60);
+    });
+
+    // 3) 按键逻辑（拦截触摸默认行为，防止焦点丢失和"幽灵点击"穿透到键盘下方界面）
+    let lastActivateAt = 0;
+    const activate = (btn) => {
+        lastActivateAt = Date.now();
+        const k = btn.dataset.k;
+        // 「收起」不依赖输入框状态：已结算后输入框被 disabled，isTargetInput 会失败导致键盘收不起来
+        if (k === 'hide') {
+            const el = document.activeElement;
+            if (isTargetInput(el)) {
+                // 值有变化先提交，再失焦收起键盘
+                if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                el.blur();
+            }
+            keypad.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+            return;
+        }
+
+        const el = document.activeElement;
+        if (!isTargetInput(el)) return;
+
+        if (k === 'enter') {
+            // 值有变化先提交 change，再走原有的 Enter 导航/确认逻辑
+            if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dataset.vkStart = el.value;
+            }
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            return;
+        }
+
+        const s = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+        const t = (el.selectionEnd != null) ? el.selectionEnd : s;
+        if (k === 'home') { el.setSelectionRange(0, 0); return; }
+        if (k === 'end') { el.setSelectionRange(el.value.length, el.value.length); return; }
+        if (k === 'left') { const p = s === t ? Math.max(0, s - 1) : s; el.setSelectionRange(p, p); return; }
+        if (k === 'right') { const p = s === t ? Math.min(el.value.length, s + 1) : t; el.setSelectionRange(p, p); return; }
+        if (k === 'clear') {
+            el.value = '';
+            el.setSelectionRange(0, 0);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+        if (k === 'back') {
+            if (s === t && s > 0) {
+                el.value = el.value.slice(0, s - 1) + el.value.slice(t);
+                el.setSelectionRange(s - 1, s - 1);
+            } else if (s !== t) {
+                el.value = el.value.slice(0, s) + el.value.slice(t);
+                el.setSelectionRange(s, s);
+            }
+        } else {
+            el.value = el.value.slice(0, s) + k + el.value.slice(t);
+            el.setSelectionRange(s + k.length, s + k.length);
+        }
+        // 触发 input 事件，让实时求和 / 分配逻辑照常工作
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const pick = (e) => { const btn = e.target.closest('button[data-k]'); if (btn) activate(btn); };
+
+    keypad.addEventListener('pointerdown', (e) => e.preventDefault());
+    keypad.addEventListener('pointerup', (e) => { e.preventDefault(); pick(e); });
+    keypad.addEventListener('pointercancel', (e) => e.preventDefault());
+    // 阻止移动端把这次触摸再合成为 click 落到键盘下方的元素上
+    keypad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    keypad.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+    // 桌面鼠标兜底（移动端 click 已被上面拦截，500ms 内去重避免重复触发）
+    keypad.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastActivateAt > 500) pick(e); });
+})();
+</script>
+    <script src="./fx.js"></script>
+    <script src="./common.js"></script>
+</body>
+</html>

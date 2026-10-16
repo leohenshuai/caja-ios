@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="现金箱清点系统 - PWA离线版">
+    <title>现金箱清点系统</title>
+<script src="./keepawake.js" defer></script>
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Caja套件">
+    <script>
+function escapeHtml(str) { if (str === null || str === undefined) return ''; const div = document.createElement('div'); div.textContent = String(str); return div.innerHTML; }
+    </script>
+    <style>
+        :root { --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; --bg: #0f172a; --surface: #1e293b; --surface-light: #334155; --text: #f1f5f9; --text-muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* body / .header / button 基础样式已提取到 common.css */
+        .header h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .header-actions { display: flex; gap: 8px; }
+        button.primary { background: var(--cyan); color: white; border-color: var(--cyan); }
+        button.danger { background: var(--red); color: white; border-color: var(--red); }
+        button.success { background: var(--green); color: white; border-color: var(--green); }
+        button.warning { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+        .container { padding: 16px; max-width: 1200px; margin: 0 auto; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+        .metric-card.editable { cursor: pointer; position: relative; transition: border-color .15s, background .15s; }
+        .metric-card.editable:hover, .metric-card.editable:active { border-color: var(--cyan); background: var(--surface-light); }
+        .metric-edit-hint { position: absolute; top: 3px; right: 6px; font-size: 12px; line-height: 1; color: var(--cyan); }
+        .metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .metric-value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; }
+        .metric-value.green { color: var(--green); } .metric-value.red { color: var(--red); } .metric-value.yellow { color: var(--yellow); } .metric-value.cyan { color: var(--cyan); } .metric-value.blue { color: var(--blue); }
+        .progress-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .progress-label { font-size: 12px; color: var(--text-muted); }
+        .progress-percent { font-size: 14px; font-weight: 600; color: var(--cyan); }
+        .progress-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); border-radius: 4px; transition: width 0.3s ease; }
+        .quick-input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .quick-input input { flex: 1; min-width: 200px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 4px; font-size: 14px; font-family: 'Courier New', monospace; }
+        .quick-input input::placeholder { color: var(--text-muted); }
+        .quick-hints { width: 100%; font-size: 11px; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+        .quick-hints code { background: var(--bg); padding: 2px 6px; border-radius: 3px; color: var(--cyan); margin: 0 2px; }
+        .face-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+        .face-input { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px; position: relative; transition: all 0.2s; }
+        .face-input:hover { border-color: var(--surface-light); }
+        .skip-row { margin-bottom: 8px; }
+        .skip-row-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .skip-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+        .skip-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .skip-chip { display: flex; align-items: center; justify-content: center; padding: 3px 0; font-size: 12px; line-height: 1.5; border-radius: 8px; min-width: 0; width: 100%; white-space: nowrap; }
+        .skip-reset { padding: 1px 8px; font-size: 11px; line-height: 1.5; border-radius: 10px; min-width: 0; white-space: nowrap; opacity: .8; }
+        .skip-chip.on { color: #fff; border-color: var(--red); background: var(--red); text-decoration: line-through; }
+        .face-input.trimmed { outline: 2px solid #ff9f0a; outline-offset: 1px; border-radius: 10px; }
+        .trim-badge { font-size: 10px; color: #ff9f0a; text-align: center; margin-top: 2px; font-weight: 600; }
+        .face-input.skipped { opacity: .35; }
+        .face-input.skipped input { pointer-events: none; }
+        .face-input.active { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
+        .face-input label { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .face-input input { width: 100%; background: transparent; border: none; color: var(--text); font-size: 15px; font-weight: 600; text-align: center; padding: 4px; font-family: 'Courier New', monospace; }
+        .face-input input:focus { outline: none; }
+        .face-input input::placeholder { color: var(--text-muted); font-size: 12px; }
+        .face-total { text-align: center; font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+        /* ===== 粘贴/撤销记录（折叠式） ===== */
+
+        .ro-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .ro-face { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 4px; text-align: center; }
+        .ro-face label { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .ro-face span { font-size: 15px; font-weight: 700; }
+        .ro-face.zero span { color: var(--text-muted); opacity: .55; }
+        .ro-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6; word-break: break-all; }
+        .ro-meta b { color: var(--text); font-weight: 600; }
+        .paste-log-title { font-size: 11px; font-weight: 600; color: var(--cyan); margin: 8px 0 3px; display: flex; justify-content: space-between; align-items: center; }
+        .paste-log { max-height: 170px; overflow-y: auto; font-size: 11px; }
+        .paste-log-empty { color: var(--text-muted); text-align: center; padding: 3px 0; font-size: 10px; }
+        .paste-entry { border-left: 3px solid var(--cyan); background: rgba(6,182,212,0.07); border-radius: 3px; margin-bottom: 3px; cursor: pointer; }
+        .paste-entry.undo { border-left-color: var(--red); background: rgba(239,68,68,0.08); }
+        .paste-entry.undone { opacity: 0.5; }
+        .paste-entry .pe-line { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 6px; font-size: 10px; }
+        .paste-entry .pe-line .pe-label { font-weight: 600; white-space: nowrap; }
+        .paste-entry .pe-line .pe-time { color: var(--text-muted); font-family: 'Courier New', monospace; }
+        .paste-entry .pe-line .pe-amt { margin-left: auto; font-weight: 700; }
+        .paste-entry .pe-caret { color: var(--text-muted); font-size: 9px; transition: transform 0.15s; }
+        .paste-entry.open .pe-caret { transform: rotate(90deg); }
+        .paste-entry .pe-body { display: none; padding: 0 6px 5px 6px; font-size: 10px; color: var(--text-muted); }
+        .paste-entry.open .pe-body { display: block; }
+        .paste-entry .pe-body div { margin-top: 2px; word-break: break-all; }
+        .paste-entry .pe-body .pe-faces { font-family: 'Courier New', monospace; color: var(--text); }
+        .paste-entry .pe-tag { color: var(--red); font-size: 9px; margin-left: 3px; }
+
+        /* ===== 历史清点记录面板 ===== */
+        .session-panel { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--yellow); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+        .session-panel.has-data { background: rgba(245, 158, 11, 0.15); box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1); }
+        .session-title { font-size: 12px; font-weight: 600; color: var(--yellow); margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .session-badge { font-size: 10px; color: var(--yellow); }
+        .session-log { max-height: 150px; overflow-y: auto; font-size: 11px; }
+        .session-empty { color: var(--text-muted); text-align: center; padding: 3px 0; font-size: 10px; }
+        .session-entry { border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; border-radius: 3px; }
+        .session-entry:hover { background: rgba(6, 182, 212, 0.08); }
+        .session-edit-hint { color: var(--cyan); font-size: 9px; margin-left: 3px; }
+        .hist-edit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .hist-edit-grid .hist-face { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 4px; }
+        .hist-edit-grid .hist-face label { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .hist-edit-grid .hist-face input { width: 100%; background: transparent; border: 0; color: var(--text); font-size: 15px; font-weight: 700; text-align: center; outline: none; }
+        .session-entry:last-child { border-bottom: none; }
+        .session-entry .se-line { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 2px; font-size: 11px; font-family: 'Courier New', monospace; }
+        .session-entry .se-time { color: var(--text-muted); font-size: 10px; }
+        .session-entry .se-amt { font-weight: 700; color: var(--green); }
+        .session-entry .se-amt.negative { color: var(--red); }
+        .session-entry .se-caret { color: var(--text-muted); font-size: 9px; transition: transform 0.15s; }
+        .session-entry.open .se-caret { transform: rotate(90deg); }
+        .session-entry .se-body { display: none; padding: 0 2px 5px 12px; font-size: 10px; color: var(--text-muted); }
+        .session-entry.open .se-body { display: block; }
+        .session-entry .se-body div { margin-top: 2px; word-break: break-all; }
+        .session-entry .se-faces { font-family: 'Courier New', monospace; color: var(--text); }
+        .session-total { border-top: 1px solid var(--border); padding-top: 5px; margin-top: 5px; font-weight: 700; display: flex; justify-content: space-between; font-size: 13px; }
+        .session-actions { display: flex; gap: 8px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+        .session-actions button { flex: 1 1 0; min-width: 0; padding: 8px 6px; font-size: clamp(11px, 3.2vw, 13px); font-weight: 700; justify-content: center; white-space: nowrap; }
+        .session-actions button:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(0.8); }
+        .action-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .action-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-muted); }
+        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+        .action-grid button { padding: 10px; justify-content: center; }
+        .action-grid.full-width { grid-template-columns: 1fr; }
+        .denomination-actions { padding:0; border:0; background:transparent; }
+        .denomination-actions .action-title { display:none; }
+        .denomination-actions .action-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+        .denomination-actions .action-grid button { min-width:0; padding:8px 4px; font-size:13px; font-weight:700; white-space:nowrap; }
+        @media (min-width: 720px) { .denomination-actions .action-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
+        .diff-display { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: center; }
+        .diff-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+        .diff-value { font-size: 32px; font-weight: 700; font-family: 'Courier New', monospace; }
+        .diff-value.positive { color: var(--green); } .diff-value.negative { color: var(--red); } .diff-value.zero { color: var(--text-muted); }
+        .diff-tag { font-size: 12px; margin-top: 4px; padding: 2px 8px; border-radius: 4px; display: inline-block; }
+        .diff-tag.positive { background: rgba(16, 185, 129, 0.2); color: var(--green); } .diff-tag.negative { background: rgba(239, 68, 68, 0.2); color: var(--red); } .diff-tag.zero { background: var(--surface-light); color: var(--text-muted); }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.98); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; justify-content: space-around; gap: 8px; backdrop-filter: blur(10px); z-index: 100; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+        .bottom-bar button { flex: 1; justify-content: center; padding: 12px; font-size: 13px; border-radius: 4px; }
+        /* .toast / .toast.show / .modal / .modal.show 基础样式已提取到 common.css */
+        .toast.success { border-color: var(--green); color: var(--green); } .toast.error { border-color: var(--red); color: var(--red); } .toast.warning { border-color: var(--yellow); color: var(--yellow); }
+        .modal-content { background: var(--surface); width: 90%; max-width: 400px; border-radius: 12px; padding: 24px; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { font-size: 16px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+        .modal-body { margin-bottom: 20px; }
+        .modal-body label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+        .modal-body input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 4px; font-size: 14px; font-family: 'Courier New', monospace; }
+        .modal-body input:focus { outline: none; border-color: var(--cyan); }
+        .modal-footer { display: flex; gap: 12px; }
+        .modal-footer button { flex: 1; justify-content: center; }
+        .confirm-modal .modal-content { text-align: center; }
+        .confirm-modal h3 { margin-top: 0; color: var(--red); }
+        .confirm-modal p { margin-bottom: 24px; font-size: 14px; color: var(--text); line-height: 1.6; }
+        @media (max-width: 768px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } .face-grid { grid-template-columns: repeat(4, 1fr); } .action-grid { grid-template-columns: repeat(2, 1fr); } .action-grid.full-width { grid-template-columns: 1fr; } .header h1 { font-size: 16px; } }
+        @media (max-width: 480px) { .face-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; } .face-input { padding: 4px; } .face-input input { font-size: 13px; } .face-total { font-size: 8px; } .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } .metric-value { font-size: 14px; } }
+        /* 防止 iOS 聚焦时页面缩放 */
+        input[inputmode="numeric"],
+        input[inputmode="decimal"] {
+            font-size: 16px; /* iOS 上小于 16px 聚焦会强制缩放 */
+            -webkit-text-size-adjust: 100%;
+        }
+        /* 如果未来误改成 type=number，隐藏难看箭头 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* 键盘弹出时：弹窗整体上移到键盘上方，避免遮挡 */
+        body.vk-open .modal.show { align-items: flex-start; padding-top: 8px; }
+        body.vk-open .modal.show .modal-content { max-height: calc(100vh - var(--vk-h, 460px) - 16px); overflow-y: auto; }
+        .reset-settings { margin-top:18px; border-top:1px solid var(--border-color, #334155); padding-top:16px; }
+        .reset-settings summary { cursor:pointer; display:flex; align-items:center; gap:8px; min-height:44px; padding:10px 12px; border:1px solid rgba(6,182,212,.22); border-radius:10px; background:linear-gradient(135deg, rgba(6,182,212,.11), rgba(30,41,59,.35)); font-size:16px; font-weight:700; list-style:none; }
+        .reset-settings summary::-webkit-details-marker { display:none; }
+        .reset-settings summary::before { content:'▸'; color:var(--cyan); font-size:14px; transition:transform .18s ease; }
+        .reset-settings[open] summary::before { transform:rotate(90deg); }
+        .reset-settings summary::after { content:'收起'; margin-left:auto; color:var(--text-muted); font-size:12px; font-weight:500; }
+        .reset-settings:not([open]) summary::after { content:'展开'; }
+        .reset-summary-hint { padding:3px 7px; border-radius:999px; background:rgba(6,182,212,.13); color:var(--cyan); font-size:12px; font-weight:600; }
+        .reset-schedule-list { display:grid; gap:10px; margin-top:12px; }
+        .reset-row { padding:12px; border:1px solid rgba(100,116,139,.48); border-radius:10px; background:rgba(15,23,42,.46); transition:border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+        .reset-row.is-enabled { border-color:rgba(6,182,212,.68); background:linear-gradient(135deg, rgba(6,182,212,.09), rgba(15,23,42,.52)); box-shadow:inset 3px 0 0 var(--cyan); }
+        .reset-row:not(.is-enabled) .reset-times { opacity:.66; }
+        .reset-row-header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .reset-item-title { min-width:0; display:flex; align-items:center; gap:10px; color:var(--text); cursor:pointer; }
+        .reset-item-copy { min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .reset-item-copy strong { font-size:14px; line-height:1.35; }
+        .reset-item-copy small { color:var(--text-muted); font-size:12px; font-weight:500; }
+        .reset-row.is-enabled .reset-item-copy small { color:var(--green); }
+        .reset-switch { appearance:none; -webkit-appearance:none; position:relative; flex:0 0 auto; width:42px; height:24px; margin:0; border:1px solid #64748b; border-radius:999px; background:#334155; cursor:pointer; transition:.18s ease; }
+        .reset-switch::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,.35); transition:.18s ease; }
+        .reset-switch:checked { border-color:var(--cyan); background:var(--cyan); }
+        .reset-switch:checked::after { left:21px; background:#fff; }
+        .reset-switch:focus-visible { outline:2px solid rgba(6,182,212,.7); outline-offset:2px; }
+        .reset-times { display:flex; flex-wrap:wrap; gap:8px; margin-top:11px; }
+        .reset-time-item { width:100%; min-height:42px; display:grid; grid-template-columns:auto minmax(0,1fr) 42px; align-items:stretch; overflow:hidden; border:1px solid #475569; border-radius:8px; background:rgba(15,23,42,.72); }
+        .reset-time-item::before { content:'每天'; align-self:stretch; display:flex; align-items:center; padding:0 8px; border-right:1px solid #334155; color:var(--text-muted); font-size:12px; }
+        .reset-time-item input[type=time] { width:100%; min-width:0; min-height:40px; padding:6px 8px; color:var(--text); color-scheme:dark; background:transparent; border:0; font-size:16px; font-weight:650; font-family:'Courier New', monospace; text-align:center; }
+        .reset-time-item input[type=time]:focus { outline:none; background:rgba(6,182,212,.08); }
+        .reset-time-item:focus-within { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(6,182,212,.13); }
+        .reset-remove-time { display:flex; align-items:center; justify-content:center; width:42px; min-width:42px; height:100%; min-height:40px; margin:0; padding:0; border:0; border-left:1px solid #334155; border-radius:0; color:var(--text-muted); background:transparent; font-size:22px; line-height:1; appearance:none; -webkit-appearance:none; }
+        .reset-remove-time:hover { color:#fff; background:rgba(239,68,68,.18); }
+        .reset-add-time { flex:0 0 auto; min-height:34px; padding:6px 10px; border-color:rgba(6,182,212,.58); border-radius:8px; color:var(--cyan); background:rgba(6,182,212,.09); font-size:13px; font-weight:600; }
+        .reset-add-time:hover { background:rgba(6,182,212,.18); }
+        .reset-note { padding:9px 11px; border-radius:8px; background:rgba(15,23,42,.42); color:var(--text-muted); font-size:12px; line-height:1.65; margin-top:10px; }
+        #reset-status:empty { display:none; }
+        #reset-status:not(:empty) { border:1px solid rgba(16,185,129,.25); background:rgba(16,185,129,.08); color:#a7f3d0; }
+        @media (max-width:480px) { .reset-settings summary { padding:9px 10px; } .reset-summary-hint { display:none; } .reset-row { padding:11px; } .reset-add-time { padding-inline:9px; } .denomination-actions .action-grid { gap:6px; } .denomination-actions .action-grid button { padding:8px 3px; font-size:12px; } }
+</style>
+    <link rel="stylesheet" href="./fx.css">
+    <link rel="stylesheet" href="./common.css">
+</head>
+<body>
+
+<div class="header">
+    <h1>💰 现金箱清点系统</h1>
+    <div class="header-actions">
+        <button onclick="app.exportData()" title="导出数据">📤 导出</button>
+        <button onclick="app.importData()" title="导入数据">📥 导入</button>
+        <input type="file" id="importFile" style="display:none" accept=".json" onchange="app.handleImport(this)">
+    </div>
+</div>
+
+<div class="container">
+    <div class="quick-input">
+        <input type="text" id="quickCmd" placeholder="输入快捷指令..." onkeydown="if(event.key==='Enter')app.executeQuickCmd(this.value)">
+        <button onclick="app.executeQuickCmd(document.getElementById('quickCmd').value)">执行</button>
+        <div class="quick-hints">快捷指令: <code>p=50000</code> 理论库存 <code>b=20000</code> 整的大钱 <code>c=3000</code> 整的零钱 <code>clr</code> 清零现金 <code>j 50000 3000 20000</code> 批量设置</div>
+    </div>
+    <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">散的零钱</div><div class="metric-value green" id="metric-scattered">0</div></div>
+        <div class="metric-card editable" onclick="app.editWholeChange()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的零钱</div><div class="metric-value yellow" id="metric-whole">0</div></div>
+        <div class="metric-card"><div class="metric-label">总的零钱</div><div class="metric-value cyan" id="metric-total-change">0</div></div>
+        <div class="metric-card editable" onclick="app.editBigMoney()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的大钱</div><div class="metric-value blue" id="metric-big">0</div></div>
+        <div class="metric-card"><div class="metric-label">实际库存</div><div class="metric-value green" id="metric-actual">0</div></div>
+        <div class="metric-card editable" onclick="app.editTheoretical()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">理论库存</div><div class="metric-value yellow" id="metric-theoretical">0</div></div>
+    </div>
+    <div class="progress-section">
+        <div class="progress-header"><span class="progress-label">实际/理论库存比例</span><span class="progress-percent" id="progress-percent">0%</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%"></div></div>
+    </div>
+    <div class="diff-display">
+        <div class="diff-label">差额 (实际库存 - 理论库存)</div>
+        <div class="diff-value zero" id="diff-value">0</div>
+        <div class="diff-tag zero" id="diff-tag">平账</div>
+    </div>
+    <div class="skip-row" id="skip-row" title="点选后清点自动跳过；退出再进入自动恢复默认（1元默认跳过）">
+        <div class="skip-row-head"><span class="skip-label">本次没有的面值（点选跳过）</span><button type="button" class="skip-reset" onmousedown="event.preventDefault()" onclick="app.clearSkipFaces()" title="恢复默认">↺ 恢复默认</button></div>
+        <div class="skip-chips" id="skip-chips"></div>
+    </div>
+    <div class="face-grid" id="faceGrid"></div>
+    <div class="action-section denomination-actions">
+        <div class="action-title">面值张数复制</div>
+        <div class="action-grid">
+            <button onclick="app.copyDenominations()" class="primary">📋 复制当前张数</button>
+            <button onclick="app.pasteDenominations('add')">➕ 累加粘贴</button>
+            <button onclick="CajaClip.open()">🗂 剪贴板<span class="clip-badge" data-clip-count style="display:none">0</span></button>
+            <button onclick="app.undoPaste()" id="undo-paste-btn" class="warning" disabled title="撤销上一次粘贴">↩️ 撤销粘贴</button>
+        </div>
+    </div>
+    <div class="session-panel" id="session-panel">
+        <div class="session-title"><span>📋 历史清点记录</span><span style="display:flex; align-items:center; gap:8px;"><span class="session-badge" id="session-badge" style="display:none;">录入中</span></span></div>
+        <div class="session-log" id="session-log"></div>
+        <div class="paste-log-title"><span>📥 粘贴 / 撤销粘贴记录</span></div>
+        <div class="paste-log" id="paste-log"></div>
+        <div class="session-actions">
+            <button onclick="app.undoCount()" class="warning" id="session-undo-btn" disabled>↩️ 撤销本次</button>
+            <button onclick="app.confirmCount()" class="success" id="session-confirm-btn" disabled>✓ 确认本次</button>
+        </div>
+    </div>
+    <div class="action-section">
+        <div class="action-title">现金分配数</div>
+        <div id="alloc-info" class="reset-note" style="margin:0 0 8px">暂无财务分配数</div>
+        <div class="action-grid">
+            <button onclick="app.deductAllocation()" id="alloc-deduct-btn" class="primary">📤 扣除分配数</button>
+            <button onclick="app.keepTwoDigits()" id="keep2-btn" class="warning">✂️ 三位数保留两位</button>
+        </div>
+    </div>
+    <div class="action-section">
+        <div class="action-title">快速操作</div>
+        <div class="action-grid full-width">
+            <button onclick="app.clearAllCash()" class="danger">清除所有现金</button>
+        </div>
+        <details class="reset-settings">
+            <summary>定时自动清零 <span class="reset-summary-hint">每日计划</span></summary>
+            <div class="reset-schedule-list">
+                <div class="reset-row" data-reset-key="master">
+                    <div class="reset-row-header">
+                        <label class="reset-item-title"><input class="reset-switch" type="checkbox" id="reset-master-enabled" onchange="app.changeReset('master')"><span class="reset-item-copy"><strong>定时清零</strong><small id="reset-master-state">已关闭</small></span></label>
+                        <button type="button" class="reset-add-time" onclick="app.addResetTime('master')">＋ 时间</button>
+                    </div>
+                    <div class="reset-times" id="reset-master-times" aria-label="自动清零时间列表"></div>
+                </div>
+                <div class="reset-row" data-reset-key="reserve">
+                    <div class="reset-row-header">
+                        <label class="reset-item-title"><input class="reset-switch" type="checkbox" id="reset-reserve-enabled" onchange="app.changeReset('reserve')"><span class="reset-item-copy"><strong>定时自动恢复备用金</strong><small id="reset-reserve-state">已关闭</small></span></label>
+                        <button type="button" class="reset-add-time" onclick="app.addResetTime('reserve')">＋ 时间</button>
+                    </div>
+                    <div class="reset-times" id="reset-reserve-times" aria-label="自动恢复备用金时间列表"></div>
+                </div>
+            </div>
+            <div class="reset-note">"定时清零"到点会一次性清零理论库存、整的大钱、现金张数；"定时自动恢复备用金"到点会自动取消备用金扣除标记，两者互不影响，可分别开关、各自设置多个每日时间。页面关闭期间错过的计划，会在下次打开时补执行。</div>
+            <div id="reset-status" class="reset-note"></div>
+        </details>
+    </div>
+</div>
+
+<div class="bottom-bar">
+    <button onclick="app.clearAllCash()" class="danger" style="flex:0.8;">🗑️ 清零</button>
+    <button onclick="app.saveData()" class="success" style="flex:1.2;">💾 保存</button>
+    <button onclick="app.resetAll()" style="flex:0.8;">⚠️ 重置</button>
+</div>
+
+<div class="modal" id="inputModal">
+    <div class="modal-content">
+        <div class="modal-header" id="inputModalTitle">输入数值</div>
+        <div class="modal-body"><label id="inputModalLabel">请输入数值</label><input type="text" id="inputModalValue" placeholder="支持表达式: 1000+500" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.onModalInput(this.value)"></div>
+        <div class="modal-footer"><button onclick="app.closeInputModal()">取消</button><button onclick="app.confirmInputModal()" class="primary">确认</button></div>
+    </div>
+</div>
+
+<div class="modal" id="histViewModal">
+    <div class="modal-content" style="max-width:460px;">
+        <div class="modal-header" id="histViewTitle">清点记录</div>
+        <div class="ro-meta" id="histViewMeta"></div>
+        <div class="ro-grid" id="histViewGrid"></div>
+        <div style="font-size:11px; color:var(--text-muted);">此记录仅供查看，不可修改。</div>
+        <div class="modal-footer" style="margin-top:14px;">
+            <button onclick="app.closeHistoryEdit()">关闭</button>
+            <button onclick="app.copyHistoryDenominations()" class="primary">📋 复制本次</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="pasteDetailModal">
+    <div class="modal-content" style="max-width:460px;">
+        <div class="modal-header" id="pasteDetailTitle">粘贴记录</div>
+        <div class="ro-meta" id="pasteDetailMeta"></div>
+        <div class="ro-grid" id="pasteDetailGrid"></div>
+        <div style="font-size:11px; color:var(--text-muted);">此记录仅供查看，不参与计算，也不可修改。</div>
+        <div class="modal-footer" style="margin-top:14px;"><button onclick="app.closePasteDetail()">关闭</button></div>
+    </div>
+</div>
+
+<div class="modal confirm-modal" id="confirmModal">
+    <div class="modal-content">
+        <h3>⚠️ 确认操作</h3>
+        <p id="confirmMessage">确定要执行此操作吗？</p>
+        <div class="modal-footer"><button onclick="app.closeConfirm(false)">取消</button><button onclick="app.closeConfirm(true)" class="danger">确认</button></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const Decimal = { add(a, b) { return Math.round((a + b) * 100) / 100; }, sub(a, b) { return Math.round((a - b) * 100) / 100; }, mul(a, b) { return Math.round((a * b) * 100) / 100; }, div(a, b) { return b !== 0 ? Math.round((a / b) * 100) / 100 : 0; }, parse(val) { const n = parseFloat(val); return isNaN(n) ? 0 : n; } };
+
+const DB_NAME = 'CashBoxDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'data';
+
+class DBHelper {
+    static async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'key' }); };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    static async get(db, key) {
+        return new Promise((resolve) => {
+            try { const tx = db.transaction([STORE_NAME], 'readonly'); const store = tx.objectStore(STORE_NAME); const req = store.get(key); req.onsuccess = () => resolve(req.result ? req.result.value : null); req.onerror = () => resolve(null); } catch (e) { resolve(null); }
+        });
+    }
+    static async put(db, key, value) {
+        return new Promise((resolve) => {
+            try { const tx = db.transaction([STORE_NAME], 'readwrite'); const store = tx.objectStore(STORE_NAME); const req = store.put({ key, value }); req.onsuccess = () => resolve(true); req.onerror = () => resolve(false); } catch (e) { resolve(false); }
+        });
+    }
+}
+
+const CASH_FACES = [1, 100, 200, 500, 1000, 2000, 10000, 20000];
+const CASH_LABELS = ["1元", "100元", "200元", "500元", "1000元", "2000元", "10000元", "20000元"];
+const NUM_FACES = CASH_FACES.length;
+const PASTE_LOG_VISIBLE = 5; // 清点记录最多保留的条数；粘贴、撤销记录各自最多保留此条数（互不占用名额），超出后自动删除最旧的
+const DISPLAY_ORDER_INDICES = [2, 1, 3, 4, 5, 6, 7, 0];
+
+function getInitData() {
+    return { cash_counts: new Array(NUM_FACES).fill(0), theoretical_inventory: 0, big_money: 0, whole_change: 0, reserve_amount: 30000, reserve_deducted: false, paste_log: [], cash_history: [], cash_count_seq: 0, cash_baseline: new Array(NUM_FACES).fill(0), updated_at: Date.now() };
+}
+
+const Calc = {
+    parseSum(value) {
+        if (!value && value !== 0) return 0;
+        const str = value.toString().trim();
+        if (str.includes(' ')) { const parts = str.split(/\s+/).filter(p => p); let sum = 0; for (const part of parts) { const num = parseFloat(part); if (!isNaN(num)) sum += num; } return Math.round(sum); }
+        const n = parseFloat(str); return isNaN(n) ? 0 : Math.round(n);
+    },
+    safeCalc(expr) {
+        expr = expr.toString().trim().replace(/,/g, ''); if (!expr) return null;
+        if (['+', '-', '*', '/'].includes(expr[0])) {
+            const op = expr[0]; const rest = expr.slice(1).trim(); if (!rest) return null;
+            try { const val = Function('"use strict"; return (' + rest + ')')(); if (typeof val !== 'number' || !isFinite(val)) return null; return { type: 'delta', op, val: Math.round(val) }; } catch (e) { return null; }
+        }
+        if (!/^[\d.()+\-*/\s]+$/.test(expr)) return null;
+        try { const val = Function('"use strict"; return (' + expr + ')')(); if (typeof val !== 'number' || !isFinite(val)) return null; return { type: 'abs', val: Math.round(val) }; } catch (e) { return null; }
+    },
+    getScattered(data) { return data.cash_counts.reduce((sum, count, i) => sum + CASH_FACES[i] * count, 0); },
+    // 备用金从总零钱中扣除；实际库存直接由扣除后的总零钱加整的大钱组成。
+    getTotalChange(data) { return this.getScattered(data) + data.whole_change ; },
+    getActualInventory(data) { return data.big_money + this.getTotalChange(data); },
+    getDiff(data) { return this.getActualInventory(data) - data.theoretical_inventory; },
+    getProgress(data) { const actual = this.getActualInventory(data); const theoretical = data.theoretical_inventory; if (theoretical <= 0) return 0; return Math.min(100, Math.round(actual / theoretical * 100)); }
+};
+
+const InputFilter = {
+    integer(value) {
+        if (!value || typeof value !== 'string') return value;
+        return value.replace(/[^0-9]/g, '');
+    },
+    integerExpr(value) {
+        if (!value || typeof value !== 'string') return value;
+        if (/^[+\-*\/]/.test(value)) {
+            return value[0] + value.slice(1).replace(/[^0-9]/g, '');
+        }
+        return value.replace(/[^0-9]/g, '');
+    },
+    decimalExpr(value) {
+        if (!value || typeof value !== 'string') return value;
+        return value.replace(/[^0-9\s.+*\/-]/g, '');
+    }
+};
+
+class CashBoxApp {
+    constructor() { this.data = getInitData(); this.skipAuto = true; this.skipFaces = this._defaultSkip(); this.inputCallback = null; this.confirmCallback = null; this.db = null; this.init(); }
+    init() {
+        DBHelper.init().then(async (db) => { this.db = db; await this.loadData(); this.skipFaces = this._defaultSkip(); this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this._autoFocusInput(`face-${this._firstActiveFace()}`); }).catch(err => { this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this._autoFocusInput(`face-${this._firstActiveFace()}`); });
+    }
+    nextReset(time, now = new Date()) {
+        const [h, m] = time.split(':').map(Number);
+        const next = new Date(now); next.setHours(h, m, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 1);
+        return next.getTime();
+    }
+    isValidResetTime(time) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(time || ''); }
+    normalizeResetTimes(times, fallback = '01:00') {
+        const list = (Array.isArray(times) ? times : [times]).filter(time => this.isValidResetTime(time));
+        const unique = [...new Set(list)].sort();
+        return unique.length ? unique : [fallback];
+    }
+    getResetRule(key, now = new Date()) {
+        this.data.reset_schedule = this.data.reset_schedule || {};
+        const saved = this.data.reset_schedule[key] || {};
+        const legacyTime = this.isValidResetTime(saved.time) ? saved.time : '';
+        const times = this.normalizeResetTimes(Array.isArray(saved.times) ? saved.times : [legacyTime || '01:00']);
+        const storedNexts = saved.next_by_time && typeof saved.next_by_time === 'object' ? saved.next_by_time : {};
+        const nextByTime = {};
+        for (const time of times) {
+            const storedNext = Number(storedNexts[time]);
+            const legacyNext = time === legacyTime ? Number(saved.next) : 0;
+            if (Number.isFinite(storedNext) && storedNext > 0) nextByTime[time] = storedNext;
+            else if (Number.isFinite(legacyNext) && legacyNext > 0) nextByTime[time] = legacyNext;
+            else nextByTime[time] = saved.enabled ? this.nextReset(time, now) : 0;
+        }
+        const rule = {
+            enabled: Boolean(saved.enabled),
+            times,
+            // 保留旧字段，确保旧版导出的数据仍然可被读取。
+            time: times[0],
+            next_by_time: nextByTime,
+            next: nextByTime[times[0]] || 0
+        };
+        this.data.reset_schedule[key] = rule;
+        return rule;
+    }
+    updateResetRule(key, enabled, times, now = new Date()) {
+        const previous = this.getResetRule(key, now);
+        const normalizedTimes = this.normalizeResetTimes(times);
+        const restartSchedule = enabled && !previous.enabled;
+        const nextByTime = {};
+        for (const time of normalizedTimes) {
+            const oldNext = Number(previous.next_by_time && previous.next_by_time[time]);
+            nextByTime[time] = !restartSchedule && Number.isFinite(oldNext) && oldNext > 0
+                ? oldNext
+                : (enabled ? this.nextReset(time, now) : 0);
+        }
+        this.data.reset_schedule[key] = {
+            enabled: Boolean(enabled),
+            times: normalizedTimes,
+            time: normalizedTimes[0],
+            next_by_time: nextByTime,
+            next: nextByTime[normalizedTimes[0]] || 0
+        };
+        return this.data.reset_schedule[key];
+    }
+    getSuggestedResetTime(times) {
+        const used = new Set(times);
+        for (let offset = 0; offset < 24; offset += 1) {
+            const hour = String((22 + offset) % 24).padStart(2, '0');
+            const candidate = `${hour}:00`;
+            if (!used.has(candidate)) return candidate;
+        }
+        return '22:00';
+    }
+    // 旧版本每项（理论库存/整的大钱/现金张数）各有独立开关和时间；
+    // 现合并为单个总开关。首次加载时把旧数据迁移为一个统一计划，之后不再使用旧键。
+    migrateLegacyResetSchedule() {
+        const schedule = this.data.reset_schedule;
+        if (!schedule || schedule.master) return;
+        const legacyKeys = ['theoretical', 'big', 'cash'];
+        const legacyRules = legacyKeys.map(key => schedule[key]).filter(Boolean);
+        if (!legacyRules.length) return;
+        const enabled = legacyRules.some(rule => rule.enabled);
+        const timesSet = new Set();
+        legacyRules.forEach(rule => {
+            const times = Array.isArray(rule.times) ? rule.times : (rule.time ? [rule.time] : []);
+            times.forEach(time => { if (this.isValidResetTime(time)) timesSet.add(time); });
+        });
+        const times = timesSet.size ? [...timesSet].sort() : ['01:00'];
+        this.updateResetRule('master', enabled, times);
+        legacyKeys.forEach(key => delete schedule[key]);
+    }
+    initResetSchedule() {
+        this.migrateLegacyResetSchedule();
+        this.getResetRule('master');
+        this.getResetRule('reserve');
+        this.renderResetSchedule();
+        this.checkResetSchedule();
+        if (!this.resetTimer) {
+            this.resetTimer = setInterval(() => this.checkResetSchedule(), 1000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) this.checkResetSchedule(); });
+            window.addEventListener('focus', () => this.checkResetSchedule());
+        }
+    }
+    renderResetSchedule() {
+        const scheduleLabels = { master: '自动清零', reserve: '自动恢复备用金' };
+        for (const key of ['master', 'reserve']) {
+            const rule = this.getResetRule(key);
+            const enabled = document.getElementById(`reset-${key}-enabled`);
+            if (enabled) enabled.checked = rule.enabled;
+            const row = document.querySelector(`.reset-row[data-reset-key="${key}"]`);
+            if (row) row.classList.toggle('is-enabled', rule.enabled);
+            const state = document.getElementById(`reset-${key}-state`);
+            if (state) state.textContent = `${rule.enabled ? '已开启' : '已关闭'} · ${rule.times.length}个时间`;
+            const container = document.getElementById(`reset-${key}-times`);
+            if (!container) continue;
+            container.replaceChildren();
+            rule.times.forEach((time, index) => {
+                const item = document.createElement('div'); item.className = 'reset-time-item';
+                const input = document.createElement('input');
+                input.type = 'time'; input.value = time; input.dataset.resetTimeIndex = index;
+                input.setAttribute('aria-label', `${scheduleLabels[key] || '定时'}时间 ${index + 1}`);
+                // iOS 会在时间尚未输入完整时触发 change；仅在离开输入框后提交。
+                input.addEventListener('blur', () => this.commitResetTimeEdit(key));
+                input.addEventListener('keydown', event => {
+                    if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+                });
+                item.appendChild(input);
+                if (rule.times.length > 1) {
+                    const remove = document.createElement('button');
+                    remove.type = 'button'; remove.className = 'reset-remove-time'; remove.textContent = '×';
+                    remove.setAttribute('aria-label', `删除第 ${index + 1} 个时间`);
+                    remove.addEventListener('click', () => this.removeResetTime(key, index));
+                    item.appendChild(remove);
+                }
+                container.appendChild(item);
+            });
+        }
+        document.getElementById('reset-status').textContent = this.data.last_auto_reset ? '最近自动清零：' + this.data.last_auto_reset : '';
+    }
+    changeReset(key) {
+        const timeInputs = Array.from(document.querySelectorAll(`#reset-${key}-times input[type="time"]`));
+        const times = timeInputs.map(input => input.value);
+        if (!times.length || times.some(time => !this.isValidResetTime(time))) { this.showToast('请选择有效时间', 'error'); this.renderResetSchedule(); return; }
+        const enabled = document.getElementById(`reset-${key}-enabled`).checked;
+        this.updateResetRule(key, enabled, times);
+        this.renderResetSchedule();
+        this.saveData();
+    }
+    commitResetTimeEdit(key) {
+        const timeInputs = Array.from(document.querySelectorAll(`#reset-${key}-times input[type="time"]`));
+        const times = timeInputs.map(input => input.value);
+        if (!times.length || times.some(time => !this.isValidResetTime(time))) {
+            this.showToast('请完整输入时间', 'warning');
+            setTimeout(() => this.renderResetSchedule(), 0);
+            return;
+        }
+        const rule = this.getResetRule(key);
+        const normalizedTimes = this.normalizeResetTimes(times);
+        const unchanged = normalizedTimes.length === rule.times.length && normalizedTimes.every((time, index) => time === rule.times[index]);
+        if (unchanged) return;
+        const enabled = document.getElementById(`reset-${key}-enabled`).checked;
+        this.updateResetRule(key, enabled, normalizedTimes);
+        this.saveData();
+        // 重复时间会被合并；延后刷新以免打断同一轮点击操作。
+        if (normalizedTimes.length !== times.length) setTimeout(() => this.renderResetSchedule(), 0);
+    }
+    addResetTime(key) {
+        const rule = this.getResetRule(key);
+        this.updateResetRule(key, rule.enabled, [...rule.times, this.getSuggestedResetTime(rule.times)]);
+        this.renderResetSchedule();
+        this.saveData();
+    }
+    removeResetTime(key, index) {
+        const rule = this.getResetRule(key);
+        if (rule.times.length <= 1) { this.showToast('每项至少保留一个清零时间', 'warning'); return; }
+        const times = rule.times.filter((_, timeIndex) => timeIndex !== index);
+        this.updateResetRule(key, rule.enabled, times);
+        this.renderResetSchedule();
+        this.saveData();
+    }
+    async checkResetSchedule(now = new Date()) {
+        if (this.resetBusy) return;
+        const dueByKey = new Map();
+        for (const key of ['master', 'reserve']) {
+            const rule = this.getResetRule(key, now);
+            if (!rule.enabled) continue;
+            for (const time of rule.times) {
+                const next = Number(rule.next_by_time[time]);
+                if (Number.isFinite(next) && next > 0 && next <= now.getTime()) {
+                    const times = dueByKey.get(key) || [];
+                    times.push(time); dueByKey.set(key, times);
+                }
+            }
+        }
+        if (!dueByKey.size) return;
+        this.resetBusy = true;
+        try {
+            clearTimeout(this.saveTimer);
+            const labels = [];
+            for (const [key, times] of dueByKey) {
+                const rule = this.getResetRule(key, now);
+                if (key === 'master') {
+                    this.data.theoretical_inventory = 0; labels.push('理论库存');
+                    this.data.big_money = 0; labels.push('整的大钱');
+                    this.data.cash_counts.fill(0); this._baseline().fill(0); this._lockPasteUndo(); labels.push('现金张数');
+                }
+                if (key === 'reserve') {
+                    if (this.data.reserve_deducted) { this.data.reserve_deducted = false; labels.push('备用金已恢复'); }
+                }
+                for (const time of times) rule.next_by_time[time] = this.nextReset(time, now);
+                rule.next = rule.next_by_time[rule.times[0]] || 0;
+            }
+            this.closeInputModal();
+            this.inputCallback = null;
+            this.data.last_auto_reset = now.toLocaleString('zh-CN') + ' · ' + labels.join('、');
+            this.renderFaceGrid();
+            this.updateAllMetrics(); this.renderResetSchedule();
+            await this.saveData();
+            this.showToast(labels.join('、') + '已自动处理', 'success');
+        } finally { this.resetBusy = false; }
+    }
+    _autoFocusInput(inputId) {
+        const tryFocus = () => { const input = document.getElementById(inputId); if (!input) return false; input.focus({ preventScroll: false }); input.select(); return document.activeElement === input; };
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(() => tryFocus()), { once: true }); } else { requestAnimationFrame(() => tryFocus()); }
+        window.addEventListener('load', () => { requestAnimationFrame(() => { setTimeout(() => tryFocus(), 50); }); }, { once: true });
+    }
+    async loadData() {
+        try { const parsed = await DBHelper.get(this.db, 'cashBoxData'); if (parsed) { this.data = { ...getInitData(), ...parsed }; if (this.data.cash_counts.length !== NUM_FACES) this.data.cash_counts = new Array(NUM_FACES).fill(0); this.showToast('已恢复上次数据', 'success'); } } catch (e) { console.error('Load failed:', e); }
+    }
+    async saveData() {
+        try { this.data.updated_at = Date.now(); await DBHelper.put(this.db, 'cashBoxData', this.data); this.showToast('数据已保存', 'success'); } catch (e) { this.showToast('保存失败', 'error'); }
+    }
+    renderFaceGrid() {
+        const container = document.getElementById('faceGrid'); container.innerHTML = '';
+        DISPLAY_ORDER_INDICES.forEach((actualIdx, displayIdx) => {
+            const face = CASH_FACES[actualIdx]; const label = CASH_LABELS[actualIdx]; const count = this.data.cash_counts[actualIdx]; const subtotal = face * count;
+            const div = document.createElement('div'); div.className = 'face-input'; div.id = `face-input-${actualIdx}`;
+            div.innerHTML = `<label>${label}</label><input type="text" id="face-${actualIdx}" value="${count ? count.toLocaleString('en-US') : ''}" placeholder="张数" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" onfocus="app.onFaceFocus(${actualIdx})" onblur="app.onFaceBlur(${actualIdx})" oninput="app.onFaceInput(${actualIdx}, this.value)" onkeydown="app.onFaceKeydown(event, ${actualIdx})"><div class="face-total" id="subtotal-${actualIdx}">小计: ${subtotal.toLocaleString()} (${count}张)</div>`;
+            const tm = (this.data.trim_marks || {})[actualIdx]; if (tm) { div.classList.add('trimmed'); div.insertAdjacentHTML('beforeend', `<div class="trim-badge">${CASH_FACES[actualIdx] === 20000 ? '减50张' : '三位→两位'}（原${tm}张）</div>`); }
+            if (this.skipFaces[actualIdx]) { div.classList.add('skipped'); const inp = div.querySelector('input'); if (inp) { inp.disabled = true; inp.tabIndex = -1; } }
+            container.appendChild(div);
+        });
+        this.renderSkipChips();
+    }
+    // 默认跳过 1 元，可手动取消
+    _defaultSkip() { const r = new Array(NUM_FACES).fill(false); r[CASH_FACES.indexOf(1)] = true; return r; }
+    // 从 actualIdx 按显示顺序找下一个未跳过的面值（循环）
+    _nextActiveFace(actualIdx) {
+        const pos = DISPLAY_ORDER_INDICES.indexOf(actualIdx);
+        for (let step = 1; step <= NUM_FACES; step++) {
+            const cand = DISPLAY_ORDER_INDICES[(pos + step) % NUM_FACES];
+            if (!this.skipFaces[cand]) return cand;
+        }
+        return actualIdx;
+    }
+    // 本次没有的面值：4列小标签，与下方面值卡片同序同列
+    renderSkipChips() {
+        const c = document.getElementById('skip-chips'); if (!c) return;
+        c.innerHTML = DISPLAY_ORDER_INDICES.map(i => `<button type="button" class="skip-chip${this.skipFaces[i] ? ' on' : ''}" onmousedown="event.preventDefault()" onclick="app.toggleSkipFace(${i})">${CASH_LABELS[i]}</button>`).join('');
+    }
+    // 原地更新单个面值卡片，不重建输入框，避免丢失正在输入的内容和键盘
+    _applySkipToFace(i) {
+        const wrap = document.getElementById(`face-input-${i}`); const inp = document.getElementById(`face-${i}`);
+        const on = !!this.skipFaces[i];
+        if (wrap) wrap.classList.toggle('skipped', on);
+        if (inp) { inp.disabled = on; inp.tabIndex = on ? -1 : 0; }
+    }
+    toggleSkipFace(i) {
+        const prev = document.activeElement;
+        const m = prev && prev.id ? /^face-(\d+)$/.exec(prev.id) : null;
+        const wasFocused = !!m;
+        const willSkip = !this.skipFaces[i];
+        if (willSkip && m && parseInt(m[1]) === i) prev.blur(); // 先提交正在输入的内容
+        this.skipFaces[i] = willSkip; this.skipAuto = false;
+        this._applySkipToFace(i); this.renderSkipChips();
+        if (!wasFocused) return;
+        let target = prev;
+        if (prev.disabled) { const n = this._nextActiveFace(parseInt(m[1])); target = document.getElementById(`face-${n}`); }
+        if (target && !target.disabled) { target.focus({ preventScroll: true }); if (target.select) target.select(); }
+    }
+    clearSkipFaces() {
+        const prev = document.activeElement; const m = prev && prev.id ? /^face-(\d+)$/.exec(prev.id) : null;
+        this.skipAuto = true; this.skipFaces = this._defaultSkip();
+        DISPLAY_ORDER_INDICES.forEach(i => this._applySkipToFace(i)); this.renderSkipChips();
+        if (m && prev.disabled) { const n = this._nextActiveFace(parseInt(m[1])); const t = document.getElementById(`face-${n}`); if (t) { t.focus({ preventScroll: true }); t.select && t.select(); } }
+    }
+    // 按显示顺序第一个未跳过的面值
+    _firstActiveFace() { return DISPLAY_ORDER_INDICES.find(i => !this.skipFaces[i]) ?? DISPLAY_ORDER_INDICES[0]; }
+    updateAllMetrics() {
+        this.renderSessionPanel();
+        const scattered = Calc.getScattered(this.data); const totalChange = Calc.getTotalChange(this.data); const actual = Calc.getActualInventory(this.data);
+        const diff = Calc.getDiff(this.data); const progress = Calc.getProgress(this.data);
+        document.getElementById('metric-scattered').textContent = scattered.toLocaleString();
+        document.getElementById('metric-whole').textContent = this.data.whole_change.toLocaleString();
+        document.getElementById('metric-total-change').textContent = totalChange.toLocaleString();
+        document.getElementById('metric-big').textContent = this.data.big_money.toLocaleString();
+        document.getElementById('metric-actual').textContent = actual.toLocaleString();
+        document.getElementById('metric-theoretical').textContent = this.data.theoretical_inventory.toLocaleString();
+        document.getElementById('progress-percent').textContent = progress + '%';
+        document.getElementById('progress-fill').style.width = progress + '%';
+        const diffEl = document.getElementById('diff-value'); const diffTag = document.getElementById('diff-tag');
+        diffEl.textContent = (diff >= 0 ? '+' : '') + diff.toLocaleString();
+        if (diff > 0) { diffEl.className = 'diff-value positive'; diffTag.className = 'diff-tag positive'; diffTag.textContent = '盈余'; }
+        else if (diff < 0) { diffEl.className = 'diff-value negative'; diffTag.className = 'diff-tag negative'; diffTag.textContent = '亏损'; }
+        else { diffEl.className = 'diff-value zero'; diffTag.className = 'diff-tag zero'; diffTag.textContent = '平账'; }
+        this.data.cash_counts.forEach((count, i) => { const subtotalEl = document.getElementById(`subtotal-${i}`); if (subtotalEl) subtotalEl.textContent = `小计: ${(CASH_FACES[i] * count).toLocaleString()} (${count}张)`; });
+        const k2 = document.getElementById('keep2-btn'); if (k2) k2.textContent = Object.keys(this.data.trim_marks || {}).length ? '↩️ 恢复保留两位前' : '✂️ 三位数保留两位';
+        const allocEl = document.getElementById('alloc-info'); if (allocEl) { const a = this._getAlloc(); allocEl.textContent = a ? `当前分配数：${this._allocText(a)}（${this.data.alloc_applied_at === a.at ? '已扣除' : '未扣除，累加粘贴时自动扣除'}）` : '暂无财务分配数'; }
+        const amountBtn = document.getElementById('reserve-amount-btn');
+        const toggleBtn = document.getElementById('reserve-toggle-btn');
+        if (amountBtn) amountBtn.textContent = `⚙️ 金额：${Math.max(0, Number(this.data.reserve_amount) || 0).toLocaleString()}`;
+        if (toggleBtn) { toggleBtn.textContent = this.data.reserve_deducted ? '↩️ 恢复备用金' : '💰 扣除备用金'; toggleBtn.className = this.data.reserve_deducted ? 'warning' : 'primary'; }
+    }
+    onFaceFocus(actualIdx) { const input = document.getElementById(`face-${actualIdx}`); const wrapper = document.getElementById(`face-input-${actualIdx}`); wrapper.classList.add('active'); input.placeholder = `当前: ${this.data.cash_counts[actualIdx]}张`; }
+
+    // ===== 核心修复：空值时数据归零，输入框保持空白 =====
+    onFaceBlur(actualIdx) {
+        const input = document.getElementById(`face-${actualIdx}`);
+        const wrapper = document.getElementById(`face-input-${actualIdx}`);
+        wrapper.classList.remove('active');
+        let value = input.value.trim();
+        // 实时过滤非法字符（保留数字和开头的运算符）
+        const clean = InputFilter.integerExpr(value);
+        if (clean !== value) {
+            input.value = clean;
+            value = clean;
+        }
+        if (!value) {
+            // 空值：数据归零，输入框保持空白（不强制显示 0）
+            this.data.cash_counts[actualIdx] = 0;
+            input.value = '';
+            this.updateAllMetrics();
+            this.debouncedSave();
+            return;
+        }
+        const result = Calc.safeCalc(value); let newVal = 0;
+        if (result) {
+            if (result.type === 'delta') {
+                const current = this.data.cash_counts[actualIdx];
+                switch (result.op) { case '+': newVal = current + result.val; break; case '-': newVal = current - result.val; break; case '*': newVal = current * result.val; break; case '/': newVal = result.val !== 0 ? Math.floor(current / result.val) : current; break; }
+            } else { newVal = result.val; }
+        } else { newVal = parseInt(value) || 0; }
+        if (newVal < 0) newVal = 0;
+        this.data.cash_counts[actualIdx] = newVal;
+        input.value = newVal ? newVal.toLocaleString('en-US') : '';
+        this.updateAllMetrics();
+        this.debouncedSave();
+    }
+
+    onFaceKeydown(event, actualIdx) {
+        if (event.key === 'Enter') {
+            const nextActualIdx = this._nextActiveFace(actualIdx);
+            document.getElementById(`face-${nextActualIdx}`).focus();
+        }
+    }
+    onFaceInput(actualIdx, value) {
+        if (this.data.trim_marks && this.data.trim_marks[actualIdx]) { delete this.data.trim_marks[actualIdx]; const w = document.getElementById(`face-input-${actualIdx}`); if (w) { w.classList.remove('trimmed'); const b = w.querySelector('.trim-badge'); if (b) b.remove(); } }
+        // 千分位逗号由键盘脚本实时添加，先剥掉再做合法性过滤，避免把格式化结果误判为非法字符
+        const stripped = value.replace(/,/g, '');
+        const clean = InputFilter.integerExpr(stripped);
+        if (clean !== stripped) {
+            const input = document.getElementById(`face-${actualIdx}`);
+            if (input) {
+                // 过滤后重新补上千分位，保持实时渲染一致
+                const formatted = /^[+\-*/]?$/.test(clean) ? clean : clean.replace(/^([+\-*/]?)([\d]*)$/, (m, op, digits) => op + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+                input.value = formatted;
+                input.setSelectionRange(formatted.length, formatted.length);
+            }
+        }
+        this._scheduleAutoJump(actualIdx);
+    }
+
+    editReserveAmount() { this.showInputModal('自定义备用金', '请输入需要扣除的备用金金额', this.data.reserve_amount, (val) => { if (val >= 0) { this.data.reserve_amount = Math.round(val); this.updateAllMetrics(); this.saveData(); this.showToast('备用金金额已保存', 'success'); } }); }
+    _getAlloc() { try { const a = JSON.parse(localStorage.getItem('caja-alloc-deduct-v1') || 'null'); return a && a.byFace ? a : null; } catch (e) { return null; } }
+    _allocText(a) { return [200, 100, 500, 1000].filter(f => a.byFace[f] > 0).map(f => `${f}×${a.byFace[f]}`).join('  ') || '无'; }
+    // 扣除财务系统的现金分配数（200/100/500/1000 对应张数），不足时扣到0；返回是否执行
+    _applyAlloc(force) { const a = this._getAlloc(); if (!a) return false; if (!force && this.data.alloc_applied_at === a.at) return false; [200, 100, 500, 1000].forEach(f => { const i = CASH_FACES.indexOf(f); const n = Math.max(0, Number(a.byFace[f]) || 0); if (i >= 0 && n) this.data.cash_counts[i] = Math.max(0, (this.data.cash_counts[i] || 0) - n); }); this.data.alloc_applied_at = a.at; this._trimThreeDigits(); return true; }
+    _trimNote() { const m = this.data.trim_marks || {}; const k = Object.keys(m); return k.length ? `；已将 ${k.map(i => `${CASH_LABELS[i]} ${m[i]}→${this._trimmed(i, m[i])}`).join('、')} 保留两位` : ''; }
+    _autoDeductReserve() { if (!this._getAlloc()) return false; return this._applyAlloc(true); }
+    deductAllocation() { const a = this._getAlloc(); if (!a) { this.showToast('财务系统暂无分配数', 'warning'); return; } const go = () => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); this._applyAlloc(true); this._lockPasteUndo(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast(`已扣除分配数 ${this._allocText(a)}` + this._trimNote(), 'success'); }; if (this.data.alloc_applied_at === a.at) this.showConfirm('这份分配数已经扣除过，确定再扣一次吗？', go); else go(); }
+    // 手动切换：未保留 → 保留两位；已保留 → 恢复到保留前的张数
+    keepTwoDigits() {
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        const marks = this.data.trim_marks || {}; const k = Object.keys(marks);
+        if (k.length) { k.forEach(i => { this.data.cash_counts[i] = marks[i]; }); this.data.trim_marks = {}; this._lockPasteUndo(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('已恢复为保留两位之前的张数', 'success'); return; }
+        const m = this._trimThreeDigits();
+        if (!Object.keys(m).length) { this.showToast('没有达到三位数的张数', 'warning'); return; }
+        this._lockPasteUndo(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('三位数张数已保留为两位数' + this._trimNote(), 'success');
+    }
+    // 扣除分配数后自动执行：张数达到三位数的面值只保留后两位，并记录标记（面值下标 → 原张数）
+    // 保留规则：2万面值满50张就减50张；其他面值三位数只保留后两位
+    _trimmed(i, n) { let r = n >= 100 ? n % 100 : n; if (CASH_FACES[i] === 20000 && r >= 50) r -= 50; return r; }
+    _trimThreeDigits() { const marks = {}; this.data.cash_counts = this.data.cash_counts.map((n, i) => { n = n || 0; const r = this._trimmed(i, n); if (r !== n) { marks[i] = n; return r; } return n; }); this.data.trim_marks = marks; return marks; }
+    _denominationPayload(counts, source) { const byFace = {}; CASH_FACES.forEach((face, i) => byFace[face] = Math.max(0, Number(counts[i]) || 0)); const p = { version: 1, type: 'denomination-counts', source, copiedAt: Date.now(), byFace }; if (window.CajaClip) CajaClip.record(p); return p; }
+    copyDenominations() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { localStorage.removeItem('caja-denomination-clipboard-v1'); localStorage.setItem('caja-denomination-clipboard-v1', JSON.stringify(this._denominationPayload(this.data.cash_counts, '现金箱清点'))); this.showToast('已复制当前各面值张数（覆盖上一次的复制），可跨系统粘贴', 'success'); } catch (e) { this.showToast('复制失败：浏览器存储不可用', 'error'); } }
+    _countsTotal(counts) { return CASH_FACES.reduce((s, f, i) => s + f * (Number(counts[i]) || 0), 0); }
+    pasteDenominations() {
+        const mode = 'add';
+        let payload; try { payload = JSON.parse(localStorage.getItem('caja-denomination-clipboard-v1') || 'null'); } catch (e) {}
+        if (!payload || payload.type !== 'denomination-counts' || !payload.byFace) { this.showToast('没有可粘贴的面值张数', 'warning'); return; }
+        const incoming = CASH_FACES.map(face => Math.max(0, Number(payload.byFace[face]) || 0));
+        const apply = () => {
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // 先提交正在输入的张数，避免重绘时被清零
+            const before = this.data.cash_counts.slice(); const reserveBefore = this.data.alloc_applied_at || 0;
+            const skipBefore = this.skipFaces.slice(); incoming.forEach((n, i) => { if (n > 0) this.skipFaces[i] = false; }); // 粘贴到被跳过的面值时自动取消跳过（与财务一致）
+            this.data.cash_counts = incoming.map((n, i) => (this.data.cash_counts[i] || 0) + n);
+            const autoDeducted = this._autoDeductReserve(); if (!autoDeducted && this._getAlloc()) this._trimThreeDigits(); const after = this.data.cash_counts.slice();
+            this._pushPasteLog({ type: 'paste', mode, source: payload.source || '未知来源', counts: incoming, total: this._countsTotal(incoming), before, after, totalBefore: this._countsTotal(before), totalAfter: this._countsTotal(after), reserveBefore, skipBefore });
+            this.renderFaceGrid(); this.updateAllMetrics(); this.renderPasteLog(); this.saveData(); this.showToast(`已累加来自${payload.source || '其他界面'}的张数` + (autoDeducted ? `，已自动扣除分配数 ${this._allocText(this._getAlloc())}` : '，该分配数已扣过，未重复扣除') + this._trimNote(), 'success');
+        };
+        apply();
+    }
+    undoPaste() {
+        const e = this._lastUndoablePaste();
+        if (!e) { this.showToast('没有可撤销的粘贴', 'warning'); return; }
+        const doIt = () => {
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            const cur = this.data.cash_counts.slice();
+            this.data.cash_counts = e.before.slice(); this.data.alloc_applied_at = e.reserveBefore || 0; this.data.trim_marks = {}; e.undone = true;
+            if (Array.isArray(e.skipBefore)) this.skipFaces = e.skipBefore.slice();
+            this._pushPasteLog({ type: 'undo', ref: e.id, refTime: e.time, mode: e.mode, source: e.source, counts: e.counts, total: e.total, totalBefore: this._countsTotal(cur), totalAfter: this._countsTotal(e.before) });
+            this.renderFaceGrid(); this.updateAllMetrics(); this.renderPasteLog(); this.saveData(); this.showToast('已撤销上一次粘贴' + '（分配数扣除状态一并恢复）', 'warning');
+        };
+        if (this.data.cash_counts.some((n, k) => (n || 0) !== (e.after[k] || 0))) this.showConfirm('上次粘贴之后现金张数又有改动，撤销会一并还原，确定继续吗？', doIt); else doIt();
+    }
+    _pasteLogList() { if (!Array.isArray(this.data.paste_log)) this.data.paste_log = []; return this.data.paste_log; }
+    _pasteStamp() { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+    _pushPasteLog(entry) { const l = this._pasteLogList(); l.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), time: this._pasteStamp(), ...entry }); this._trimPasteLog(l); }
+    _trimPasteLog(l) { ['paste', 'undo'].forEach(t => { let c = l.filter(e => e.type === t).length; for (let k = 0; k < l.length && c > PASTE_LOG_VISIBLE;) { if (l[k].type === t) { l.splice(k, 1); c--; } else k++; } }); } // 粘贴、撤销各自最多保留 PASTE_LOG_VISIBLE 条，互不占用名额
+    _lastUndoablePaste() { const l = this._pasteLogList(); for (let k = l.length - 1; k >= 0; k--) { const e = l[k]; if (e.type === 'paste' && !e.undone && !e.stale) return e; } return null; }
+    _lockPasteUndo() { this._pasteLogList().forEach(e => { if (e.type === 'paste' && !e.undone) e.stale = true; }); }
+    _pasteFacesText(counts) { return CASH_FACES.map((f, k) => (Number(counts[k]) || 0) ? `${f.toLocaleString('zh-CN')}×${counts[k]}` : '').filter(Boolean).join('\u3000') || '（无张数）'; }
+    renderPasteLog() {
+        const list = this._pasteLogList();
+        const box = document.getElementById('paste-log'); if (box) box.innerHTML = this._pasteLogHtml(list, '现金合计');
+        const btn = document.getElementById('undo-paste-btn'); if (btn) btn.disabled = !this._lastUndoablePaste();
+    }
+    _pasteLogHtml(list, unitLabel) {
+        if (!list.length) return '<div class="paste-log-empty">暂无粘贴/撤销记录</div>';
+        const n = v => Math.round(Number(v) || 0).toLocaleString('zh-CN');
+        return list.slice().reverse().map((e, revIdx) => {
+            const logIdx = list.length - 1 - revIdx;
+            const isUndo = e.type === 'undo';
+            const label = isUndo ? '↩️ 撤销粘贴' : (e.mode === 'add' ? '➕ 累加粘贴' : '🔁 覆盖粘贴');
+            const amt = (isUndo ? '-' : '+') + n(e.total);
+            return `<div class="paste-entry ${isUndo ? 'undo' : ''} ${e.undone ? 'undone' : ''}" onclick="app.openPasteDetail(${logIdx})" title="点击查看详情">`
+                + `<div class="pe-line"><span class="pe-time">${escapeHtml(e.time)}</span><span class="pe-label">${label}${e.undone ? '<span class="pe-tag">已撤销</span>' : ''}</span><span class="pe-amt">${amt}</span></div></div>`;
+        }).join('');
+    }
+
+    // ===== 历史清点记录 / 本次确认（逻辑同财务系统）=====
+    _baseline() { if (!Array.isArray(this.data.cash_baseline) || this.data.cash_baseline.length !== NUM_FACES) this.data.cash_baseline = new Array(NUM_FACES).fill(0); return this.data.cash_baseline; }
+    _historyList() { if (!Array.isArray(this.data.cash_history)) this.data.cash_history = []; return this.data.cash_history; }
+    _pendingDeltas() { const b = this._baseline(); return this.data.cash_counts.map((n, i) => (Number(n) || 0) - (Number(b[i]) || 0)); }
+    _signedTotal(counts) { return CASH_FACES.reduce((s, f, i) => s + f * (Number(counts[i]) || 0), 0); }
+    _facesTextSigned(counts) { return CASH_FACES.map((f, i) => { const n = Number(counts[i]) || 0; return n ? `${f.toLocaleString('zh-CN')}×${n > 0 ? '+' : ''}${n}` : ''; }).filter(Boolean).join('　') || '（无变化）'; }
+    // ===== 历史清点记录详情（只读，不参与计算）=====
+    openHistoryEdit(recIdx) {
+        const entry = this._historyList()[recIdx];
+        if (!entry || !Array.isArray(entry.pendingSnapshot)) { this.showToast('该记录没有明细', 'warning'); return; }
+        this._viewingHist = recIdx;
+        const n = v => Math.round(Number(v) || 0).toLocaleString('zh-CN');
+        document.getElementById('histViewTitle').textContent = `第${entry.seq || (recIdx + 1)}次清点 (${entry.time})`;
+        document.getElementById('histViewMeta').innerHTML = `本次清点金额：<b>${(Number(entry.total) || 0) >= 0 ? '+' : ''}${n(entry.total)}</b><br>确认后现金合计：<b>${n(entry.totalAfter)}</b>`;
+        document.getElementById('histViewGrid').innerHTML = DISPLAY_ORDER_INDICES.map(i => {
+            const c = Number(entry.pendingSnapshot[i]) || 0;
+            return `<div class="ro-face ${c ? '' : 'zero'}"><label>${CASH_LABELS[i]}</label><span>${c}</span></div>`;
+        }).join('');
+        document.getElementById('histViewModal').classList.add('show');
+    }
+    closeHistoryEdit() { document.getElementById('histViewModal').classList.remove('show'); this._viewingHist = null; }
+    copyHistoryDenominations() {
+        const recIdx = this._viewingHist; if (recIdx === null || recIdx === undefined) return;
+        const entry = this._historyList()[recIdx]; if (!entry) return;
+        const counts = entry.pendingSnapshot.map(x => Math.max(0, Number(x) || 0));
+        try {
+            localStorage.removeItem('caja-denomination-clipboard-v1');
+            localStorage.setItem('caja-denomination-clipboard-v1', JSON.stringify(this._denominationPayload(counts, `现金箱 第${entry.seq || (recIdx + 1)}次清点`)));
+            this.showToast('已复制该次清点的各面值张数，可跨系统粘贴', 'success');
+        } catch (e) { this.showToast('复制失败：浏览器存储不可用', 'error'); }
+    }
+    // ===== 粘贴/撤销粘贴记录详情（只读，不参与计算）=====
+    openPasteDetail(logIdx) {
+        const e = this._pasteLogList()[logIdx]; if (!e) return;
+        const n = v => Math.round(Number(v) || 0).toLocaleString('zh-CN');
+        const isUndo = e.type === 'undo';
+        const label = isUndo ? '↩️ 撤销粘贴' : (e.mode === 'add' ? '➕ 累加粘贴' : '🔁 覆盖粘贴');
+        document.getElementById('pasteDetailTitle').textContent = `${label} (${e.time})`;
+        document.getElementById('pasteDetailMeta').innerHTML = (isUndo
+                ? `撤销的是 <b>${escapeHtml(e.refTime)}</b> 的${e.mode === 'add' ? '累加' : '覆盖'}粘贴<br>原来源：<b>${escapeHtml(e.source)}</b>`
+                : `来源：<b>${escapeHtml(e.source)}</b>`)
+            + `<br>${isUndo ? '被撤销的金额' : '粘贴金额'}：<b>${isUndo ? '-' : '+'}${n(e.total)}</b>`
+            + `<br>现金合计：<b>${n(e.totalBefore)} → ${n(e.totalAfter)}</b>`
+            + (e.undone ? '<br><span style="color:var(--red);">该次粘贴已被撤销</span>' : '');
+        const counts = e.counts || [];
+        document.getElementById('pasteDetailGrid').innerHTML = DISPLAY_ORDER_INDICES.map(i => {
+            const c = Number(counts[i]) || 0;
+            return `<div class="ro-face ${c ? '' : 'zero'}"><label>${CASH_LABELS[i]}</label><span>${c}</span></div>`;
+        }).join('');
+        document.getElementById('pasteDetailModal').classList.add('show');
+    }
+    closePasteDetail() { document.getElementById('pasteDetailModal').classList.remove('show'); }
+    renderSessionPanel() {
+        this.renderPasteLog();
+        const list = this._historyList(); const deltas = this._pendingDeltas();
+        const n = v => Math.round(Number(v) || 0).toLocaleString('zh-CN');
+        const log = document.getElementById('session-log');
+        if (log) {
+            log.innerHTML = !list.length ? '<div class="session-empty">暂无历史清点记录</div>' : list.slice().reverse().map((e, idx) => {
+                const num = e.seq || (list.length - idx); const neg = (Number(e.total) || 0) < 0;
+                const recIdx = list.length - 1 - idx;
+                return `<div class="session-entry" onclick="app.openHistoryEdit(${recIdx})" title="点击查看本次清点详情">`
+                    + `<div class="se-line"><span class="se-time">${escapeHtml(e.time)}</span><span class="se-amt ${neg ? 'negative' : ''}">第${num}次: ${n(e.total)}<span class="session-edit-hint">🔍</span></span></div></div>`;
+            }).join('');
+        }
+        const hasPending = deltas.some(d => d !== 0);
+        const undoBtn = document.getElementById('session-undo-btn'); if (undoBtn) undoBtn.disabled = !hasPending;
+        const confirmBtn = document.getElementById('session-confirm-btn'); if (confirmBtn) confirmBtn.disabled = !hasPending;
+        const panel = document.getElementById('session-panel'); if (panel) panel.classList.toggle('has-data', hasPending || list.length > 0);
+        const badge = document.getElementById('session-badge'); if (badge) badge.style.display = hasPending ? 'inline' : 'none';
+    }
+    confirmCount() {
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        const deltas = this._pendingDeltas();
+        if (!deltas.some(d => d !== 0)) { this.showToast('本次没有新的清点数据', 'warning'); return; }
+        const counts = this.data.cash_counts.slice();
+        const list = this._historyList();
+        this.data.cash_count_seq = (Number(this.data.cash_count_seq) || list.length) + 1;
+        list.push({ time: this._pasteStamp(), seq: this.data.cash_count_seq, total: this._signedTotal(deltas), counts, pendingSnapshot: deltas, totalAfter: this._countsTotal(counts) });
+        if (list.length > PASTE_LOG_VISIBLE) list.splice(0, list.length - PASTE_LOG_VISIBLE);
+        this.data.cash_baseline = counts.slice();
+        this._lockPasteUndo();
+        this.renderSessionPanel(); this.saveData();
+        this.showToast(`本次清点已确认：合计 ${this._signedTotal(deltas) >= 0 ? '+' : ''}${this._signedTotal(deltas).toLocaleString('zh-CN')}`, 'success');
+    }
+    undoCount() {
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        if (!this._pendingDeltas().some(d => d !== 0)) { this.showToast('没有可撤销的本次数据', 'warning'); return; }
+        this.showConfirm('撤销本次会把现金张数还原到上一次确认时的状态，确定继续吗？', () => {
+            this.data.cash_counts = this._baseline().slice();
+            this._lockPasteUndo();
+            this.renderFaceGrid(); this.updateAllMetrics(); this.saveData();
+            this.showToast('本次录入数据已撤销', 'warning');
+        });
+    }
+
+    _scheduleAutoJump(actualIdx) {
+        if (!this._autoJumpTimers) this._autoJumpTimers = {};
+        if (this._autoJumpTimers[actualIdx]) clearTimeout(this._autoJumpTimers[actualIdx]);
+        const input = document.getElementById(`face-${actualIdx}`); if (!input) return;
+        const currentValue = input.value.trim();
+        if (!currentValue) return;
+        if ((parseInt(currentValue.replace(/,/g, '')) || 0) === 0) return;
+        this._autoJumpTimers[actualIdx] = setTimeout(() => {
+            const latestInput = document.getElementById(`face-${actualIdx}`); if (!latestInput || document.activeElement !== latestInput) return;
+            const latestValue = latestInput.value.trim(); if (!latestValue || latestValue !== currentValue) return;
+            latestInput.blur();
+            const nextActualIdx = this._nextActiveFace(actualIdx);
+            const next = document.getElementById(`face-${nextActualIdx}`);
+            if (next) { next.focus({ preventScroll: true }); next.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        }, 1200);
+    }
+
+    debouncedSave() { this.saveData(); }
+    showToast(message, type = 'success', duration = 2000) { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = 'toast show ' + type; if (toast._timer) clearTimeout(toast._timer); toast._timer = setTimeout(() => toast.classList.remove('show'), duration); }
+    executeQuickCmd(cmd) {
+        cmd = cmd.trim().toLowerCase(); if (!cmd) return; document.getElementById('quickCmd').value = '';
+        if (cmd.startsWith('p=')) { const val = Calc.parseSum(cmd.slice(2)); if (val >= 0) { this.data.theoretical_inventory = val; this.updateAllMetrics(); this.saveData(); this.showToast(`理论库存已更新为 ${val.toLocaleString()}`, 'success'); } return; }
+        if (cmd.startsWith('b=')) { const val = Calc.parseSum(cmd.slice(2)); if (val >= 0) { this.data.big_money = val; this.updateAllMetrics(); this.saveData(); this.showToast(`整的大钱已更新为 ${val.toLocaleString()}`, 'success'); } return; }
+        if (cmd.startsWith('c=')) { const val = Calc.parseSum(cmd.slice(2)); if (val >= 0) { this.data.whole_change = val; this.updateAllMetrics(); this.saveData(); this.showToast(`整的零钱已更新为 ${val.toLocaleString()}`, 'success'); } return; }
+        if (cmd === 'clr') { this.clearAllCash(); return; }
+        if (cmd.startsWith('j ')) {
+            const parts = cmd.slice(2).trim().split(/\s+/);
+            if (parts.length === 3) { const theo = parts[0] === '.' ? this.data.theoretical_inventory : Calc.parseSum(parts[0]); const whole = parts[1] === '.' ? this.data.whole_change : Calc.parseSum(parts[1]); const big = parts[2] === '.' ? this.data.big_money : Calc.parseSum(parts[2]); this.data.theoretical_inventory = theo; this.data.whole_change = whole; this.data.big_money = big; this.updateAllMetrics(); this.saveData(); this.showToast('批量设置完成', 'success'); } else { this.showToast('格式错误: j <理论库存> <整的零钱> <整的大钱>', 'error'); }
+            return;
+        }
+        if (cmd.startsWith('批量')) { this.parseBatchCommand(cmd); return; }
+        this.showToast('未知指令', 'error');
+    }
+    parseBatchCommand(cmd) {
+        const right = cmd.slice(2).trim();
+        if (right === 'all=0') { this.data.cash_counts.fill(0); this._baseline().fill(0); this._lockPasteUndo(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('所有面值已清零', 'success'); return; }
+        const assignments = right.split(','); let count = 0;
+        assignments.forEach(item => { const parts = item.split('='); if (parts.length === 2) { const face = parseInt(parts[0].trim()); const cnt = Calc.parseSum(parts[1].trim()); const idx = CASH_FACES.indexOf(face); if (idx !== -1 && cnt >= 0) { this.data.cash_counts[idx] = cnt; count++; } } });
+        if (count > 0) { this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast(`已设置 ${count} 个面值`, 'success'); }
+    }
+    editTheoretical() { this.showInputModal('修改理论库存', '请输入新的理论库存', this.data.theoretical_inventory, (val) => { if (val >= 0) { this.data.theoretical_inventory = val; this.updateAllMetrics(); this.saveData(); this.showToast('理论库存已更新', 'success'); } }); }
+    editBigMoney() { this.showInputModal('修改整的大钱', '请输入新的整的大钱', this.data.big_money, (val) => { if (val >= 0) { this.data.big_money = val; this.updateAllMetrics(); this.saveData(); this.showToast('整的大钱已更新', 'success'); } }); }
+    editWholeChange() { this.showInputModal('修改整的零钱', '请输入新的整的零钱', this.data.whole_change, (val) => { if (val >= 0) { this.data.whole_change = val; this.updateAllMetrics(); this.saveData(); this.showToast('整的零钱已更新', 'success'); } }); }
+    clearAllCash() { this.showConfirm('确定要清除所有现金吗？现金张数将全部归零，理论库存、整的大钱和整的零钱保持不变。', () => { this.data.cash_counts.fill(0); this._baseline().fill(0); this._lockPasteUndo(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('所有现金已清零', 'success'); }); }
+    resetAll() { this.showConfirm('确定要重置所有数据吗？此操作不可撤销。', () => { this.data = getInitData(); this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('所有数据已重置', 'success'); }); }
+    showInputModal(title, label, defaultValue, callback) {
+        const modal = document.getElementById('inputModal');
+        const input = document.getElementById('inputModalValue');
+        document.getElementById('inputModalTitle').textContent = title;
+        document.getElementById('inputModalLabel').textContent = label;
+        input.value = (defaultValue !== undefined && defaultValue !== null && defaultValue !== '') ? Number(defaultValue).toLocaleString('en-US') : '';
+        this.inputCallback = callback;
+        modal.classList.add('show');
+        // 关键修复：强制同步布局后立刻 focus，确保 focus 仍在用户交互事件的同步调用链中，
+        // 这样移动端浏览器才会允许弹出软键盘（异步调用如 setTimeout/rAF 会被浏览器阻止）
+        modal.getBoundingClientRect();
+        input.focus({ preventScroll: true });
+        input.select();
+    }
+    closeInputModal() {
+        document.getElementById('inputModal').classList.remove('show');
+        this.inputCallback = null;
+    }
+    confirmInputModal() { let value = document.getElementById('inputModalValue').value; if (typeof value === 'string') value = InputFilter.decimalExpr(value); const num = Calc.parseSum(value); if (this.inputCallback) this.inputCallback(num); this.closeInputModal(); }
+    onModalInput(value) {
+        // 千分位逗号由键盘脚本实时添加，先剥掉再做合法性过滤，避免误删格式化结果
+        const stripped = value.replace(/,/g, '');
+        const clean = InputFilter.decimalExpr(stripped);
+        if (clean !== stripped) {
+            const input = document.getElementById('inputModalValue');
+            if (input) {
+                // 纯整数重新补上千分位；表达式/小数原样保留
+                const formatted = /^\d+$/.test(clean) ? clean.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : clean;
+                input.value = formatted;
+                input.setSelectionRange(formatted.length, formatted.length);
+            }
+        }
+    }
+    showConfirm(message, callback) { document.getElementById('confirmMessage').textContent = message; this.confirmCallback = callback; document.getElementById('confirmModal').classList.add('show'); }
+    closeConfirm(result) { document.getElementById('confirmModal').classList.remove('show'); if (result && this.confirmCallback) this.confirmCallback(); this.confirmCallback = null; }
+    exportData() {
+        const exportData = { ...this.data, export_time: new Date().toISOString(), version: 'cashbox_v1' };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `cashbox_${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); this.showToast('数据已导出', 'success');
+    }
+    importData() { document.getElementById('importFile').click(); }
+    handleImport(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (!imported.cash_counts || !Array.isArray(imported.cash_counts)) throw new Error('无效的现金箱数据文件');
+                this.data = { ...getInitData(), ...imported }; if (this.data.cash_counts.length !== NUM_FACES) this.data.cash_counts = new Array(NUM_FACES).fill(0);
+                this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast('数据已导入', 'success');
+            } catch (err) { this.showToast('导入失败: ' + err.message, 'error'); } input.value = '';
+        };
+        reader.readAsText(file);
+    }
+}
+
+const app = new CashBoxApp();
+
+window.addEventListener('pageshow', (e) => { if (e.persisted && typeof app !== 'undefined' && app.skipFaces && app.skipFaces) { app.skipAuto = true; app.skipFaces = app._defaultSkip(); app.renderFaceGrid(); } });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { app.closeInputModal(); app.closeConfirm(false); }
+});
+
+// ===== 已移除底部全局 blur 监听器 =====
+// 空值归零逻辑已统一迁移到 onFaceBlur 方法内部，避免重复处理
+</script>
+<!-- ===== 自制数字键盘 ===== -->
+<div id="vk-keypad">
+    <div class="vk-toolbar">
+        <button type="button" data-k="home" title="句首">|◀</button>
+        <button type="button" data-k="left" title="左移">◀</button>
+        <button type="button" data-k="right" title="右移">▶</button>
+        <button type="button" data-k="end" title="句末">▶|</button>
+        <button type="button" data-k="clear" class="vk-clear" title="清空">清空</button>
+        <button type="button" data-k="hide" class="vk-hide" title="收起键盘">收起</button>
+    </div>
+    <div class="vk-main">
+    <div class="vk-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="00">00</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+    <div class="vk-side">
+        <button type="button" data-k="back" class="vk-func">⌫</button>
+        <button type="button" data-k=" " class="vk-func">空格</button>
+        <button type="button" data-k="enter" class="vk-enter">回车</button>
+    </div>
+    </div>
+</div>
+<script>
+(function () {
+    const keypad = document.getElementById('vk-keypad');
+
+    // 0) 全局解析兼容千分位：所有 parseFloat/parseInt 自动剔除逗号，避免 "500,000" 被截断成 500
+    const _pf = window.parseFloat, _pi = window.parseInt;
+    window.parseFloat = (v) => _pf(typeof v === 'string' ? v.replace(/,/g, '') : v);
+    window.parseInt = (v, r) => _pi(typeof v === 'string' ? v.replace(/,/g, '') : v, r);
+    const isTargetInput = (el) => el && el.tagName === 'INPUT' &&
+        (el.type === 'text' || el.type === 'number') &&
+        el.id !== 'quickCmd' && !el.disabled;
+
+    // 1) 抑制系统键盘逻辑已提取到 common.js
+
+    // 1.5) 输入时自动加千分位（只处理纯整数；含空格求和/算式/小数点的内容原样保留）
+    const formatThousands = (el) => {
+        const raw = el.value;
+        if (!raw || !/^[\d,]+$/.test(raw)) return;
+        const caret = (el.selectionStart != null) ? el.selectionStart : raw.length;
+        const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digits = raw.replace(/\D/g, '');
+        if (!digits) { el.value = ''; return; }
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (formatted === raw) return;
+        el.value = formatted;
+        let pos = 0, seen = 0;
+        while (pos < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[pos])) seen++; pos++; }
+        el.setSelectionRange(pos, pos);
+    };
+    // 捕获阶段在原有 oninput 处理之前执行，保证后续逻辑拿到的是格式化后的值
+    document.addEventListener('input', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+    // 聚焦时把已有数值也补上千分位
+    document.addEventListener('focusin', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+
+    // 2) 聚焦时弹出自制键盘，失焦时收起
+    document.addEventListener('focusin', (e) => {
+        if (!isTargetInput(e.target)) return;
+        e.target.dataset.vkStart = e.target.value;
+        keypad.classList.add('vk-show');
+        document.body.classList.add('vk-open');
+        document.documentElement.style.setProperty('--vk-h', (keypad.offsetHeight || 460) + 'px');
+        // 等键盘弹出与 vk-open padding 布局稳定后，只把输入框被键盘遮住的部分补滚出来，
+        // 不做整屏居中，避免视图持续下移、输入框被居中到键盘背后
+        setTimeout(() => {
+            try {
+                const keypadH = keypad.offsetHeight || 460;
+                const visibleBottom = window.innerHeight - keypadH - 12;
+                const r = e.target.getBoundingClientRect();
+                if (r.bottom > visibleBottom) {
+                    window.scrollBy({ top: r.bottom - visibleBottom, behavior: 'smooth' });
+                } else if (r.top < 8) {
+                    window.scrollBy({ top: r.top - 8, behavior: 'smooth' });
+                }
+            } catch (_) {}
+        }, 250);
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!isTargetInput(a)) {
+                keypad.classList.remove('vk-show');
+                document.body.classList.remove('vk-open');
+            }
+        }, 60);
+    });
+
+    // 3) 按键逻辑（拦截触摸默认行为，防止焦点丢失和"幽灵点击"穿透到键盘下方界面）
+    let lastActivateAt = 0;
+    const activate = (btn) => {
+        lastActivateAt = Date.now();
+        const k = btn.dataset.k;
+        // 「收起」不依赖输入框状态：已结算后输入框被 disabled，isTargetInput 会失败导致键盘收不起来
+        if (k === 'hide') {
+            const el = document.activeElement;
+            if (isTargetInput(el)) {
+                // 值有变化先提交，再失焦收起键盘
+                if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                el.blur();
+            }
+            keypad.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+            return;
+        }
+
+        const el = document.activeElement;
+        if (!isTargetInput(el)) return;
+
+        if (k === 'enter') {
+            // 值有变化先提交 change，再走原有的 Enter 导航/确认逻辑
+            if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dataset.vkStart = el.value;
+            }
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            return;
+        }
+
+        const s = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+        const t = (el.selectionEnd != null) ? el.selectionEnd : s;
+        if (k === 'home') { el.setSelectionRange(0, 0); return; }
+        if (k === 'end') { el.setSelectionRange(el.value.length, el.value.length); return; }
+        if (k === 'left') { const p = s === t ? Math.max(0, s - 1) : s; el.setSelectionRange(p, p); return; }
+        if (k === 'right') { const p = s === t ? Math.min(el.value.length, s + 1) : t; el.setSelectionRange(p, p); return; }
+        if (k === 'clear') {
+            el.value = '';
+            el.setSelectionRange(0, 0);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+        if (k === 'back') {
+            if (s === t && s > 0) {
+                el.value = el.value.slice(0, s - 1) + el.value.slice(t);
+                el.setSelectionRange(s - 1, s - 1);
+            } else if (s !== t) {
+                el.value = el.value.slice(0, s) + el.value.slice(t);
+                el.setSelectionRange(s, s);
+            }
+        } else {
+            el.value = el.value.slice(0, s) + k + el.value.slice(t);
+            el.setSelectionRange(s + k.length, s + k.length);
+        }
+        // 触发 input 事件，让实时求和 / 分配逻辑照常工作
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const pick = (e) => { const btn = e.target.closest('button[data-k]'); if (btn) activate(btn); };
+
+    keypad.addEventListener('pointerdown', (e) => e.preventDefault());
+    keypad.addEventListener('pointerup', (e) => { e.preventDefault(); pick(e); });
+    keypad.addEventListener('pointercancel', (e) => e.preventDefault());
+    // 阻止移动端把这次触摸再合成为 click 落到键盘下方的元素上
+    keypad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    keypad.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+    // 桌面鼠标兜底（移动端 click 已被上面拦截，500ms 内去重避免重复触发）
+    keypad.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastActivateAt > 500) pick(e); });
+})();
+</script>
+    <script src="./fx.js"></script>
+    <script src="./common.js"></script>
+    <script src="./clipboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+/* ============ 共享特效（已精简：移除会造成卡顿的持续性/高频特效） ============
+   移除：#fxCanvas 粒子画布、.aurora 极光光晕（含 filter:blur 持续动画）、
+   #fxSpotlight 鼠标聚光灯、.fx-meteor 流星、.fx-confetti 彩带、.fx-money 钞票雨、
+   .fx-rainbow 长按彩虹边框 —— 以上均为纯装饰彩蛋或持续重绘/重排的动画，
+   与业务功能无关且是卡顿的主要来源。
+   保留：卡片悬停光泽、按钮反馈、输入框聚焦发光、滚动入场渐显、页面淡入、
+   按钮水波纹、问候语、状态栏切换提示 —— 均为一次性或仅交互瞬间触发，成本很低。 */
+
+/* 通用卡片光泽扫过 + 悬停发光（纯 CSS，仅 hover 时触发） */
+.metric-card, .caja-card, .staff-card, .card, .app-card,
+.arrival-page .stat, .arrival-page .panel, .arrival-page .day-group {
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+}
+.metric-card::after, .caja-card::after, .staff-card::after, .card::after,
+.arrival-page .stat::after, .arrival-page .panel::after, .arrival-page .day-group::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -80%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,0.10), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.6s ease;
+    pointer-events: none;
+}
+.metric-card:hover::after, .caja-card:hover::after, .staff-card:hover::after, .card:hover::after,
+.arrival-page .stat:hover::after, .arrival-page .panel:hover::after, .arrival-page .day-group:hover::after {
+    left: 130%;
+}
+.metric-card:hover, .caja-card:hover, .staff-card:hover, .card:hover,
+.arrival-page .stat:hover, .arrival-page .panel:hover, .arrival-page .day-group:hover {
+    border-color: rgba(6,182,212,0.5) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(6,182,212,0.15);
+    transform: translateY(-2px);
+}
+
+/* 按钮点击缩放 + 悬停发光 */
+button {
+    transition: transform 0.15s ease, box-shadow 0.25s ease, filter 0.2s ease;
+}
+button:hover { filter: brightness(1.12); box-shadow: 0 0 14px rgba(6,182,212,0.25); }
+button:active { transform: scale(0.95); }
+
+/* 标题呼吸光晕（静态阴影，无动画） */
+h1, .header h1, .title {
+    text-shadow: 0 0 18px rgba(6,182,212,0.25);
+}
+
+/* 输入框聚焦霓虹边框 */
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: rgba(6,182,212,0.7) !important;
+    box-shadow: 0 0 0 2px rgba(6,182,212,0.15), 0 0 14px rgba(6,182,212,0.35) !important;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+/* 滚动入场渐显（进入视口后触发一次，非持续动画） */
+.fx-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.fx-reveal.fx-shown {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 页面载入淡入（一次性，0.4s 后结束） */
+@keyframes fxPageIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* 已移除 body 淡入：部分预览环境动画不推进会导致整页一直透明 */
+
+/* 按钮水波纹（pointerdown 触发，短生命周期） */
+.fx-btn-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    transform: scale(0);
+    animation: fxBtnRipple 0.5s ease-out forwards;
+    pointer-events: none;
+}
+@keyframes fxBtnRipple {
+    to { transform: scale(3); opacity: 0; }
+}
+button { position: relative; overflow: hidden; }
+
+/* 时段问候语 */
+.fx-greeting {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 6px 0 0;
+    animation: fxGreetingIn 0.8s ease;
+    position: relative;
+    z-index: 1;
+}
+@keyframes fxGreetingIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 状态栏切换动画（仅在线/离线状态变化时触发一次） */
+@keyframes fxStatusFlash {
+    0% { background: rgba(245,158,11,0.35); }
+    100% { background: transparent; }
+}
+.fx-status-flash {
+    animation: fxStatusFlash 1s ease;
+}
+
+/* ============ 全局半透明底色 ============ */
+
+/* 变量层统一改为半透明 */
+:root {
+    --bg: rgba(15, 23, 42, 0.5) !important;
+    --surface: rgba(30, 41, 59, 0.5) !important;
+    --surface-light: rgba(51, 65, 85, 0.5) !important;
+    --card: rgba(26, 29, 36, 0.5) !important;
+    --card2: rgba(34, 38, 47, 0.5) !important;
+}
+
+/* html 提供深色兜底，避免 body 半透明后露白 */
+html { background: #0b1120; }
+
+/* 主要容器磨砂质感（禁用 backdrop-filter，避免额外的合成层/模糊开销） */
+.metric-card, .caja-card, .staff-card, .card, .app-card,
+.info-section, .progress-section, .quick-input, .action-section,
+.diff-display, .modal-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* 自制键盘半透明磨砂（原为写死的 #161b22 / #21262d / #1a212b） */
+#vk-keypad {
+    background: rgba(22, 27, 34, 0.5) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+#vk-keypad button {
+    background: rgba(33, 38, 45, 0.5) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+.vk-toolbar button {
+    background: rgba(26, 33, 43, 0.5) !important;
+}
+
+/* 回车键与附近功能键（空格/⌫）样式一致，不再单独高亮 */
+.vk-enter {
+    color: #fff !important;
+}
+
+/* 吸顶头部 / 底部栏 50% 透明，无模糊 */
+.header, .bottom-bar, .bottom-stats {
+    background: rgba(15, 23, 42, 0.5) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 其余可见容器统一 50% 透明 */
+.metric-card, .caja-card, .staff-card, .card, .app-card,
+.info-section, .progress-section, .quick-input, .action-section,
+.diff-display, .modal-content, .face-input, .toast,
+table, thead, th, td, input, select, textarea,
+.status-bar, .install-bar, .section-title {
+    background-color: rgba(30, 41, 59, 0.5) !important;
+}
