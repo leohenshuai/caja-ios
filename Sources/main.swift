@@ -40,6 +40,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let js = "window.__NATIVE_KEEP_AWAKE__=\(keepAwake ? "true" : "false");"
         cfg.userContentController.addUserScript(WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         cfg.allowsInlineMediaPlayback = true
+        let lang = Locale.preferredLanguages.first ?? "zh-Hans"
+        cfg.userContentController.addUserScript(WKUserScript(source: "document.documentElement.lang='\(lang)';", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: cfg)
         web.isOpaque = false
         web.backgroundColor = .clear
