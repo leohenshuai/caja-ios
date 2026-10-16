@@ -31,7 +31,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = UIColor(red: 0.043, green: 0.067, blue: 0.125, alpha: 1)
+        overrideUserInterfaceStyle = .dark
         let cfg = WKWebViewConfiguration()
         let www = Bundle.main.bundleURL.appendingPathComponent("www")
         cfg.setURLSchemeHandler(SchemeHandler(root: www), forURLScheme: "app")
@@ -40,6 +41,9 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         cfg.userContentController.addUserScript(WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         cfg.allowsInlineMediaPlayback = true
         web = WKWebView(frame: .zero, configuration: cfg)
+        web.isOpaque = false
+        web.backgroundColor = .clear
+        web.scrollView.backgroundColor = .clear
         web.navigationDelegate = self
         web.uiDelegate = self
         web.scrollView.contentInsetAdjustmentBehavior = .never
@@ -48,8 +52,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
         NSLayoutConstraint.activate([
-            web.topAnchor.constraint(equalTo: view.topAnchor),
-            web.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            web.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             web.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)])
         apply()
