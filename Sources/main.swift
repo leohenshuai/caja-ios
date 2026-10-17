@@ -171,26 +171,53 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
     lazy var synth = AVSpeechSynthesizer()
     lazy var zhVoice: AVSpeechSynthesisVoice? = AVSpeechSynthesisVoice(language: "zh-CN")
-    // 预录的神经网络真人语音(晓晓):启动时全部载入内存,按键时直接播放,零延迟
-    var voicePlayers: [String: AVAudioPlayer] = [:]
-    var lastVoice: AVAudioPlayer?
+    // 预录的神经网络真人语音(晓晓,1.4 倍速,每个约 0.25 秒)。
+    // 用 AVAudioEngine:启动时把 17 段录音解码成内存缓冲区,按键时立即调度播放,延迟极低。
+    // 允许重叠:每次按键马上响,上一个没读完也不打断、不排队、不丢弃(轮流使用 8 个播放节点)。
+    let voiceEngine = AVAudioEngine()
+    var voiceBuffers: [String: AVAudioPCMBuffer] = [:]
+    var voiceNodes: [AVAudioPlayerNode] = []
+    var voiceNodeIdx = 0
     func preloadVoices() {
         let dir = Bundle.main.bundleURL.appendingPathComponent("www/voice")
         guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        var format: AVAudioFormat?
         for f in files where f.hasSuffix(".mp3") {
             let key = String(f.dropLast(4))
-            if let p = try? AVAudioPlayer(contentsOf: dir.appendingPathComponent(f)) {
-                p.volume = 1.0; p.prepareToPlay(); voicePlayers[key] = p
-            }
+            guard let file = try? AVAudioFile(forReading: dir.appendingPathComponent(f)),
+                  let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)) else { continue }
+            do { try file.read(into: buf) } catch { continue }
+            if format == nil { format = file.processingFormat }
+            guard let fmt = format, buf.format.sampleRate == fmt.sampleRate, buf.format.channelCount == fmt.channelCount else { continue }
+            voiceBuffers[key] = buf
         }
+        guard let fmt = format else { return }
+        for _ in 0..<8 {
+            let node = AVAudioPlayerNode()
+            voiceEngine.attach(node)
+            voiceEngine.connect(node, to: voiceEngine.mainMixerNode, format: fmt)
+            voiceNodes.append(node)
+        }
+        voiceEngine.prepare()
+        try? voiceEngine.start()
     }
     func speak(_ text: String, key: String? = nil) {
-        if text.isEmpty && key == nil { lastVoice?.stop(); synth.stopSpeaking(at: .immediate); return }
-        lastVoice?.stop()                                      // 连续按键只读最新一个,不排队
-        if let k = key, let p = voicePlayers[k] {
-            p.currentTime = 0; p.play(); lastVoice = p; return
+        if text.isEmpty && key == nil {                        // 关闭播报:全部停止
+            for n in voiceNodes { n.stop() }
+            synth.stopSpeaking(at: .immediate); return
         }
-        // 没有对应录音时回退到系统语音
+        if let k = key, let buf = voiceBuffers[k], !voiceNodes.isEmpty {
+            if !voiceEngine.isRunning { try? voiceEngine.start() }   // 被电话/Siri 等打断后自动恢复
+            if voiceEngine.isRunning {
+                let node = voiceNodes[voiceNodeIdx]
+                voiceNodeIdx = (voiceNodeIdx + 1) % voiceNodes.count
+                node.stop()
+                node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
+                node.play()
+                return
+            }
+        }
+        // 没有对应录音或引擎起不来时,回退到系统语音
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         let u = AVSpeechUtterance(string: text)
         u.voice = zhVoice
