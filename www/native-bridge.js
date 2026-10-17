@@ -29,6 +29,17 @@
   function tick(kind) {                       // 40ms 内去重,避免 pointerdown 与 click 重复震
     var n = Date.now(); if (n - lastHap < 40) return; lastHap = n; NB.haptic(kind);
   }
+  // 提示音 / 数字播报:各自独立开关(localStorage keySound / keyVoice),默认都开
+  var SPEAK = { '0': '零', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '七', '8': '八', '9': '九', '00': '零零', '.': '点', '-': '负', back: '删除', clear: '清空', enter: '确认', hide: '收起' };
+  function flag(k) { return localStorage.getItem(k) !== '0'; }
+  NB.isSoundOn = function () { return flag('keySound'); };
+  NB.isVoiceOn = function () { return flag('keyVoice'); };
+  NB.setSound = function (v) { localStorage.setItem('keySound', v ? '1' : '0'); };
+  NB.setVoice = function (v) { localStorage.setItem('keyVoice', v ? '1' : '0'); if (!v) H.postMessage({ id: 's', op: 'speak', payload: { text: '' } }); };
+  function keyFeedback(kk) {
+    if (flag('keySound')) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
+    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk] } });
+  }
   var SEL_TAB = '.tab, .glass-ind, [role=tab]';
   var SEL_KEY = '#vk-keypad button, #vk-keypad [data-k]';
   var SEL_PRESS = 'button, a.app-card, .app-card, [role=button], [onclick], summary, label.switch, .chip, .platform-select-chip, .toggle, .pill, select';
@@ -39,7 +50,9 @@
     if (t.closest(SEL_KEY)) {
       var k = t.closest('[data-k]'); var kk = k && k.dataset.k;
       // 数字键 rigid(清脆有力),退格/清空 medium,回车/收起 heavy
-      return tick(kk === 'enter' ? 'heavy' : (kk === 'hide' ? 'heavy' : (kk === 'back' || kk === 'clear' ? 'medium' : 'rigid')));
+      tick(kk === 'enter' || kk === 'hide' ? 'heavy' : (kk === 'back' || kk === 'clear' ? 'medium' : 'rigid'));
+      keyFeedback(kk);
+      return;
     }
   }, true);
   document.addEventListener('click', function (e) {

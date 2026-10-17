@@ -1,5 +1,7 @@
 import UIKit
 import WebKit
+import AVFoundation
+import AudioToolbox
 
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
     let root: URL
@@ -59,6 +61,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             web.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             web.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)])
+        setupAudioSession()
         apply()
         web.load(URLRequest(url: URL(string: "app://localhost/index.html")!))
         NotificationCenter.default.addObserver(self, selector: #selector(apply), name: UIApplication.didBecomeActiveNotification, object: nil)
@@ -123,6 +126,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let p = d["payload"] as? [String: Any] ?? [:]
         switch op {
         case "haptic": haptic(p["type"] as? String ?? "light"); reply(id, ["ok": true])
+        case "sound": playKeySound(p["type"] as? String ?? "key"); reply(id, ["ok": true])
+        case "speak": speak(p["text"] as? String ?? ""); reply(id, ["ok": true])
         case "clipboardWrite":
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
@@ -149,6 +154,32 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     // ---- 触觉 ----
+    // ---- 提示音(系统按键音,跟随静音开关)与数字播报 ----
+    func playKeySound(_ type: String) {
+        switch type {
+        case "delete": AudioServicesPlaySystemSound(1155)      // 键盘删除音
+        case "action": AudioServicesPlaySystemSound(1156)      // 键盘功能键音
+        default: AudioServicesPlaySystemSound(1104)            // 键盘按键音
+        }
+    }
+    lazy var synth = AVSpeechSynthesizer()
+    lazy var zhVoice: AVSpeechSynthesisVoice? = AVSpeechSynthesisVoice(language: "zh-CN")
+    func speak(_ text: String) {
+        if text.isEmpty { return }
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }   // 连续按键只读最新一个,不排队
+        let u = AVSpeechUtterance(string: text)
+        u.voice = zhVoice
+        u.rate = min(AVSpeechUtteranceMaximumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * 1.15)
+        u.volume = 1.0
+        u.preUtteranceDelay = 0; u.postUtteranceDelay = 0
+        synth.speak(u)
+    }
+    func setupAudioSession() {
+        // 与其他音频(音乐/播客)混音,不打断;静音开关打开时播报也能出声
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
     // 常驻的震动发生器 + prepare():避免每次现建导致首震延迟、力度偏弱
     lazy var gLight = UIImpactFeedbackGenerator(style: .light)
     lazy var gMedium = UIImpactFeedbackGenerator(style: .medium)

@@ -58,6 +58,8 @@
     '<button class="suite-backup-btn" id="vaultExport" type="button"><span>📤</span><span>导出</span></button>' +
     '<button class="suite-backup-btn suite-restore-btn" id="vaultImport" type="button"><span>♻️</span><span>从文件恢复</span></button>' +
     '<button class="suite-backup-btn" id="vaultHap" type="button"><span>📳</span><span id="vaultHapT"></span></button>' +
+    '<button class="suite-backup-btn" id="vaultSnd" type="button"><span>🔊</span><span id="vaultSndT"></span></button>' +
+    '<button class="suite-backup-btn" id="vaultVoc" type="button"><span>🗣️</span><span id="vaultVocT"></span></button>' +
     '<input id="vaultFile" type="file" accept="application/json,.json" hidden onchange="restoreAllSystemsBackup(event)"></div>' +
     '<div class="suite-backup-desc" style="font-size:12px;opacity:.75;margin-bottom:8px">从旧版网页迁入:先在旧版首页导出备份,再点“从文件恢复”选择该文件。</div>' +
     '<div id="vaultList"></div>' +
@@ -94,6 +96,10 @@
   function paintHap() { $('vaultHapT').textContent = '触觉:' + (localStorage.getItem('haptics') === '0' ? '关' : '开'); }
   paintHap();
   $('vaultHap').onclick = function () { var on = localStorage.getItem('haptics') === '0'; NB.setHaptics(on); paintHap(); if (on) NB.haptic('success'); };
+  function paintKb() { $('vaultSndT').textContent = '提示音:' + (NB.isSoundOn() ? '开' : '关'); $('vaultVocT').textContent = '数字播报:' + (NB.isVoiceOn() ? '开' : '关'); }
+  paintKb();
+  $('vaultSnd').onclick = function () { NB.setSound(!NB.isSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isSoundOn()) NB.call('sound', { type: 'key' }); };
+  $('vaultVoc').onclick = function () { NB.setVoice(!NB.isVoiceOn()); paintKb(); NB.haptic('selection'); if (NB.isVoiceOn()) NB.call('speak', { text: '数字播报已开启' }); };
   $('vaultImport').onclick = function () { $('vaultFile').click(); };
   $('vaultNow').onclick = async function () {
     var b = this; b.disabled = true; var r = await Backup.auto('manual', 'manual'); b.disabled = false;
