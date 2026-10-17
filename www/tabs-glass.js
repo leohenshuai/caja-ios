@@ -50,6 +50,19 @@
       });
     }).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
   }
+  // modalPop:弹窗内容出现时做一次弹性位移/缩放(不改透明度,即使动画不推进也完整可见)
+  function modalPop() {
+    new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        var el = m.target;
+        if (!el.classList || !el.classList.contains('modal') || !el.classList.contains('show')) return;
+        if (m.oldValue && /\bshow\b/.test(m.oldValue)) return;
+        var c = el.querySelector('.modal-content'); if (!c || !c.animate) return;
+        try { c.animate([{ transform: 'translateY(22px) scale(.96)' }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.22,1.2,.36,1)' }); } catch (e) {}
+      });
+    }).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'], attributeOldValue: true });
+  }
+  modalPop();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(); watchContent(); });
   else { init(); watchContent(); }
 })();

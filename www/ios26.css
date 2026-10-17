@@ -132,9 +132,8 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important
   background: linear-gradient(170deg, rgba(48,60,90,.80), rgba(22,30,52,.88)) !important;
   -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
   box-shadow: var(--g-hi), 0 24px 60px rgba(0,0,0,.55) !important;
-  animation: iosPop .45s var(--spring);
 }
-@keyframes iosPop { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+/* 弹窗弹出动效由 tabs-glass.js 用 Web Animations 实现:只做位移/缩放,不动透明度,动画不推进时也保持可见 */
 .modal[style*="flex-end"] .modal-content, .modal-content { margin-bottom: calc(env(safe-area-inset-bottom, 0px) * .5 + 8px); }
 
 /* ---------- 其他细节 ---------- */
@@ -142,7 +141,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important
 table { border-radius: 16px; }
 .progress-bar { border-radius: 999px !important; }
 ::-webkit-scrollbar { width: 0; height: 0; }
-#vk-keypad { border-radius: 28px 28px 0 0 !important; -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); }
+#vk-keypad { border-radius: 28px 28px 0 0 !important; background: linear-gradient(180deg, #1b2438, #0f1626) !important; border-top: .5px solid rgba(255,255,255,.22) !important; box-shadow: 0 -10px 30px rgba(0,0,0,.5) !important; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
 
 /* 入场渐显不依赖过渡动画，避免动画不推进时卡片整块消失 */
 .fx-reveal, .fx-reveal.fx-shown { opacity: 1 !important; transform: none !important; transition: none !important; }
@@ -163,10 +162,22 @@ table { border-radius: 16px; }
 .tab:active { transform: scale(.94); transition: transform .12s; }
 
 /* 自制数字键盘：保持方圆角矩形，不用胶囊 */
-#vk-keypad button { border-radius: 16px !important; box-shadow: none; }
+#vk-keypad button { border-radius: 16px !important; box-shadow: none; background: #263149 !important; border: .5px solid rgba(255,255,255,.12) !important; }
+#vk-keypad button:active { background: var(--cyan, #38bdf8) !important; color: #04121f !important; }
 
 /* 原页面的 fadeIn 若动画不推进会停在透明，直接取消 */
 .caja-body, .tab-content { animation: none !important; opacity: 1 !important; }
 
 /* 首页应用卡片入场动画:不依赖动画推进,避免停在透明 */
 .app-card { animation: none !important; opacity: 1 !important; transform: none; }
+
+/* 输入框避让键盘:给页面底部按键盘高度留白,保证最底部的输入框也能滚到键盘上方 */
+body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px) + var(--kb-room, 0px)) !important; }
+
+/* 原页面各弹窗/面板自带从透明起步的入场动画(slideUp/fadeIn/pop):统一取消,由 tabs-glass.js 用只改位移的动画替代 */
+.modal-content, .platform-body, .caja-body, .seg-pop { animation: none !important; }
+.modal.show .modal-content { opacity: 1 !important; }
+
+/* 自制键盘弹出时弹窗贴在页头下方,不被页头压住;高度也扣掉页头 */
+body.vk-open .modal.show { padding-top: calc(env(safe-area-inset-top, 0px) + 66px) !important; }
+body.vk-open .modal.show .modal-content { max-height: calc(100vh - var(--vk-h, 460px) - env(safe-area-inset-top, 0px) - 84px) !important; max-height: calc(100dvh - var(--vk-h, 460px) - env(safe-area-inset-top, 0px) - 84px) !important; }

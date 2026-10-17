@@ -24,10 +24,33 @@
   var hapticOn = localStorage.getItem('haptics') !== '0';
   NB.setHaptics = function (v) { hapticOn = !!v; localStorage.setItem('haptics', v ? '1' : '0'); };
   NB.haptic = function (t) { if (hapticOn) H.postMessage({ id: 'h', op: 'haptic', payload: { type: t || 'light' } }); };
+  // 触觉覆盖范围:按钮、标签、卡片、自制键盘按键、弹窗里的选项、开关/复选/单选、下拉、可点击行、输入框聚焦
+  var lastHap = 0;
+  function tick(kind) {                       // 40ms 内去重,避免 pointerdown 与 click 重复震
+    var n = Date.now(); if (n - lastHap < 40) return; lastHap = n; NB.haptic(kind);
+  }
+  var SEL_TAB = '.tab, .glass-ind, [role=tab]';
+  var SEL_KEY = '#vk-keypad button, #vk-keypad [data-k]';
+  var SEL_PRESS = 'button, a.app-card, .app-card, [role=button], [onclick], summary, label.switch, .chip, .platform-select-chip, .toggle, .pill, select';
+  // 自制键盘:按下瞬间就震(它在 pointerup 里处理并阻止了 click,所以必须监听 pointerdown)
+  document.addEventListener('pointerdown', function (e) {
+    var t = e.target.closest && e.target;
+    if (!t || !t.closest) return;
+    if (t.closest(SEL_KEY)) {
+      var k = t.closest('[data-k]'); var kk = k && k.dataset.k;
+      return tick(kk === 'enter' ? 'medium' : (kk === 'back' || kk === 'clear' ? 'light' : 'selection'));
+    }
+  }, true);
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('.tab, .glass-ind');
-    if (t) return NB.haptic('selection');
-    if (e.target.closest && e.target.closest('button, .app-card, [role=button]')) NB.haptic('light');
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest(SEL_KEY)) return;           // 键盘已在 pointerdown 处理
+    if (t.closest(SEL_TAB)) return tick('selection');
+    if (t.closest('input[type=checkbox], input[type=radio], input[type=range]')) return tick('selection');
+    if (t.closest(SEL_PRESS)) tick('light');
+  }, true);
+  // 点进输入框(弹出键盘)也给一下轻触
+  document.addEventListener('focusin', function (e) {
+    var t = e.target; if (t && t.tagName && /^(INPUT|TEXTAREA)$/.test(t.tagName) && !/^(checkbox|radio|button|submit|file|range|hidden)$/.test(t.type)) tick('light');
   }, true);
   // toast 的类型决定震动：成功/警告/错误（页面里 toast 元素的 class 变化）
   new MutationObserver(function (list) {

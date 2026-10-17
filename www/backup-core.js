@@ -39,7 +39,7 @@
       };
     });
   }
-  var SKIP_LS = { lastAutoBackupAt: 1, healthDeclined: 1, __mockFiles: 1 };
+  var SKIP_LS = { lastAutoBackupAt: 1, lastAutoTry: 1, backupEveryH: 1, healthDeclined: 1, __mockFiles: 1 };
   function readLS() { var r = {}; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k !== null && !SKIP_LS[k]) r[k] = localStorage.getItem(k); } return r; }
 
   function stats(b) {
@@ -160,8 +160,8 @@
   /* ---------- 自动备份 ---------- */
   var lastAutoAt = 0, lastFingerprint = '', busy = false;
   BK.auto = async function (reason, force) {
-    if (!(NB() && NB().available) || busy) return { ok: false };
-    if (!force && Date.now() - lastAutoAt < 20000) return { ok: false };
+    if (!(NB() && NB().available)) return { ok: false, error: 'no-native' };
+    if (busy) return { ok: false, busy: true };
     busy = true;
     try {
       var b = await BK.snapshot(reason || 'auto');
@@ -180,15 +180,25 @@
   BK.remove = function (n) { return NB().call('backupDelete', { name: n }); };
   BK.shareFile = function (n) { return NB().call('backupShare', { name: n }); };
 
-  /* 触发时机：页面隐藏/退到后台、页面内数据保存（IndexedDB 写入后去抖）、前台每 10 分钟 */
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') BK.auto('background', true); });
-  window.addEventListener('pagehide', function () { BK.auto('pagehide', true); });
-  setInterval(function () { if (document.visibilityState === 'visible') BK.auto('timer'); }, 10 * 60 * 1000);
-  var tmr = null;
-  document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('button');
-    if (t && /保存|save|标记|结转|记录/i.test(t.textContent + (t.getAttribute('onclick') || ''))) { clearTimeout(tmr); tmr = setTimeout(function () { BK.auto('save'); }, 5000); }
-  }, true);
+  /* ---------- 定时备份 ----------
+     iOS 不允许 App 在后台/关闭后运行,所以"定时"= App 开着或回到前台时,距上次备份超过设定间隔就补做一次。
+     间隔存在 localStorage.backupEveryH:0=关闭,2 / 6 / 24 小时,默认 6。 */
+  BK.getEveryH = function () { var v = localStorage.getItem('backupEveryH'); return v === null ? 6 : Number(v); };
+  BK.setEveryH = function (h) { localStorage.setItem('backupEveryH', String(h)); };
+  function lastDone() { return Math.max(Number(localStorage.getItem('lastAutoBackupAt') || 0), Number(localStorage.getItem('lastAutoTry') || 0)); }
+  BK.nextDue = function () { var h = BK.getEveryH(); return h ? lastDone() + h * 3600 * 1000 : 0; };
+  /** 检查是否到点,到点才备份。内容没变化时只更新"已检查"时间,不写文件。 */
+  BK.tick = async function (reason) {
+    var h = BK.getEveryH(); if (!h) return { ok: false, off: true };
+    if (Date.now() < BK.nextDue()) return { ok: false, notDue: true };
+    var r = await BK.auto(reason || 'schedule', false);
+    // 成功 / 内容没变化 / 当前没有数据:都记一次"已检查",避免每 5 分钟重复检查;失败(写入出错、忙)则不记,下次继续重试
+    if (r && (r.ok || r.empty)) localStorage.setItem('lastAutoTry', String(Date.now()));
+    return r;
+  };
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') BK.tick('foreground'); });
+  setInterval(function () { if (document.visibilityState === 'visible') BK.tick('schedule'); }, 5 * 60 * 1000);   // 每 5 分钟只"看一眼是否到点",到点才真备份
+  setTimeout(function () { BK.tick('launch'); }, 4000);
 
   /* ---------- 启动自愈：数据库全空而有备份时，询问是否恢复 ---------- */
   BK.checkHealth = async function () {
