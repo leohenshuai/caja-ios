@@ -30,6 +30,7 @@
     var n = Date.now(); if (n - lastHap < 40) return; lastHap = n; NB.haptic(kind);
   }
   // 提示音 / 数字播报:各自独立开关(localStorage keySound / keyVoice),默认都开
+  var SPEAKKEY = { '.': 'dot', '-': 'neg' };
   var SPEAK = { '0': '零', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '七', '8': '八', '9': '九', '00': '零零', '.': '点', '-': '负', back: '删除', clear: '清空', enter: '确认', hide: '收起' };
   function flag(k) { return localStorage.getItem(k) !== '0'; }
   NB.isSoundOn = function () { return flag('keySound'); };
@@ -38,7 +39,16 @@
   NB.setVoice = function (v) { localStorage.setItem('keyVoice', v ? '1' : '0'); if (!v) H.postMessage({ id: 's', op: 'speak', payload: { text: '' } }); };
   function keyFeedback(kk) {
     if (flag('keySound')) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
-    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk] } });
+    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: SPEAKKEY[kk] || kk } });
+  }
+  // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
+  NB.isUiSoundOn = function () { return flag('uiSound'); };
+  NB.setUiSound = function (v) { localStorage.setItem('uiSound', v ? '1' : '0'); };
+  function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: type } }); }
+  var DANGER = /danger|clear|reset|delete|remove|清零|重置|删除|全清|清空|移除/i;
+  function isDanger(el) {
+    var b = el.closest('button, [role=button], .app-card, [onclick]'); if (!b) return false;
+    return DANGER.test(b.className + ' ' + (b.getAttribute('onclick') || '') + ' ' + (b.textContent || '').slice(0, 12));
   }
   var SEL_TAB = '.tab, .glass-ind, [role=tab]';
   var SEL_KEY = '#vk-keypad button, #vk-keypad [data-k]';
@@ -58,9 +68,9 @@
   document.addEventListener('click', function (e) {
     var t = e.target; if (!t || !t.closest) return;
     if (t.closest(SEL_KEY)) return;           // 键盘已在 pointerdown 处理
-    if (t.closest(SEL_TAB)) return tick('selection');
-    if (t.closest('input[type=checkbox], input[type=radio], input[type=range]')) return tick('selection');
-    if (t.closest(SEL_PRESS)) tick('light');
+    if (t.closest(SEL_TAB)) { uiSound('tab'); return tick('selection'); }
+    if (t.closest('input[type=checkbox], input[type=radio], input[type=range]')) { uiSound('tab'); return tick('selection'); }
+    if (t.closest(SEL_PRESS)) { uiSound(isDanger(t) ? 'danger' : 'tap'); tick('light'); }
   }, true);
   // 点进输入框(弹出键盘)也给一下轻触
   document.addEventListener('focusin', function (e) {
@@ -73,7 +83,9 @@
       if (!el.classList || !el.classList.contains('toast') || !el.classList.contains('show')) return;
       if (m.oldValue && m.oldValue.indexOf('show') >= 0) return;
       var c = el.className;
-      NB.haptic(/error|danger|fail/.test(c) ? 'error' : /warn/.test(c) ? 'warning' : /success/.test(c) ? 'success' : 'light');
+      var kind = /error|danger|fail/.test(c) ? 'error' : /warn/.test(c) ? 'warning' : /success/.test(c) ? 'success' : 'light';
+      NB.haptic(kind);
+      if (kind !== 'light') uiSound(kind);
     });
   }).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ['class'], attributeOldValue: true });
 

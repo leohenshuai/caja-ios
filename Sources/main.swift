@@ -18,7 +18,7 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
         }
         let mimes = ["html": "text/html; charset=utf-8", "js": "application/javascript; charset=utf-8",
                      "css": "text/css; charset=utf-8", "png": "image/png", "webmanifest": "application/manifest+json",
-                     "json": "application/json", "svg": "image/svg+xml"]
+                     "json": "application/json", "svg": "image/svg+xml", "mp3": "audio/mpeg"]
         let mime = mimes[file.pathExtension.lowercased()] ?? "application/octet-stream"
         let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
                                    headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)", "Cache-Control": "no-cache"])!
@@ -62,6 +62,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             web.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             web.trailingAnchor.constraint(equalTo: view.trailingAnchor)])
         setupAudioSession()
+        preloadVoices()
         apply()
         web.load(URLRequest(url: URL(string: "app://localhost/index.html")!))
         NotificationCenter.default.addObserver(self, selector: #selector(apply), name: UIApplication.didBecomeActiveNotification, object: nil)
@@ -127,7 +128,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         switch op {
         case "haptic": haptic(p["type"] as? String ?? "light"); reply(id, ["ok": true])
         case "sound": playKeySound(p["type"] as? String ?? "key"); reply(id, ["ok": true])
-        case "speak": speak(p["text"] as? String ?? ""); reply(id, ["ok": true])
+        case "speak": speak(p["text"] as? String ?? "", key: p["key"] as? String); reply(id, ["ok": true])
         case "clipboardWrite":
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
@@ -159,19 +160,41 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         switch type {
         case "delete": AudioServicesPlaySystemSound(1155)      // 键盘删除音
         case "action": AudioServicesPlaySystemSound(1156)      // 键盘功能键音
+        case "tap":    AudioServicesPlaySystemSound(1104)      // 普通按钮:轻点音
+        case "tab":    AudioServicesPlaySystemSound(1306)      // 标签/选项切换:轻咔嗒
+        case "danger": AudioServicesPlaySystemSound(1107)      // 危险操作(清零/重置/删除):低沉
+        case "success": AudioServicesPlaySystemSound(1407)     // 保存成功
+        case "warning": AudioServicesPlaySystemSound(1053)     // 警告
+        case "error":  AudioServicesPlaySystemSound(1521)      // 报错:短促震鸣音
         default: AudioServicesPlaySystemSound(1104)            // 键盘按键音
         }
     }
     lazy var synth = AVSpeechSynthesizer()
     lazy var zhVoice: AVSpeechSynthesisVoice? = AVSpeechSynthesisVoice(language: "zh-CN")
-    func speak(_ text: String) {
-        if text.isEmpty { return }
-        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }   // 连续按键只读最新一个,不排队
+    // 预录的神经网络真人语音(晓晓):启动时全部载入内存,按键时直接播放,零延迟
+    var voicePlayers: [String: AVAudioPlayer] = [:]
+    var lastVoice: AVAudioPlayer?
+    func preloadVoices() {
+        let dir = Bundle.main.bundleURL.appendingPathComponent("www/voice")
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        for f in files where f.hasSuffix(".mp3") {
+            let key = String(f.dropLast(4))
+            if let p = try? AVAudioPlayer(contentsOf: dir.appendingPathComponent(f)) {
+                p.volume = 1.0; p.prepareToPlay(); voicePlayers[key] = p
+            }
+        }
+    }
+    func speak(_ text: String, key: String? = nil) {
+        if text.isEmpty && key == nil { lastVoice?.stop(); synth.stopSpeaking(at: .immediate); return }
+        lastVoice?.stop()                                      // 连续按键只读最新一个,不排队
+        if let k = key, let p = voicePlayers[k] {
+            p.currentTime = 0; p.play(); lastVoice = p; return
+        }
+        // 没有对应录音时回退到系统语音
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         let u = AVSpeechUtterance(string: text)
         u.voice = zhVoice
         u.rate = min(AVSpeechUtteranceMaximumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * 1.15)
-        u.volume = 1.0
-        u.preUtteranceDelay = 0; u.postUtteranceDelay = 0
         synth.speak(u)
     }
     func setupAudioSession() {
