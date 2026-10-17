@@ -382,7 +382,7 @@
     }, { capture: true, passive: true });
     document.addEventListener('touchmove', function (e) {
         if (!isShown()) return;
-        if (e.target.closest && e.target.closest('#vk-keypad')) { e.preventDefault(); return; }
+        if (e.target.closest && e.target.closest('#vk-keypad')) { if (!e.target.closest('input[type=range]')) e.preventDefault(); return; }
         var dy = e.touches[0].clientY - touchY;
         if (!ov.contains(e.target) || !canScroll(scroller(e.target), dy)) {
             if (e.cancelable) e.preventDefault(); // 容器已滑到头 / 在空白处 / 在弹窗外：一律吃掉，不让它滚到底层

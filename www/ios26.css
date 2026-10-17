@@ -141,7 +141,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important
 table { border-radius: 16px; }
 .progress-bar { border-radius: 999px !important; }
 ::-webkit-scrollbar { width: 0; height: 0; }
-#vk-keypad { border-radius: 28px 28px 0 0 !important; background: linear-gradient(180deg, #1b2438, #0f1626) !important; border-top: .5px solid rgba(255,255,255,.22) !important; box-shadow: 0 -10px 30px rgba(0,0,0,.5) !important; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
+#vk-keypad { border-radius: 28px 28px 0 0 !important; background: linear-gradient(180deg, #1b2438, #0f1626) !important; border-top: .5px solid rgba(255,255,255,.22) !important; box-shadow: 0 -10px 30px rgba(0,0,0,.5) !important; padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px) * 0.35) !important; }
 
 /* 入场渐显不依赖过渡动画，避免动画不推进时卡片整块消失 */
 .fx-reveal, .fx-reveal.fx-shown { opacity: 1 !important; transform: none !important; transition: none !important; }
@@ -193,7 +193,7 @@ body.vk-open .modal.show .modal-content { max-height: calc(100vh - var(--vk-h, 4
 #vk-keypad .vk-voice-panel.open { display: flex; }
 #vk-keypad .vvp-row { display: flex; align-items: center; gap: 10px; color: #dbe7ff; font-size: 15px; }
 #vk-keypad .vvp-row > span { flex: 0 0 38px; }
-#vk-keypad .vvp-row > b { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; }
+#vk-keypad .vvp-row > b { flex: 0 0 84px; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 #vk-keypad .vvp-row input[type=range] { flex: 1; height: 34px; background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; accent-color: #38bdf8; touch-action: pan-x; }
 #vk-keypad .vvp-btns { gap: 8px; }
 #vk-keypad .vvp-btns button { flex: 1; min-height: 42px; font-size: 14px; border-radius: 14px !important; background: #263149 !important; color: #e6f0ff; border: .5px solid rgba(255,255,255,.12) !important; }

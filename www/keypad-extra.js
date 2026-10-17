@@ -88,7 +88,7 @@
   var rate = panel.querySelector('#vvpRate'), vol = panel.querySelector('#vvpVol');
   function paint() {
     rate.value = NB.getVoiceRate(); vol.value = NB.getVoiceVol();
-    panel.querySelector('#vvpRateV').textContent = Number(rate.value).toFixed(2) + '×';
+    panel.querySelector('#vvpRateV').textContent = (Number(rate.value) * 1.4).toFixed(2) + '×' + (Math.abs(rate.value - 1) < 0.01 ? ' 默认' : '');
     panel.querySelector('#vvpVolV').textContent = Math.round(vol.value * 100) + '%';
   }
   function testSay() {
@@ -107,6 +107,10 @@
     else if (a === 'vvptest') testSay();
     else if (a === 'vvpreset') { NB.setVoiceRate(1.0); NB.setVoiceVol(1.0); paint(); testSay(); }
   }
+  // 页面给整个键盘挂了 touchstart 的 preventDefault,会让滑块无法拖动:在滑块上先截住,不让它们执行
+  ['touchstart', 'touchmove', 'touchend'].forEach(function (t) {
+    panel.addEventListener(t, function (e) { if (e.target.tagName === 'INPUT') e.stopPropagation(); }, false);
+  });
   [panel, gear].forEach(function (n) {
     n.addEventListener('pointerdown', function (e) { if (!(e.target.tagName === 'INPUT')) e.preventDefault(); }, true);
     n.addEventListener('pointerup', onPanel, true);
