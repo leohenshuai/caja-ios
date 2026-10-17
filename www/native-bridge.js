@@ -38,7 +38,8 @@
     if (!t || !t.closest) return;
     if (t.closest(SEL_KEY)) {
       var k = t.closest('[data-k]'); var kk = k && k.dataset.k;
-      return tick(kk === 'enter' ? 'medium' : (kk === 'back' || kk === 'clear' ? 'light' : 'selection'));
+      // 数字键 rigid(清脆有力),退格/清空 medium,回车/收起 heavy
+      return tick(kk === 'enter' ? 'heavy' : (kk === 'hide' ? 'heavy' : (kk === 'back' || kk === 'clear' ? 'medium' : 'rigid')));
     }
   }, true);
   document.addEventListener('click', function (e) {

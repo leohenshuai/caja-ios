@@ -149,14 +149,23 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     // ---- 触觉 ----
+    // 常驻的震动发生器 + prepare():避免每次现建导致首震延迟、力度偏弱
+    lazy var gLight = UIImpactFeedbackGenerator(style: .light)
+    lazy var gMedium = UIImpactFeedbackGenerator(style: .medium)
+    lazy var gHeavy = UIImpactFeedbackGenerator(style: .heavy)
+    lazy var gRigid = UIImpactFeedbackGenerator(style: .rigid)
+    lazy var gNotify = UINotificationFeedbackGenerator()
+    lazy var gSelect = UISelectionFeedbackGenerator()
     func haptic(_ type: String) {
         switch type {
-        case "success", "warning", "error":
-            let g = UINotificationFeedbackGenerator(); g.prepare()
-            g.notificationOccurred(type == "success" ? .success : (type == "warning" ? .warning : .error))
-        case "selection": let g = UISelectionFeedbackGenerator(); g.selectionChanged()
-        case "medium": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case "success": gNotify.notificationOccurred(.success); gNotify.prepare()
+        case "warning": gNotify.notificationOccurred(.warning); gNotify.prepare()
+        case "error": gNotify.notificationOccurred(.error); gNotify.prepare()
+        case "selection": gSelect.selectionChanged(); gSelect.prepare()
+        case "medium": gMedium.impactOccurred(intensity: 1.0); gMedium.prepare()
+        case "heavy": gHeavy.impactOccurred(intensity: 1.0); gHeavy.prepare()
+        case "rigid": gRigid.impactOccurred(intensity: 1.0); gRigid.prepare()
+        default: gLight.impactOccurred(); gLight.prepare()
         }
     }
 
