@@ -180,12 +180,15 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     var voiceRateUnits: [AVAudioUnitTimePitch] = []        // 变速不变调:语速 0.6×~1.8× 都不会变尖或变粗
     var voiceNodeIdx = 0
     func preloadVoices() {
-        let dir = Bundle.main.bundleURL.appendingPathComponent("www/voice")
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
         var format: AVAudioFormat?
-        for f in files where f.hasSuffix(".mp3") {
-            let key = String(f.dropLast(4))
-            guard let file = try? AVAudioFile(forReading: dir.appendingPathComponent(f)),
+        var entries: [(String, URL)] = []
+        for (sub, prefix) in [("www/voice", ""), ("www/voice-yi", "yi/")] {
+            let d = Bundle.main.bundleURL.appendingPathComponent(sub)
+            guard let fs = try? FileManager.default.contentsOfDirectory(atPath: d.path) else { continue }
+            for f in fs where f.hasSuffix(".mp3") { entries.append((prefix + String(f.dropLast(4)), d.appendingPathComponent(f))) }
+        }
+        for (key, url) in entries {
+            guard let file = try? AVAudioFile(forReading: url),
                   let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)) else { continue }
             do { try file.read(into: buf) } catch { continue }
             if format == nil { format = file.processingFormat }
@@ -212,7 +215,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         }
         let r = min(1.8, max(0.6, rate)), v = Float(min(1.0, max(0.0, vol)))
         if v <= 0.001 { return }                               // 音量拉到 0 等于静音
-        if let k = key, let buf = voiceBuffers[k], !voiceNodes.isEmpty {
+        if let k = key, let buf = voiceBuffers[k] ?? voiceBuffers[k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k], !voiceNodes.isEmpty {
             if !voiceEngine.isRunning { try? voiceEngine.start() }   // 被电话/Siri 等打断后自动恢复
             if voiceEngine.isRunning {
                 let i = voiceNodeIdx

@@ -649,7 +649,7 @@
         <div class="suite-status-main">
             <div class="suite-status-title" id="suiteStatusTitle">版本与运行状态</div>
             <div class="suite-status-list" aria-live="polite">
-                <span class="suite-status-item">版本：<strong id="suiteVersion">v44</strong></span>
+                <span class="suite-status-item">版本：<strong id="suiteVersion">build …</strong></span>
                 <span class="suite-status-item">运行：<strong id="suiteRuntime">正在检测…</strong></span>
                 <span class="suite-status-item">更新：<strong id="suiteUpdateState">等待检查</strong></span>
                 <span class="suite-status-item">最近检查：<strong id="suiteLastCheck">尚未检查</strong></span>
@@ -1113,7 +1113,7 @@ function renderSuiteUpdateStatus(detail) {
     const state = document.getElementById('suiteUpdateState');
     const last = document.getElementById('suiteLastCheck');
     const button = document.getElementById('suiteUpdateBtn');
-    if (version) version.textContent = detail.version || 'v44';
+    if (version) version.textContent = detail.version || 'build …';
     if (state) state.textContent = labels[detail.state] || detail.message || '等待检查';
     if (last) last.textContent = formatUpdateTime(detail.checkedAt);
     if (button) {
@@ -1129,7 +1129,7 @@ function checkSuiteUpdate() {
     if (window.SuiteUpdater) {
         window.SuiteUpdater.checkNow();
     } else {
-        renderSuiteUpdateStatus({ state: 'unsupported', version: 'v44', checkedAt: Date.now() });
+        renderSuiteUpdateStatus({ state: 'unsupported', version: 'build …', checkedAt: Date.now() });
     }
 }
 

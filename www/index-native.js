@@ -61,6 +61,8 @@
     '<button class="suite-backup-btn" id="vaultSnd" type="button"><span>🔊</span><span id="vaultSndT"></span></button>' +
     '<button class="suite-backup-btn" id="vaultUi" type="button"><span>🔔</span><span id="vaultUiT"></span></button>' +
     '<button class="suite-backup-btn" id="vaultVoc" type="button"><span>🗣️</span><span id="vaultVocT"></span></button>' +
+    '<button class="suite-backup-btn" id="vaultVn" type="button"><span>🎙️</span><span id="vaultVnT"></span></button>' +
+    '<button class="suite-backup-btn" id="vaultAwake" type="button"><span>☀️</span><span id="vaultAwakeT"></span></button>' +
     '<input id="vaultFile" type="file" accept="application/json,.json" hidden onchange="restoreAllSystemsBackup(event)"></div>' +
     '<div class="suite-backup-desc" style="font-size:12px;opacity:.75;margin-bottom:8px">从旧版网页迁入:先在旧版首页导出备份,再点“从文件恢复”选择该文件。</div>' +
     '<div id="vaultList"></div>' +
@@ -85,7 +87,7 @@
   function openSheet() {
     sheet.style.display = 'block'; card.style.transition = 'none'; card.style.transform = 'none';
     try { card.animate([{ transform: 'translateY(40px)' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.22,1.1,.36,1)' }); } catch (e) {}
-    NB.haptic('light'); render();
+    NB.haptic('light'); paintAw(); render();
   }
   function closeSheet() { sheet.style.display = 'none'; }
   entry.onclick = openSheet;
@@ -98,7 +100,11 @@
   paintHap();
   $('vaultHap').onclick = function () { var on = localStorage.getItem('haptics') === '0'; NB.setHaptics(on); paintHap(); if (on) NB.haptic('success'); };
   function paintKb() { $('vaultUiT').textContent = '按钮音:' + (NB.isUiSoundOn() ? '开' : '关'); $('vaultSndT').textContent = '键盘音:' + (NB.isSoundOn() ? '开' : '关'); $('vaultVocT').textContent = '数字播报:' + (NB.isVoiceOn() ? '开' : '关'); }
-  paintKb();
+  function paintVn() { $('vaultVnT').textContent = '播报声音:' + (NB.getVoiceName() === 'yi' ? '晓伊' : '晓晓'); }
+  function paintAw() { var c = window.KeepAwakeCtl; $('vaultAwakeT').textContent = '屏幕常亮:' + (c && c.isOn() ? '开' : '关'); }
+  paintKb(); paintVn(); paintAw();
+  $('vaultVn').onclick = function () { NB.setVoiceName(NB.getVoiceName() === 'yi' ? 'xiaoxiao' : 'yi'); paintVn(); NB.haptic('selection'); NB.call('speak', { text: '一二三', key: NB.voiceKey('1') }); setTimeout(function () { NB.call('speak', { text: '二', key: NB.voiceKey('2') }); }, 260); setTimeout(function () { NB.call('speak', { text: '三', key: NB.voiceKey('3') }); }, 520); };
+  $('vaultAwake').onclick = function () { if (window.KeepAwakeCtl) window.KeepAwakeCtl.toggle(); setTimeout(paintAw, 50); NB.haptic('selection'); };
   $('vaultSnd').onclick = function () { NB.setSound(!NB.isSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isSoundOn()) NB.call('sound', { type: 'key' }); };
   $('vaultUi').onclick = function () { NB.setUiSound(!NB.isUiSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isUiSoundOn()) NB.call('sound', { type: 'tap' }); };
   $('vaultVoc').onclick = function () { NB.setVoice(!NB.isVoiceOn()); paintKb(); NB.haptic('selection'); if (NB.isVoiceOn()) NB.call('speak', { text: '数字播报已开启' }); };

@@ -92,7 +92,7 @@
     panel.querySelector('#vvpVolV').textContent = Math.round(vol.value * 100) + '%';
   }
   function testSay() {
-    ['1', '2', '3'].forEach(function (k, i) { setTimeout(function () { NB.call('speak', { text: k, key: k, rate: NB.getVoiceRate(), vol: NB.getVoiceVol() }); }, i * 260); });
+    ['1', '2', '3'].forEach(function (k, i) { setTimeout(function () { NB.call('speak', { text: k, key: NB.voiceKey(k), rate: NB.getVoiceRate(), vol: NB.getVoiceVol() }); }, i * 260); });
   }
   rate.addEventListener('input', function () { NB.setVoiceRate(Number(rate.value)); paint(); });
   vol.addEventListener('input', function () { NB.setVoiceVol(Number(vol.value)); paint(); });

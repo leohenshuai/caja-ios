@@ -18,6 +18,7 @@ jobs:
           xcrun -sdk iphoneos swiftc -target arm64-apple-ios14.0 -sdk "$SDK" -O -o build/Payload/Caja.app/Caja Sources/main.swift
           cp Info.plist build/Payload/Caja.app/
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" build/Payload/Caja.app/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.${{ github.run_number }}" build/Payload/Caja.app/Info.plist
           cp -R www build/Payload/Caja.app/www
           for spec in "60x60@2x:120" "60x60@3x:180" "76x76:76" "76x76@2x:152" "83.5x83.5@2x:167" "40x40@2x:80" "40x40@3x:120" "29x29@2x:58" "29x29@3x:87"; do
             name="${spec%%:*}"; px="${spec##*:}"

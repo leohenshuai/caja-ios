@@ -43,9 +43,13 @@
   NB.getVoiceVol = function () { return Math.min(1, Math.max(0, num('voiceVol', 1.0))); };
   NB.setVoiceRate = function (v) { localStorage.setItem('voiceRate', String(v)); };
   NB.setVoiceVol = function (v) { localStorage.setItem('voiceVol', String(v)); };
+  // 播报声音:xiaoxiao(默认)/ xiaoyi;晓伊的录音在 voice-yi,原生端以 "yi/" 前缀存放
+  NB.getVoiceName = function () { return localStorage.getItem('voiceName') === 'yi' ? 'yi' : 'xiaoxiao'; };
+  NB.setVoiceName = function (n) { localStorage.setItem('voiceName', n === 'yi' ? 'yi' : 'xiaoxiao'); };
+  NB.voiceKey = function (k) { return (NB.getVoiceName() === 'yi' ? 'yi/' : '') + k; };
   function keyFeedback(kk) {
     if (flag('keySound')) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
-    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: SPEAKKEY[kk] || kk, rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
+    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: NB.voiceKey(SPEAKKEY[kk] || kk), rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
   }
   // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
   NB.isUiSoundOn = function () { return flag('uiSound'); };
