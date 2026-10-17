@@ -42,9 +42,8 @@
   ['touchstart', 'click'].forEach(function (ev) {
     document.addEventListener(ev, function once() { acquire(); }, { passive: true });
   });
-  // 首页不再显示悬浮按钮:开关挪到「数据与备份」面板里
-  var isHome = native && /(^|\/)(index\.html)?$/.test(location.pathname) && !/\/(finance|inventory|monitor|payroll|splitter|arrival)\.html$/.test(location.pathname);
+  // App 内不再显示悬浮按钮,开关统一放在首页「数据与备份」面板里;浏览器里仍保留按钮
   window.KeepAwakeCtl = { isOn: function () { return on; }, toggle: function () { btn.click(); return on; } };
-  function init() { if (!isHome) document.body.appendChild(btn); paint(); acquire(); }
+  function init() { if (!native) document.body.appendChild(btn); paint(); acquire(); }
   if (document.body) init(); else document.addEventListener('DOMContentLoaded', init);
 })();
