@@ -37,9 +37,15 @@
   NB.isVoiceOn = function () { return flag('keyVoice'); };
   NB.setSound = function (v) { localStorage.setItem('keySound', v ? '1' : '0'); };
   NB.setVoice = function (v) { localStorage.setItem('keyVoice', v ? '1' : '0'); if (!v) H.postMessage({ id: 's', op: 'speak', payload: { text: '' } }); };
+  // 播报语速(0.6~1.8,1.0=原速)与音量(0~1),可在键盘 ⚙︎ 里调,保存在本机
+  function num(k, d) { var v = parseFloat(localStorage.getItem(k)); return isFinite(v) ? v : d; }
+  NB.getVoiceRate = function () { return Math.min(1.8, Math.max(0.6, num('voiceRate', 1.0))); };
+  NB.getVoiceVol = function () { return Math.min(1, Math.max(0, num('voiceVol', 1.0))); };
+  NB.setVoiceRate = function (v) { localStorage.setItem('voiceRate', String(v)); };
+  NB.setVoiceVol = function (v) { localStorage.setItem('voiceVol', String(v)); };
   function keyFeedback(kk) {
     if (flag('keySound')) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
-    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: SPEAKKEY[kk] || kk } });
+    if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: SPEAKKEY[kk] || kk, rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
   }
   // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
   NB.isUiSoundOn = function () { return flag('uiSound'); };

@@ -19,8 +19,10 @@ jobs:
           cp Info.plist build/Payload/Caja.app/
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" build/Payload/Caja.app/Info.plist
           cp -R www build/Payload/Caja.app/www
-          sips -z 120 120 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@2x.png
-          sips -z 180 180 www/icons/icon-512.png --out build/Payload/Caja.app/AppIcon60x60@3x.png
+          for spec in "60x60@2x:120" "60x60@3x:180" "76x76:76" "76x76@2x:152" "83.5x83.5@2x:167" "40x40@2x:80" "40x40@3x:120" "29x29@2x:58" "29x29@3x:87"; do
+            name="${spec%%:*}"; px="${spec##*:}"
+            sips -z "$px" "$px" www/icons/icon-1024.png --out "build/Payload/Caja.app/AppIcon${name}.png"
+          done
           cd build && zip -qr Caja.ipa Payload && ls -l Caja.ipa
       - uses: actions/upload-artifact@v4
         with:

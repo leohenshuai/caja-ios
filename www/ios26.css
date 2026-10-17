@@ -181,3 +181,19 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px) + var(--kb-
 /* 自制键盘弹出时弹窗贴在页头下方,不被页头压住;高度也扣掉页头 */
 body.vk-open .modal.show { padding-top: calc(env(safe-area-inset-top, 0px) + 66px) !important; }
 body.vk-open .modal.show .modal-content { max-height: calc(100vh - var(--vk-h, 460px) - env(safe-area-inset-top, 0px) - 84px) !important; max-height: calc(100dvh - var(--vk-h, 460px) - env(safe-area-inset-top, 0px) - 84px) !important; }
+
+/* ---------- 键盘底部:复制 / 粘贴 + 声音设置 ---------- */
+#vk-keypad .vk-extra { display: flex; gap: 8px; position: relative; }
+#vk-keypad .vk-extra button { flex: 1; min-height: 50px; font-size: 19px; font-weight: 700; border-radius: 16px !important; background: #263149 !important; border: .5px solid rgba(255,255,255,.12) !important; color: #e6f0ff; box-shadow: none; }
+#vk-keypad .vk-extra button[data-act="copy"] { color: #67e8f9; }
+#vk-keypad .vk-extra button[data-act="paste"] { color: #6ee7b7; }
+#vk-keypad .vk-extra button:active { background: var(--cyan, #38bdf8) !important; color: #04121f !important; }
+#vk-keypad .vk-extra .vk-gear { flex: 0 0 56px; font-size: 22px; color: #cbd5e1; }
+#vk-keypad .vk-voice-panel { display: none; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 18px; background: #1b2540; border: .5px solid rgba(255,255,255,.18); }
+#vk-keypad .vk-voice-panel.open { display: flex; }
+#vk-keypad .vvp-row { display: flex; align-items: center; gap: 10px; color: #dbe7ff; font-size: 15px; }
+#vk-keypad .vvp-row > span { flex: 0 0 38px; }
+#vk-keypad .vvp-row > b { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; }
+#vk-keypad .vvp-row input[type=range] { flex: 1; height: 34px; background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; accent-color: #38bdf8; touch-action: pan-x; }
+#vk-keypad .vvp-btns { gap: 8px; }
+#vk-keypad .vvp-btns button { flex: 1; min-height: 42px; font-size: 14px; border-radius: 14px !important; background: #263149 !important; color: #e6f0ff; border: .5px solid rgba(255,255,255,.12) !important; }

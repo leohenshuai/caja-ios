@@ -128,7 +128,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         switch op {
         case "haptic": haptic(p["type"] as? String ?? "light"); reply(id, ["ok": true])
         case "sound": playKeySound(p["type"] as? String ?? "key"); reply(id, ["ok": true])
-        case "speak": speak(p["text"] as? String ?? "", key: p["key"] as? String); reply(id, ["ok": true])
+        case "speak": speak(p["text"] as? String ?? "", key: p["key"] as? String, rate: p["rate"] as? Double ?? 1.0, vol: p["vol"] as? Double ?? 1.0); reply(id, ["ok": true])
         case "clipboardWrite":
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
@@ -177,6 +177,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     let voiceEngine = AVAudioEngine()
     var voiceBuffers: [String: AVAudioPCMBuffer] = [:]
     var voiceNodes: [AVAudioPlayerNode] = []
+    var voiceRateUnits: [AVAudioUnitTimePitch] = []        // 变速不变调:语速 0.6×~1.8× 都不会变尖或变粗
     var voiceNodeIdx = 0
     func preloadVoices() {
         let dir = Bundle.main.bundleURL.appendingPathComponent("www/voice")
@@ -194,23 +195,31 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         guard let fmt = format else { return }
         for _ in 0..<8 {
             let node = AVAudioPlayerNode()
-            voiceEngine.attach(node)
-            voiceEngine.connect(node, to: voiceEngine.mainMixerNode, format: fmt)
-            voiceNodes.append(node)
+            let tp = AVAudioUnitTimePitch()
+            voiceEngine.attach(node); voiceEngine.attach(tp)
+            voiceEngine.connect(node, to: tp, format: fmt)
+            voiceEngine.connect(tp, to: voiceEngine.mainMixerNode, format: fmt)
+            voiceNodes.append(node); voiceRateUnits.append(tp)
         }
         voiceEngine.prepare()
         try? voiceEngine.start()
     }
-    func speak(_ text: String, key: String? = nil) {
+    // rate:1.0 为录音原速(已是 1.4 倍裁紧版);vol:0~1
+    func speak(_ text: String, key: String? = nil, rate: Double = 1.0, vol: Double = 1.0) {
         if text.isEmpty && key == nil {                        // 关闭播报:全部停止
             for n in voiceNodes { n.stop() }
             synth.stopSpeaking(at: .immediate); return
         }
+        let r = min(1.8, max(0.6, rate)), v = Float(min(1.0, max(0.0, vol)))
+        if v <= 0.001 { return }                               // 音量拉到 0 等于静音
         if let k = key, let buf = voiceBuffers[k], !voiceNodes.isEmpty {
             if !voiceEngine.isRunning { try? voiceEngine.start() }   // 被电话/Siri 等打断后自动恢复
             if voiceEngine.isRunning {
-                let node = voiceNodes[voiceNodeIdx]
+                let i = voiceNodeIdx
                 voiceNodeIdx = (voiceNodeIdx + 1) % voiceNodes.count
+                let node = voiceNodes[i]
+                voiceRateUnits[i].rate = Float(r)
+                node.volume = v
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
                 node.play()
@@ -221,7 +230,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         let u = AVSpeechUtterance(string: text)
         u.voice = zhVoice
-        u.rate = min(AVSpeechUtteranceMaximumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * 1.15)
+        u.rate = min(AVSpeechUtteranceMaximumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * 1.15 * Float(r))
+        u.volume = v
         synth.speak(u)
     }
     func setupAudioSession() {
