@@ -815,11 +815,6 @@
 </div>
 
 <div class="container">
-    <div class="quick-input">
-        <input type="text" id="quickCmd" placeholder="快捷指令: c1 1000 10+5 | f 1200 | z 100 200 . 400 | s(保存)"
-               onkeydown="if(event.key==='Enter')app.executeQuickCmd(this.value)">
-        <button onclick="app.executeQuickCmd($('quickCmd').value)">执行</button>
-    </div>
 
     <div class="tabs">
         <div class="tab active" onclick="app.switchTab('caja')">💰 Caja清点</div>
@@ -2879,7 +2874,7 @@ class FinanceApp {
         // ===== 新增：结转后自动清空累计的 100/200/500 面值张数 =====
         this.data.settleAccum = emptySettleAccum();
         // ===== 新增：自动重置结算分配状态 =====
-        if (typeof settleApp !== 'undefined' && settleApp) settleApp.applyExternalReset('已结转，自动重置', true);
+        if (typeof settleApp !== 'undefined' && settleApp) { try { await settleApp.ready; } catch (e) {} settleApp.applyExternalReset('已结转，自动重置', true); }
 
         this.syncUI();
         await this.saveToStorage({ silent: true });
@@ -3213,7 +3208,7 @@ class CashAllocationApp {
         this.lastAction = "";
         this.confirmCallback = null;
         this.db = null;
-        DBHelper.init().then(db => { this.db = db; this.loadConfig().then(() => { this.loadState().then(() => { this.updateUI(); }); }); });
+        this.ready = DBHelper.init().then(db => { this.db = db; return this.loadConfig(); }).then(() => this.loadState()).then(() => { this.updateUI(); }).catch(() => {});
         this._autoFocusInput('settle-input200');
     }
     _autoFocusInput(inputId) {

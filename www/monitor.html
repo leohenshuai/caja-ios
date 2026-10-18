@@ -128,10 +128,6 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
 </div>
 
-<div class="quick-input">
-    <input type="text" id="quickCmd" placeholder="快捷指令: f1 结算 | g1 关闭 | c1 清空 | 1 5000 录入 | b300000 改总额 | x 全清 | undo 撤销" onkeydown="if(event.key==='Enter')app.executeQuickCmd(this.value)">
-    <button onclick="app.executeQuickCmd(document.getElementById('quickCmd').value)">执行</button>
-</div>
 
 <div class="caja-grid" id="cajaContainer"></div>
 

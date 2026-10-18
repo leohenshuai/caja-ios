@@ -222,6 +222,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
                 voiceNodeIdx = (voiceNodeIdx + 1) % voiceNodes.count
                 let node = voiceNodes[i]
                 voiceRateUnits[i].rate = Float(r)
+                voiceRateUnits[i].bypass = abs(r - 1.0) < 0.01   // 原速时绕过变速单元,省掉它的处理延迟
                 node.volume = v
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
@@ -250,7 +251,22 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     lazy var gRigid = UIImpactFeedbackGenerator(style: .rigid)
     lazy var gNotify = UINotificationFeedbackGenerator()
     lazy var gSelect = UISelectionFeedbackGenerator()
+    // 触觉引擎闲置几秒会休眠,下一次震动要先唤醒,会让主线程顿一下(键盘表现为短暂卡住)。
+    // 有触摸活动时每秒给所有发生器 prepare 一次,保持待命;停手 8 秒后不再唤醒,省电。
+    var lastTouchAt = Date.distantPast
+    var warmTimer: Timer?
+    func warmHaptics() {
+        lastTouchAt = Date()
+        if warmTimer != nil { return }
+        warmTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] t in
+            guard let self = self else { t.invalidate(); return }
+            if Date().timeIntervalSince(self.lastTouchAt) > 8 { t.invalidate(); self.warmTimer = nil; return }
+            self.gLight.prepare(); self.gMedium.prepare(); self.gHeavy.prepare(); self.gRigid.prepare(); self.gSelect.prepare(); self.gNotify.prepare()
+        }
+        gLight.prepare(); gMedium.prepare(); gHeavy.prepare(); gRigid.prepare(); gSelect.prepare(); gNotify.prepare()
+    }
     func haptic(_ type: String) {
+        warmHaptics()
         switch type {
         case "success": gNotify.notificationOccurred(.success); gNotify.prepare()
         case "warning": gNotify.notificationOccurred(.warning); gNotify.prepare()

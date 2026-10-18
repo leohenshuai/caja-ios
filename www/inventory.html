@@ -228,11 +228,6 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
 </div>
 
 <div class="container">
-    <div class="quick-input">
-        <input type="text" id="quickCmd" placeholder="输入快捷指令..." onkeydown="if(event.key==='Enter')app.executeQuickCmd(this.value)">
-        <button onclick="app.executeQuickCmd(document.getElementById('quickCmd').value)">执行</button>
-        <div class="quick-hints">快捷指令: <code>p=50000</code> 理论库存 <code>b=20000</code> 整的大钱 <code>c=3000</code> 整的零钱 <code>clr</code> 清零现金 <code>j 50000 3000 20000</code> 批量设置</div>
-    </div>
     <div class="metrics-grid">
         <div class="metric-card"><div class="metric-label">散的零钱</div><div class="metric-value green" id="metric-scattered">0</div></div>
         <div class="metric-card editable" onclick="app.editWholeChange()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的零钱</div><div class="metric-value yellow" id="metric-whole">0</div></div>
