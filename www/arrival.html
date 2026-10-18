@@ -138,7 +138,7 @@
 </head>
 <body class="arrival-page">
 <main class="shell">
-  <header><div><div class="eyebrow">Cashflow desk</div><h1 class="title">资金到账</h1><p class="sub">记录资金并按日期查看到账安排。</p></div><div class="today" id="today"></div></header>
+  <header><div><div class="eyebrow">Cashflow desk</div><h1 class="title">资金到账</h1><p class="sub">记录资金并按日期查看到账安排。</p></div><div class="today" id="today"></div><button class="secondary" id="dataBtn" type="button" style="white-space:nowrap">📦 数据导入/导出</button></header>
   <section class="stats"><div class="stat pending"><small>待到账金额</small><strong id="sPending">$ 0</strong></div><div class="stat"><small>已到账金额</small><strong id="sArrived">$ 0</strong></div><div class="stat"><small>今日预计到账</small><strong id="sToday">$ 0</strong></div><div class="stat"><small>待处理笔数</small><strong id="sCount">0</strong></div></section>
   <section class="layout">
     <aside class="panel"><div class="panel-head"><h2 id="formTitle">新增交易</h2></div><div class="panel-body">
@@ -153,15 +153,22 @@
     </div></aside>
     <section class="panel schedule"><div class="panel-head"><h2>按日期查看到账</h2><span class="hint">昨天 · 今天 · 明天</span></div><div class="schedule-list" id="scheduleList"></div></section>
   </section>
-  <details class="panel history"><summary>全部记录与管理</summary><div class="panel-head"><div class="toolbar"><input id="search" placeholder="搜索类型、金额、日期、状态或备注"><select id="filter"><option value="all" selected>全部状态</option><option value="arrived">已到账</option><option value="pending">待到账</option><option value="overdue">已逾期</option></select><button class="secondary" id="exportBtn" type="button">导出 CSV</button><button class="secondary" id="backupBtn" type="button">备份数据</button><button class="secondary" id="importBtn" type="button">恢复数据</button><input id="importFile" type="file" accept="application/json,.json" hidden></div></div>
+  <details class="panel history"><summary>全部记录与管理</summary><div class="panel-head"><div class="toolbar"><input id="search" placeholder="搜索类型、金额、日期、状态或备注"><select id="filter"><option value="all" selected>全部状态</option><option value="arrived">已到账</option><option value="pending">待到账</option><option value="overdue">已逾期</option></select></div></div>
       <div class="table-wrap"><table class="records"><thead><tr><th>交易</th><th>金额</th><th>交易日</th><th>到账日期</th><th>状态</th><th>操作</th></tr></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty"><b>还没有交易</b>从左侧添加第一笔待到账资金。</div></div>
   </details><p class="footnote">数据仅保存在当前浏览器，金额按币种分别显示。</p>
 </main>
+<div class="modal" id="dataModal" style="background:rgba(2,6,23,.82) !important"><div class="dialog" style="background:#1b2438 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;max-height:86vh;overflow:auto"><h3>数据导入 / 导出</h3><p id="dataInfo"></p>
+<div class="actions" style="flex-wrap:wrap"><button class="primary" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(CSV)</button></div>
+<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+<div class="actions"><button class="secondary" id="dataImport" type="button">选择文件导入…</button></div>
+<input id="importFile" type="file" accept="application/json,.json,text/csv,.csv" hidden>
+<div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="primary" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
+<div class="actions" style="margin-top:14px"><button class="secondary" id="dataClose" type="button">关闭</button></div></div></div>
 <div class="modal" id="confirmModal"><div class="dialog"><h3>删除这笔记录？</h3><p>删除后无法恢复。</p><div class="actions"><button class="danger" id="confirmDelete">删除</button><button class="secondary" id="closeModal">取消</button></div></div></div>
 <script>
 (() => {
   const KEY='fund-arrival-manager-v1';
-  let items=JSON.parse(localStorage.getItem(KEY)||'[]'), editing=null, deleting=null, draftCurrency='ARS';
+  let items=(()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}})(), editing=null, deleting=null, draftCurrency='ARS';
   const $=id=>document.getElementById(id), pad=n=>String(n).padStart(2,'0');
   const localISO=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const addDays=(iso,n)=>{const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+Number(n));return localISO(d)};
@@ -223,11 +230,62 @@
   ['saleDate','arrivalDate'].forEach(id=>$(id).addEventListener('change',preview));['search','filter'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
   $('amount').addEventListener('input',amountPreview);
   $('amount').addEventListener('blur',()=>{const n=parseAmount($('amount').value);if(Number.isFinite(n)&&n>0)$('amount').value=fmtAmountInput(n);amountPreview()});
-  $('exportBtn').onclick=()=>{if(!items.length)return;const head=['类型','金额','交易日期','到账日期','备注','状态'];const rows=items.map(x=>[x.type,x.amount,x.saleDate,x.arrivalDate,x.note,x.arrived?'已到账':'待到账']);const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`到账记录-${localISO()}.csv`;a.click();URL.revokeObjectURL(a.href)};
+  /* ===== 数据导入 / 导出(独立入口:页头「数据」按钮) ===== */
   function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
-  $('backupBtn').onclick=()=>download(`资金到账备份-${localISO()}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),items},null,2),'application/json');
-  $('importBtn').onclick=()=>$('importFile').click();
-  $('importFile').addEventListener('change',async()=>{const file=$('importFile').files[0];if(!file)return;try{const parsed=JSON.parse(await file.text()),source=Array.isArray(parsed)?parsed:parsed.items;if(!Array.isArray(source))throw Error('格式错误');const date=/^\d{4}-\d{2}-\d{2}$/;const restored=source.filter(x=>x&&['debito','credito','prepaid'].includes(x.type)&&Number.isFinite(Number(x.amount))&&Number(x.amount)>0&&date.test(x.saleDate)&&date.test(x.arrivalDate)).map(x=>({id:String(x.id||crypto.randomUUID()),type:x.type,amount:Number(x.amount),currency:String(x.currency||'ARS').slice(0,5),saleDate:x.saleDate,arrivalDate:x.arrivalDate,reference:String(x.reference||'').slice(0,60),note:String(x.note||'').slice(0,160),arrived:Boolean(x.arrived)}));if(!restored.length&&source.length)throw Error('没有有效记录');if(!confirm(`将用备份中的 ${restored.length} 笔记录替换当前 ${items.length} 笔记录，是否继续？`))return;items=restored;save();resetForm();render();alert('数据恢复完成')}catch(err){alert('无法恢复：请选择本工具导出的 JSON 备份文件')}finally{$('importFile').value=''}});
+  const TYPE_TXT={debito:'Débito',credito:'Crédito',prepaid:'Prepaid'},DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
+  const sigOf=x=>x.reference?['ref',x.type,x.reference].join('|'):[x.type,Number(x.amount).toFixed(2),x.currency,x.saleDate,x.arrivalDate,x.note].join('|');
+  function normItem(x){
+    if(!x||typeof x!=='object')return null;
+    const type=String(x.type||'').trim().toLowerCase(),amount=typeof x.amount==='number'?x.amount:parseAmount(x.amount);
+    if(!TYPE_TXT[type]||!Number.isFinite(amount)||amount<=0||!DATE_RE.test(x.saleDate)||!DATE_RE.test(x.arrivalDate)||x.arrivalDate<x.saleDate)return null;
+    return{id:String(x.id||crypto.randomUUID()),type,amount:Math.round(amount*100)/100,currency:String(x.currency||'ARS').slice(0,5).toUpperCase(),saleDate:x.saleDate,arrivalDate:x.arrivalDate,reference:String(x.reference||'').slice(0,60),note:String(x.note||'').slice(0,160),arrived:x.arrived===true||x.arrived==='true'||x.arrived==='已到账'};
+  }
+  function parseCSV(text){
+    const rows=[];let row=[],cur='',q=false;
+    for(let i=0;i<text.length;i++){const c=text[i];
+      if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+      else if(c==='"')q=true;else if(c===','){row.push(cur);cur=''}
+      else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(v=>v!==''))rows.push(row);row=[]}
+      else cur+=c}
+    row.push(cur);if(row.some(v=>v!==''))rows.push(row);return rows;
+  }
+  function readSource(text){
+    text=text.replace(/^\ufeff/,'').trim();
+    if(text[0]==='['||text[0]==='{'){const p=JSON.parse(text),src=Array.isArray(p)?p:p.items;if(!Array.isArray(src))throw Error('格式错误');return src}
+    const rows=parseCSV(text);if(rows.length<2)throw Error('文件里没有数据');
+    const H={类型:'type',金额:'amount',交易日期:'saleDate',到账日期:'arrivalDate',备注:'note',状态:'arrived',币种:'currency',流水号:'reference'},cols=rows[0].map(h=>H[h.trim()]);
+    if(!cols.includes('type')||!cols.includes('amount'))throw Error('不是本工具导出的 CSV');
+    return rows.slice(1).map(r=>{const o={};cols.forEach((k,n)=>{if(k)o[k]=r[n]});return o});
+  }
+  const dm=$('dataModal'),dmInfo=$('dataInfo'),dmPlan=$('dataPlan');let pending=null;
+  const stamp=()=>localISO()+'_'+new Date().toTimeString().slice(0,5).replace(':','-');
+  function openData(){pending=null;dmPlan.hidden=true;dmInfo.textContent=`当前共有 ${items.length} 笔记录。`;dm.classList.add('open')}
+  $('dataBtn').onclick=openData;$('dataClose').onclick=()=>dm.classList.remove('open');
+  dm.addEventListener('click',e=>{if(e.target===dm)dm.classList.remove('open')});
+  $('dataExportJson').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:2,exportedAt:new Date().toISOString(),count:items.length,items},null,2),'application/json')};
+  $('dataExportCsv').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}const head=['类型','金额','币种','交易日期','到账日期','备注','状态','流水号'];const rows=items.map(x=>[x.type,x.amount,x.currency||'ARS',x.saleDate,x.arrivalDate,x.note||'',x.arrived?'已到账':'待到账',x.reference||'']);const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download(`资金到账数据_${stamp()}.csv`,csv,'text/csv')};
+  $('dataImport').onclick=()=>$('importFile').click();
+  $('importFile').addEventListener('change',async()=>{
+    const file=$('importFile').files[0];if(!file)return;
+    try{
+      const src=readSource(await file.text()),good=src.map(normItem).filter(Boolean),bad=src.length-good.length;
+      if(!good.length)throw Error('没有找到有效记录');
+      const ids=new Set(items.map(x=>x.id)),sigs=new Set(items.map(sigOf)),seen=new Set(),fresh=[];
+      good.forEach(x=>{const s=sigOf(x);if(ids.has(x.id)||sigs.has(s)||seen.has(s))return;seen.add(s);fresh.push(x)});
+      pending={good,fresh};
+      dmPlan.hidden=false;
+      $('dataPlanText').textContent=`文件「${file.name}」:有效 ${good.length} 笔${bad?`,无效 ${bad} 笔(已忽略)`:''}。其中新记录 ${fresh.length} 笔,与现有重复 ${good.length-fresh.length} 笔。`;
+      $('dataMerge').disabled=!fresh.length;$('dataMerge').textContent=`合并导入(新增 ${fresh.length} 笔)`;
+    }catch(err){pending=null;dmPlan.hidden=true;alert('无法读取:'+(err.message||'文件格式不对')+'\n请选择本工具导出的 JSON 或 CSV 文件')}
+    finally{$('importFile').value=''}
+  });
+  function applyImport(list,msg){
+    try{localStorage.setItem(KEY+'-before-import',JSON.stringify({at:new Date().toISOString(),items}))}catch(e){}
+    items=list;save();resetForm();render();dm.classList.remove('open');pending=null;alert(msg+'\n导入前的数据已自动留了一份,万一导错可联系我恢复。');
+  }
+  $('dataMerge').onclick=()=>{if(!pending||!pending.fresh.length)return;applyImport(items.concat(pending.fresh),`已新增 ${pending.fresh.length} 笔,现共 ${items.length+pending.fresh.length} 笔。`)};
+  $('dataReplace').onclick=()=>{if(!pending)return;if(!confirm(`将用文件中的 ${pending.good.length} 笔记录替换当前全部 ${items.length} 笔记录。\n此操作会删除当前记录中文件里没有的部分。继续吗?`))return;applyImport(pending.good,`已替换为 ${pending.good.length} 笔记录。`)};
+  $('dataCancel').onclick=()=>{pending=null;dmPlan.hidden=true};
   $('today').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date());resetForm();render();
 })();
 </script>
