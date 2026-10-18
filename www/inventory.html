@@ -894,7 +894,8 @@ class CashBoxApp {
         this._viewingHist = recIdx;
         const n = v => Math.round(Number(v) || 0).toLocaleString('zh-CN');
         document.getElementById('histViewTitle').textContent = `第${entry.seq || (recIdx + 1)}次清点 (${entry.time})`;
-        document.getElementById('histViewMeta').innerHTML = `本次清点金额：<b>${(Number(entry.total) || 0) >= 0 ? '+' : ''}${n(entry.total)}</b><br>确认后现金合计：<b>${n(entry.totalAfter)}</b>`;
+        document.getElementById('histViewMeta').innerHTML = `本次清点金额：<b>${(Number(entry.total) || 0) >= 0 ? '+' : ''}${n(entry.total)}</b><br>确认后现金合计：<b>${n(entry.totalAfter)}</b>`
+            + (entry.actual === undefined ? '<br><span style="color:var(--text-muted);">（旧记录，未保存整钱与实际库存）</span>' : `<br>整的零钱：<b>${n(entry.wholeChange)}</b>　整的大钱：<b>${n(entry.bigMoney)}</b><br>实际库存：<b>${n(entry.actual)}</b>`);
         document.getElementById('histViewGrid').innerHTML = DISPLAY_ORDER_INDICES.map(i => {
             const c = Number(entry.pendingSnapshot[i]) || 0;
             return `<div class="ro-face ${c ? '' : 'zero'}"><label>${CASH_LABELS[i]}</label><span>${c}</span></div>`;
@@ -943,7 +944,8 @@ class CashBoxApp {
                 const num = e.seq || (list.length - idx); const neg = (Number(e.total) || 0) < 0;
                 const recIdx = list.length - 1 - idx;
                 return `<div class="session-entry" onclick="app.openHistoryEdit(${recIdx})" title="点击查看本次清点详情">`
-                    + `<div class="se-line"><span class="se-time">${escapeHtml(e.time)}</span><span class="se-amt ${neg ? 'negative' : ''}">第${num}次: ${n(e.total)}<span class="session-edit-hint">🔍</span></span></div></div>`;
+                    + `<div class="se-line"><span class="se-time">${escapeHtml(e.time)}</span><span class="se-amt ${neg ? 'negative' : ''}">第${num}次: ${n(e.total)}<span class="session-edit-hint">🔍</span></span></div>`
+                    + (e.actual === undefined ? '' : `<div class="se-line" style="font-size:11px;color:var(--text-muted);"><span>零钱 ${n(e.wholeChange)} · 大钱 ${n(e.bigMoney)}</span><span>实际库存 ${n(e.actual)}</span></div>`) + `</div>`;
             }).join('');
         }
         const hasPending = deltas.some(d => d !== 0);
@@ -959,7 +961,7 @@ class CashBoxApp {
         const counts = this.data.cash_counts.slice();
         const list = this._historyList();
         this.data.cash_count_seq = (Number(this.data.cash_count_seq) || list.length) + 1;
-        list.push({ time: this._pasteStamp(), seq: this.data.cash_count_seq, total: this._signedTotal(deltas), counts, pendingSnapshot: deltas, totalAfter: this._countsTotal(counts) });
+        list.push({ time: this._pasteStamp(), seq: this.data.cash_count_seq, total: this._signedTotal(deltas), counts, pendingSnapshot: deltas, totalAfter: this._countsTotal(counts), wholeChange: Number(this.data.whole_change) || 0, bigMoney: Number(this.data.big_money) || 0, actual: Calc.getActualInventory(this.data), theoretical: Number(this.data.theoretical_inventory) || 0 });
         if (list.length > PASTE_LOG_VISIBLE) list.splice(0, list.length - PASTE_LOG_VISIBLE);
         this.data.cash_baseline = counts.slice();
         this._lockPasteUndo();
