@@ -126,9 +126,18 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
               let id = d["id"] as? String, let op = d["op"] as? String else { return }
         let p = d["payload"] as? [String: Any] ?? [:]
         switch op {
-        case "haptic": haptic(p["type"] as? String ?? "light"); reply(id, ["ok": true])
-        case "sound": playKeySound(p["type"] as? String ?? "key"); reply(id, ["ok": true])
-        case "speak": speak(p["text"] as? String ?? "", key: p["key"] as? String, rate: p["rate"] as? Double ?? 1.0, vol: p["vol"] as? Double ?? 1.0); reply(id, ["ok": true])
+        // 触觉/提示音/播报是"发完即忘":不再回调 JS(每次回调都是一次 evaluateJavaScript,连按键盘时会堵主线程);
+        // 声音与播报放到独立串行队列,不占主线程。
+        case "haptic": haptic(p["type"] as? String ?? "light"); if id != "h" { reply(id, ["ok": true]) }
+        case "sound":
+            let t = p["type"] as? String ?? "key"
+            audioQueue.async { self.playKeySound(t) }
+            if id != "s" { reply(id, ["ok": true]) }
+        case "speak":
+            let tx = p["text"] as? String ?? "", k = p["key"] as? String
+            let rt = p["rate"] as? Double ?? 1.0, vl = p["vol"] as? Double ?? 1.0
+            audioQueue.async { self.speak(tx, key: k, rate: rt, vol: vl) }
+            if id != "s" { reply(id, ["ok": true]) }
         case "clipboardWrite":
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
@@ -249,6 +258,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     lazy var gMedium = UIImpactFeedbackGenerator(style: .medium)
     lazy var gHeavy = UIImpactFeedbackGenerator(style: .heavy)
     lazy var gRigid = UIImpactFeedbackGenerator(style: .rigid)
+    let audioQueue = DispatchQueue(label: "caja.audio", qos: .userInteractive)
     lazy var gNotify = UINotificationFeedbackGenerator()
     lazy var gSelect = UISelectionFeedbackGenerator()
     // 触觉引擎闲置几秒会休眠,下一次震动要先唤醒,会让主线程顿一下(键盘表现为短暂卡住)。
@@ -261,9 +271,9 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         warmTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] t in
             guard let self = self else { t.invalidate(); return }
             if Date().timeIntervalSince(self.lastTouchAt) > 8 { t.invalidate(); self.warmTimer = nil; return }
-            self.gLight.prepare(); self.gMedium.prepare(); self.gHeavy.prepare(); self.gRigid.prepare(); self.gSelect.prepare(); self.gNotify.prepare()
+            self.gLight.prepare(); self.gRigid.prepare()
         }
-        gLight.prepare(); gMedium.prepare(); gHeavy.prepare(); gRigid.prepare(); gSelect.prepare(); gNotify.prepare()
+        gLight.prepare(); gRigid.prepare()
     }
     func haptic(_ type: String) {
         warmHaptics()
