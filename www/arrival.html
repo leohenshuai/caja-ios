@@ -287,6 +287,18 @@
   $('dataMerge').onclick=()=>{if(!pending||!pending.fresh.length)return;applyImport(items.concat(pending.fresh),`已新增 ${pending.fresh.length} 笔,现共 ${items.length+pending.fresh.length} 笔。`)};
   $('dataReplace').onclick=()=>{if(!pending)return;if(!confirm(`将用文件中的 ${pending.good.length} 笔记录替换当前全部 ${items.length} 笔记录。\n此操作会删除当前记录中文件里没有的部分。继续吗?`))return;applyImport(pending.good,`已替换为 ${pending.good.length} 笔记录。`)};
   $('dataCancel').onclick=()=>{pending=null;dmPlan.hidden=true};
+  /* 自动清理:到账日期早于 15 天前且已到账的记录,打开页面/回到前台时删除。
+     只在这两个时机清理(不在 render 里),避免刚把旧单标成已到账就立刻消失。
+     被删记录另存最近一批到 KEY-purged,万一误删可恢复。 */
+  const PURGE_DAYS=15;
+  function purgeOld(){
+    const cut=addDays(localISO(),-PURGE_DAYS),gone=items.filter(x=>x.arrived&&x.arrivalDate<cut);
+    if(!gone.length)return false;
+    try{localStorage.setItem(KEY+'-purged',JSON.stringify({at:new Date().toISOString(),items:gone}))}catch(e){}
+    items=items.filter(x=>!(x.arrived&&x.arrivalDate<cut));save();return true;
+  }
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&purgeOld())render()});
+  purgeOld();
   $('today').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date());resetForm();render();
 })();
 </script>
