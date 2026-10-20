@@ -337,7 +337,7 @@
   }
   if(watchOK){
     NBr.call('watchInfo').then(i=>watchPaint(i&&i.name));
-    $('watchPickBtn').onclick=async()=>{const r=await NBr.call('watchPick',{},120000);if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);dm.classList.remove('open');watchScan(true)}};
+    $('watchPickBtn').onclick=async()=>{const r=await NBr.call('watchPick',{},300000);if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);dm.classList.remove('open');watchScan(true)}else if(r.error!=='cancel'){alert('选择文件夹失败:'+(r.error||'')+(r.detail?'\n'+r.detail:''))}};
     $('watchNowBtn').onclick=()=>{dm.classList.remove('open');watchScan(true)};
     $('watchOffBtn').onclick=async()=>{await NBr.call('watchClear');localStorage.removeItem(WKEY);watchPaint('')};
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>watchScan(false),300)});

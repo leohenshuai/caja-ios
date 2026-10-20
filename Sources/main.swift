@@ -299,7 +299,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     // ---- 监控文件夹(资金到账自动导入):选一次文件夹,保存安全书签;打开页面/回前台时读取其中最新的 json/csv ----
     var watchPickId: String?
     func watchPick(_ id: String) {
-        let pk = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
+        // 旧式初始化(.open 模式)对「原地打开文件夹」更稳:返回的文件夹自带安全作用域权限
+        let pk = UIDocumentPickerViewController(documentTypes: ["public.folder"], in: .open)
         pk.delegate = self; pk.allowsMultipleSelection = false
         watchPickId = id
         (presentedViewController ?? self).present(pk, animated: true)
@@ -308,8 +309,14 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         guard let id = watchPickId else { return }; watchPickId = nil
         guard let u = urls.first else { return reply(id, ["ok": false, "error": "cancel"]) }
         let ok = u.startAccessingSecurityScopedResource(); defer { if ok { u.stopAccessingSecurityScopedResource() } }
-        guard let bm = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) else {
-            return reply(id, ["ok": false, "error": "bookmark"]) }
+        var bmData: Data?; var why = ""
+        do { bmData = try u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) }
+        catch let e1 {
+            why = "\(e1.localizedDescription)"
+            do { bmData = try u.bookmarkData(options: [.minimalBookmark], includingResourceValuesForKeys: nil, relativeTo: nil) }
+            catch let e2 { why += " / \(e2.localizedDescription)" }
+        }
+        guard let bm = bmData else { return reply(id, ["ok": false, "error": "bookmark", "detail": "access=\(ok) \(why)"]) }
         UserDefaults.standard.set(bm, forKey: "watchBookmark")
         UserDefaults.standard.set(u.lastPathComponent, forKey: "watchName")
         reply(id, ["ok": true, "name": u.lastPathComponent])
