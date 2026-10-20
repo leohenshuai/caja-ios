@@ -2,6 +2,7 @@ import UIKit
 import WebKit
 import AVFoundation
 import AudioToolbox
+import UniformTypeIdentifiers
 
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
     let root: URL
@@ -27,7 +28,7 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
-final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIDocumentPickerDelegate {
     var web: WKWebView!
     var keepAwake = UserDefaults.standard.object(forKey: "keepAwake") as? Bool ?? true
 
@@ -147,6 +148,12 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         case "backupRead": backupRead(id, p)
         case "backupDelete": backupDelete(id, p)
         case "backupShare": backupShare(id, p)
+        case "watchPick": watchPick(id)
+        case "watchInfo": reply(id, ["ok": true, "name": UserDefaults.standard.string(forKey: "watchName") ?? ""])
+        case "watchClear":
+            UserDefaults.standard.removeObject(forKey: "watchBookmark"); UserDefaults.standard.removeObject(forKey: "watchName")
+            reply(id, ["ok": true])
+        case "watchScan": watchScan(id, last: p["last"] as? String ?? "")
         case "checkUpdate": lastCheck = .distantPast; checkUpdate(force: true, replyId: id)
         case "appInfo":
             reply(id, ["ok": true, "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
@@ -286,6 +293,67 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         case "heavy": gHeavy.impactOccurred(intensity: 1.0); gHeavy.prepare()
         case "rigid": gRigid.impactOccurred(intensity: 1.0); gRigid.prepare()
         default: gLight.impactOccurred(); gLight.prepare()
+        }
+    }
+
+    // ---- 监控文件夹(资金到账自动导入):选一次文件夹,保存安全书签;打开页面/回前台时读取其中最新的 json/csv ----
+    var watchPickId: String?
+    func watchPick(_ id: String) {
+        let pk = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
+        pk.delegate = self; pk.allowsMultipleSelection = false
+        watchPickId = id
+        (presentedViewController ?? self).present(pk, animated: true)
+    }
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let id = watchPickId else { return }; watchPickId = nil
+        guard let u = urls.first else { return reply(id, ["ok": false, "error": "cancel"]) }
+        let ok = u.startAccessingSecurityScopedResource(); defer { if ok { u.stopAccessingSecurityScopedResource() } }
+        guard let bm = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) else {
+            return reply(id, ["ok": false, "error": "bookmark"]) }
+        UserDefaults.standard.set(bm, forKey: "watchBookmark")
+        UserDefaults.standard.set(u.lastPathComponent, forKey: "watchName")
+        reply(id, ["ok": true, "name": u.lastPathComponent])
+    }
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        if let id = watchPickId { watchPickId = nil; reply(id, ["ok": false, "error": "cancel"]) }
+    }
+    func watchScan(_ id: String, last: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let bm = UserDefaults.standard.data(forKey: "watchBookmark") else { return self.reply(id, ["ok": false, "error": "none"]) }
+            var stale = false
+            guard let dir = try? URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) else {
+                return self.reply(id, ["ok": false, "error": "resolve"]) }
+            let ok = dir.startAccessingSecurityScopedResource(); defer { if ok { dir.stopAccessingSecurityScopedResource() } }
+            if stale, let nb = try? dir.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) { UserDefaults.standard.set(nb, forKey: "watchBookmark") }
+            let fm = FileManager.default
+            var names: [String] = []; var err: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: dir, options: [], error: &err) { d in
+                names = (try? fm.contentsOfDirectory(atPath: d.path)) ?? []
+            }
+            if err != nil { return self.reply(id, ["ok": false, "error": "list"]) }
+            var best: (URL, Date, Int)?; var downloading = false
+            for n in names {
+                var real = n
+                if n.hasPrefix(".") && n.hasSuffix(".icloud") {              // iCloud 占位文件:触发下载,稍后再读
+                    real = String(n.dropFirst().dropLast(7))
+                    let ext = (real as NSString).pathExtension.lowercased()
+                    if ext == "json" || ext == "csv" { try? fm.startDownloadingUbiquitousItem(at: dir.appendingPathComponent(real)); downloading = true }
+                    continue
+                }
+                let ext = (n as NSString).pathExtension.lowercased()
+                guard ext == "json" || ext == "csv", !n.hasPrefix(".") else { continue }
+                let u = dir.appendingPathComponent(real)
+                let v = try? u.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+                let m = v?.contentModificationDate ?? .distantPast
+                if best == nil || m > best!.1 { best = (u, m, v?.fileSize ?? 0) }
+            }
+            guard let b = best else { return self.reply(id, ["ok": true, "empty": true, "downloading": downloading]) }
+            let sig = "\(b.0.lastPathComponent)|\(Int(b.1.timeIntervalSince1970))|\(b.2)"
+            if sig == last { return self.reply(id, ["ok": true, "same": true, "name": b.0.lastPathComponent]) }
+            var data: Data?; var err2: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: b.0, options: [], error: &err2) { u in data = try? Data(contentsOf: u) }
+            guard let d = data, let text = String(data: d, encoding: .utf8) else { return self.reply(id, ["ok": false, "error": "read", "name": b.0.lastPathComponent]) }
+            self.reply(id, ["ok": true, "name": b.0.lastPathComponent, "sig": sig, "mtime": b.1.timeIntervalSince1970, "text": text])
         }
     }
 
