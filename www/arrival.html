@@ -135,6 +135,15 @@
 <link rel="stylesheet" href="./ios26.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
+<style>
+[hidden],.dm-card button[hidden],.dm-grid[hidden],.dm-grid button[hidden]{display:none !important}
+.dm-sec{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em;margin:0 0 8px}
+.dm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dm-grid .wide{grid-column:1/-1}
+.dm-grid button,.dm-card button,#dataClose{width:100%;min-height:44px;white-space:nowrap;display:flex !important;align-items:center !important;justify-content:center !important;text-align:center !important}
+.dm-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.035)}
+.dm-path{display:inline-block;margin:2px 0 0;padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.06);font-size:12px;line-height:1.4;color:#cbd5e1}
+.dm-last{margin:10px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+</style>
 </head>
 <body class="arrival-page">
 <main class="shell">
@@ -157,14 +166,20 @@
       <div class="table-wrap"><table class="records"><thead><tr><th>交易</th><th>金额</th><th>交易日</th><th>到账日期</th><th>状态</th><th>操作</th></tr></thead><tbody id="tbody"></tbody></table><div class="empty" id="empty"><b>还没有交易</b>从左侧添加第一笔待到账资金。</div></div>
   </details><p class="footnote">数据仅保存在当前浏览器，金额按币种分别显示。</p>
 </main>
-<div class="modal" id="dataModal" style="background:rgba(2,6,23,.82) !important"><div class="dialog" style="background:#1b2438 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;max-height:86vh;overflow:auto"><h3>数据导入 / 导出</h3><p id="dataInfo"></p>
-<div class="actions" style="flex-wrap:wrap"><button class="primary" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(CSV)</button></div>
-<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-<div class="actions"><button class="secondary" id="dataImport" type="button">选择文件导入…</button></div>
+<div class="modal" id="dataModal" style="background:rgba(2,6,23,.82) !important"><div class="dialog" style="background:#1b2438 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;max-height:86vh;overflow:auto"><h3 style="margin:0 0 4px">数据导入 / 导出</h3><p id="dataInfo" style="margin:0 0 14px"></p>
+<div class="dm-sec">手动</div>
+<div class="dm-grid"><button class="primary wide" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(CSV)</button><button class="secondary" id="dataImport" type="button">选择文件导入</button></div>
 <input id="importFile" type="file" accept="application/json,.json,text/csv,.csv" hidden>
-<div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="primary" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
-<div id="watchBox" hidden><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p style="margin:0 0 6px"><b>自动导入文件夹</b></p><p id="watchState" class="hint" style="margin:0 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="primary" id="watchLocalBtn" type="button">使用 Caja 自带文件夹(推荐)</button><button class="secondary" id="watchPickBtn" type="button">选择文件夹…</button><button class="secondary" id="watchNowBtn" type="button">立即检查</button><button class="secondary" id="watchOffBtn" type="button">取消监控</button></div></div>
-<div class="actions" style="margin-top:14px"><button class="secondary" id="dataClose" type="button">关闭</button></div></div></div>
+<div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="dm-grid"><button class="primary wide" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
+<div id="watchBox" hidden style="margin-top:20px"><div class="dm-sec">自动</div>
+<div class="dm-card">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span id="watchDot" style="width:9px;height:9px;border-radius:50%;background:#64748b;flex:none"></span><b style="font-size:15px">自动导入</b><span id="watchBadge" style="margin-left:auto;font-size:12px;color:var(--muted)">未启用</span></div>
+<p id="watchState" class="hint" style="margin:0 0 12px;line-height:1.6"></p>
+<button class="primary" id="watchLocalBtn" type="button">启用自动导入</button>
+<div id="watchRow" class="dm-grid" hidden><button class="secondary" id="watchNowBtn" type="button">立即检查</button><button class="secondary" id="watchOffBtn" type="button" style="color:#f87171">停用</button></div>
+<p id="watchLast" class="dm-last" hidden></p>
+</div></div>
+<div style="margin-top:18px"><button class="secondary" id="dataClose" type="button" style="width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center">关闭</button></div></div></div>
 <div class="modal" id="confirmModal"><div class="dialog"><h3>删除这笔记录？</h3><p>删除后无法恢复。</p><div class="actions"><button class="danger" id="confirmDelete">删除</button><button class="secondary" id="closeModal">取消</button></div></div></div>
 <script>
 (() => {
@@ -305,10 +320,20 @@
   const WKEY='arrival-watch-last';
   const NBr=window.NativeBridge;
   const watchOK=!!(NBr&&NBr.available);
+  function watchLastPaint(on){
+    const el=$('watchLast');let v=null;try{v=JSON.parse(localStorage.getItem('arrival-watch-info')||'null')}catch(e){}
+    if(!v||!on){el.hidden=true;return}
+    el.hidden=false;el.textContent=`上次导入:${v.at} · ${v.name} · 新增 ${v.added} 笔`;
+  }
   function watchPaint(name){
     $('watchBox').hidden=!watchOK;if(!watchOK)return;
-    $('watchState').textContent=name?`当前监控:「${name}」。打开本页或回到 App 时自动读取其中最新的文件并合并。`:'未设置。推荐用 Caja 自带文件夹:让其他 App 把导出文件保存到「我的 iPhone → Caja → 资金到账导入」即可。';
-    $('watchNowBtn').hidden=$('watchOffBtn').hidden=!name;
+    const on=!!name;
+    $('watchDot').style.background=on?'#34d399':'#64748b';
+    $('watchBadge').textContent=on?'已启用':'未启用';$('watchBadge').style.color=on?'#34d399':'';
+    $('watchState').innerHTML=on?'把导出文件放到这个位置,打开本页或回到 App 时自动合并,有新增才提示:<br><span class="dm-path">文件 › 我的 iPhone › Caja › 资金到账导入</span>':'启用后,把导出文件放到「文件 › 我的 iPhone › Caja › 资金到账导入」,打开本页就会自动合并。';
+    $('watchLocalBtn').hidden=on;
+    $('watchRow').hidden=!on;
+    watchLastPaint(on);
   }
   let watchBusy=false;
   async function watchScan(manual){
@@ -331,14 +356,15 @@
         items=items.concat(fresh);save();render();
       }
       localStorage.setItem(WKEY,r.sig);
+      if(!fresh.length&&!manual)return;
+      if(fresh.length){const t=new Date();localStorage.setItem('arrival-watch-info',JSON.stringify({at:`${pad(t.getMonth()+1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}`,name:r.name,added:fresh.length}));watchLastPaint(true)}
       const tot=fresh.reduce((m,x)=>(m[x.currency]=(m[x.currency]||0)+x.amount,m),{});
       alert(`📥 已自动导入\n文件:${r.name}\n新增 ${fresh.length} 笔`+(fresh.length?`(合计 ${totalsText(tot)})`:'')+`\n重复忽略 ${keep.length-fresh.length} 笔`+(expired?`\n超过 ${PURGE_DAYS} 天的已到账记录忽略 ${expired} 笔`:'')+(bad?`\n无效 ${bad} 笔(已忽略)`:'')+`\n现共 ${items.length} 笔记录。`);
     }finally{watchBusy=false}
   }
   if(watchOK){
     NBr.call('watchInfo').then(i=>watchPaint(i&&i.name));
-    $('watchPickBtn').onclick=async()=>{const r=await NBr.call('watchPick',{},300000);if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);dm.classList.remove('open');watchScan(true)}else if(r.error!=='cancel'){alert('选择文件夹失败:'+(r.error||'')+(r.detail?'\n'+r.detail:''))}};
-    $('watchLocalBtn').onclick=async()=>{const r=await NBr.call('watchLocal');if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);alert('已设置。\n请在「文件」App → 我的 iPhone → Caja → 资金到账导入 里放文件(或在第三方 App 里把导出文件保存到这个位置)。\n之后每次打开本页会自动读取其中最新的文件。')}};
+    $('watchLocalBtn').onclick=async()=>{const r=await NBr.call('watchLocal');if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);alert('已启用。\n把导出文件放进「文件」App → 我的 iPhone → Caja → 资金到账导入 即可。')}};
     $('watchNowBtn').onclick=()=>{dm.classList.remove('open');watchScan(true)};
     $('watchOffBtn').onclick=async()=>{await NBr.call('watchClear');localStorage.removeItem(WKEY);watchPaint('')};
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>watchScan(false),300)});
