@@ -149,9 +149,14 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         case "backupDelete": backupDelete(id, p)
         case "backupShare": backupShare(id, p)
         case "watchPick": watchPick(id)
+        case "watchLocal":
+            UserDefaults.standard.removeObject(forKey: "watchBookmark")
+            UserDefaults.standard.set(true, forKey: "watchLocal"); UserDefaults.standard.set("Caja/资金到账导入", forKey: "watchName")
+            _ = localWatchDir
+            reply(id, ["ok": true, "name": "Caja/资金到账导入"])
         case "watchInfo": reply(id, ["ok": true, "name": UserDefaults.standard.string(forKey: "watchName") ?? ""])
         case "watchClear":
-            UserDefaults.standard.removeObject(forKey: "watchBookmark"); UserDefaults.standard.removeObject(forKey: "watchName")
+            UserDefaults.standard.removeObject(forKey: "watchBookmark"); UserDefaults.standard.removeObject(forKey: "watchName"); UserDefaults.standard.removeObject(forKey: "watchLocal")
             reply(id, ["ok": true])
         case "watchScan": watchScan(id, last: p["last"] as? String ?? "")
         case "checkUpdate": lastCheck = .distantPast; checkUpdate(force: true, replyId: id)
@@ -297,6 +302,11 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     // ---- 监控文件夹(资金到账自动导入):选一次文件夹,保存安全书签;打开页面/回前台时读取其中最新的 json/csv ----
+    var localWatchDir: URL {
+        let d = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("资金到账导入")
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
     var watchPickId: String?
     func watchPick(_ id: String) {
         // 旧式初始化(.open 模式)对「原地打开文件夹」更稳:返回的文件夹自带安全作用域权限
@@ -317,7 +327,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             catch let e2 { why += " / \(e2.localizedDescription)" }
         }
         guard let bm = bmData else { return reply(id, ["ok": false, "error": "bookmark", "detail": "access=\(ok) \(why)"]) }
-        UserDefaults.standard.set(bm, forKey: "watchBookmark")
+        UserDefaults.standard.set(bm, forKey: "watchBookmark"); UserDefaults.standard.removeObject(forKey: "watchLocal")
         UserDefaults.standard.set(u.lastPathComponent, forKey: "watchName")
         reply(id, ["ok": true, "name": u.lastPathComponent])
     }
@@ -326,12 +336,20 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
     func watchScan(_ id: String, last: String) {
         DispatchQueue.global(qos: .userInitiated).async {
-            guard let bm = UserDefaults.standard.data(forKey: "watchBookmark") else { return self.reply(id, ["ok": false, "error": "none"]) }
-            var stale = false
-            guard let dir = try? URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) else {
-                return self.reply(id, ["ok": false, "error": "resolve"]) }
-            let ok = dir.startAccessingSecurityScopedResource(); defer { if ok { dir.stopAccessingSecurityScopedResource() } }
-            if stale, let nb = try? dir.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) { UserDefaults.standard.set(nb, forKey: "watchBookmark") }
+            let dir: URL
+            var ok = false
+            if UserDefaults.standard.bool(forKey: "watchLocal") {
+                dir = self.localWatchDir
+            } else {
+                guard let bm = UserDefaults.standard.data(forKey: "watchBookmark") else { return self.reply(id, ["ok": false, "error": "none"]) }
+                var stale = false
+                guard let d = try? URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) else {
+                    return self.reply(id, ["ok": false, "error": "resolve"]) }
+                dir = d
+                ok = dir.startAccessingSecurityScopedResource()
+                if stale, let nb = try? dir.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) { UserDefaults.standard.set(nb, forKey: "watchBookmark") }
+            }
+            defer { if ok { dir.stopAccessingSecurityScopedResource() } }
             let fm = FileManager.default
             var names: [String] = []; var err: NSError?
             NSFileCoordinator().coordinate(readingItemAt: dir, options: [], error: &err) { d in

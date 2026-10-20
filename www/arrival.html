@@ -163,7 +163,7 @@
 <div class="actions"><button class="secondary" id="dataImport" type="button">选择文件导入…</button></div>
 <input id="importFile" type="file" accept="application/json,.json,text/csv,.csv" hidden>
 <div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="primary" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
-<div id="watchBox" hidden><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p style="margin:0 0 6px"><b>自动导入文件夹</b></p><p id="watchState" class="hint" style="margin:0 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="secondary" id="watchPickBtn" type="button">选择文件夹…</button><button class="secondary" id="watchNowBtn" type="button">立即检查</button><button class="secondary" id="watchOffBtn" type="button">取消监控</button></div></div>
+<div id="watchBox" hidden><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p style="margin:0 0 6px"><b>自动导入文件夹</b></p><p id="watchState" class="hint" style="margin:0 0 8px"></p><div class="actions" style="flex-wrap:wrap"><button class="primary" id="watchLocalBtn" type="button">使用 Caja 自带文件夹(推荐)</button><button class="secondary" id="watchPickBtn" type="button">选择文件夹…</button><button class="secondary" id="watchNowBtn" type="button">立即检查</button><button class="secondary" id="watchOffBtn" type="button">取消监控</button></div></div>
 <div class="actions" style="margin-top:14px"><button class="secondary" id="dataClose" type="button">关闭</button></div></div></div>
 <div class="modal" id="confirmModal"><div class="dialog"><h3>删除这笔记录？</h3><p>删除后无法恢复。</p><div class="actions"><button class="danger" id="confirmDelete">删除</button><button class="secondary" id="closeModal">取消</button></div></div></div>
 <script>
@@ -307,7 +307,7 @@
   const watchOK=!!(NBr&&NBr.available);
   function watchPaint(name){
     $('watchBox').hidden=!watchOK;if(!watchOK)return;
-    $('watchState').textContent=name?`当前监控:「${name}」。打开本页或回到 App 时自动读取其中最新的文件并合并。`:'未设置。选择一个文件夹后,每次打开本页会自动读取其中最新的文件。';
+    $('watchState').textContent=name?`当前监控:「${name}」。打开本页或回到 App 时自动读取其中最新的文件并合并。`:'未设置。推荐用 Caja 自带文件夹:让其他 App 把导出文件保存到「我的 iPhone → Caja → 资金到账导入」即可。';
     $('watchNowBtn').hidden=$('watchOffBtn').hidden=!name;
   }
   let watchBusy=false;
@@ -338,6 +338,7 @@
   if(watchOK){
     NBr.call('watchInfo').then(i=>watchPaint(i&&i.name));
     $('watchPickBtn').onclick=async()=>{const r=await NBr.call('watchPick',{},300000);if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);dm.classList.remove('open');watchScan(true)}else if(r.error!=='cancel'){alert('选择文件夹失败:'+(r.error||'')+(r.detail?'\n'+r.detail:''))}};
+    $('watchLocalBtn').onclick=async()=>{const r=await NBr.call('watchLocal');if(r.ok){watchPaint(r.name);localStorage.removeItem(WKEY);alert('已设置。\n请在「文件」App → 我的 iPhone → Caja → 资金到账导入 里放文件(或在第三方 App 里把导出文件保存到这个位置)。\n之后每次打开本页会自动读取其中最新的文件。')}};
     $('watchNowBtn').onclick=()=>{dm.classList.remove('open');watchScan(true)};
     $('watchOffBtn').onclick=async()=>{await NBr.call('watchClear');localStorage.removeItem(WKEY);watchPaint('')};
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>watchScan(false),300)});
