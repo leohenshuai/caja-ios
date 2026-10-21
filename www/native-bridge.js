@@ -62,6 +62,12 @@
     var b = el.closest('button, [role=button], .app-card, [onclick]'); if (!b) return false;
     return DANGER.test(b.className + ' ' + (b.getAttribute('onclick') || '') + ' ' + (b.textContent || '').slice(0, 12));
   }
+  // 任意触摸都提前唤醒原生音频/触觉(1.5s 节流):第一下按键时引擎已就绪,第一个数字不会发声延迟
+  var lastWarm = 0;
+  document.addEventListener('pointerdown', function () {
+    var n = Date.now(); if (n - lastWarm < 1500) return; lastWarm = n;
+    H.postMessage({ id: 'w', op: 'warm', payload: {} });
+  }, true);
   var SEL_TAB = '.tab, .glass-ind, [role=tab]';
   var SEL_KEY = '#vk-keypad button, #vk-keypad [data-k]';
   var SEL_PRESS = 'button, a.app-card, .app-card, [role=button], [onclick], summary, label.switch, .chip, .platform-select-chip, .toggle, .pill, select';

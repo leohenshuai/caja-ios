@@ -129,6 +129,9 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         switch op {
         // 触觉/提示音/播报是"发完即忘":不再回调 JS(每次回调都是一次 evaluateJavaScript,连按键盘时会堵主线程);
         // 声音与播报放到独立串行队列,不占主线程。
+        case "warm":
+            warmHaptics(); audioQueue.async { self.ensureAudio() }
+            if id != "w" { reply(id, ["ok": true]) }
         case "haptic": haptic(p["type"] as? String ?? "light"); if id != "h" { reply(id, ["ok": true]) }
         case "sound":
             let t = p["type"] as? String ?? "key"
@@ -200,18 +203,38 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     var voiceNodes: [AVAudioPlayerNode] = []
     var voiceRateUnits: [AVAudioUnitTimePitch] = []        // 变速不变调:语速 0.6×~1.8× 都不会变尖或变粗
     var voiceNodeIdx = 0
+    // 保证音频引擎处于运行状态:停手一会儿后系统可能已把它停掉,第一下按键才临时重启会晚几十毫秒,
+    // 紧接着的第二键又把它淡出——表现为"第一个数字消失"。所以在触摸发生的一刻就提前唤醒。
+    func ensureAudio() {
+        if voiceNodes.isEmpty { return }
+        if !voiceEngine.isRunning {
+            try? AVAudioSession.sharedInstance().setActive(true)
+            try? voiceEngine.start()
+        }
+    }
+    func watchAudioEvents() {
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: voiceEngine, queue: nil) { [weak self] _ in self?.audioQueue.async { self?.ensureAudio() } }
+        nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] n in
+            if let t = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt, t == AVAudioSession.InterruptionType.ended.rawValue { self?.audioQueue.async { self?.ensureAudio() } }
+        }
+        nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { [weak self] _ in self?.audioQueue.async { self?.ensureAudio() } }
+    }
     // 追赶式播报:连按时,新数字一来上一个在 ~30ms 内淡出收尾(避免声音叠在一起),
     // 并按手速自动加快语速(间隔越短越快,最高 1.8×),保证耳朵里始终只有最新一键的清晰数字。
     var lastSpeakAt = Date.distantPast
     var curNode = -1
     var nodeGen: [Int] = Array(repeating: 0, count: 8)
+    var nodeStart: [Date] = Array(repeating: .distantPast, count: 8)   // 该通道真正开始发声的时刻(不是按键时刻)
     func fadeOut(_ i: Int) {
         guard i >= 0, i < voiceNodes.count else { return }
         nodeGen[i] += 1; let gen = nodeGen[i]
         let node = voiceNodes[i], v0 = node.volume
         let steps = 6
+        // 每个数字至少完整响 80ms 才开始淡出:发声稍有延迟时(如停手后的第一下)不会还没听清就被下一键切掉
+        let wait = max(0, 0.08 - Date().timeIntervalSince(nodeStart[i]))
         for k in 1...steps {
-            audioQueue.asyncAfter(deadline: .now() + 0.005 * Double(k)) { [weak self] in
+            audioQueue.asyncAfter(deadline: .now() + wait + 0.005 * Double(k)) { [weak self] in
                 guard let self = self, self.nodeGen[i] == gen else { return }   // 该通道已被新播放接管
                 if k == steps { node.stop(); node.volume = v0 } else { node.volume = v0 * Float(steps - k) / Float(steps) }
             }
@@ -244,6 +267,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         }
         voiceEngine.prepare()
         try? voiceEngine.start()
+        watchAudioEvents()
     }
     // rate:1.0 为录音原速(已是 1.4 倍裁紧版);vol:0~1
     func speak(_ text: String, key: String? = nil, rate: Double = 1.0, vol: Double = 1.0) {
@@ -276,6 +300,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
                 node.play()
+                nodeStart[i] = Date()
                 return
             }
         }
