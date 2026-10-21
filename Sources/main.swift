@@ -200,6 +200,23 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     var voiceNodes: [AVAudioPlayerNode] = []
     var voiceRateUnits: [AVAudioUnitTimePitch] = []        // 变速不变调:语速 0.6×~1.8× 都不会变尖或变粗
     var voiceNodeIdx = 0
+    // 追赶式播报:连按时,新数字一来上一个在 ~30ms 内淡出收尾(避免声音叠在一起),
+    // 并按手速自动加快语速(间隔越短越快,最高 1.8×),保证耳朵里始终只有最新一键的清晰数字。
+    var lastSpeakAt = Date.distantPast
+    var curNode = -1
+    var nodeGen: [Int] = Array(repeating: 0, count: 8)
+    func fadeOut(_ i: Int) {
+        guard i >= 0, i < voiceNodes.count else { return }
+        nodeGen[i] += 1; let gen = nodeGen[i]
+        let node = voiceNodes[i], v0 = node.volume
+        let steps = 6
+        for k in 1...steps {
+            audioQueue.asyncAfter(deadline: .now() + 0.005 * Double(k)) { [weak self] in
+                guard let self = self, self.nodeGen[i] == gen else { return }   // 该通道已被新播放接管
+                if k == steps { node.stop(); node.volume = v0 } else { node.volume = v0 * Float(steps - k) / Float(steps) }
+            }
+        }
+    }
     func preloadVoices() {
         var format: AVAudioFormat?
         var entries: [(String, URL)] = []
@@ -231,7 +248,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     // rate:1.0 为录音原速(已是 1.4 倍裁紧版);vol:0~1
     func speak(_ text: String, key: String? = nil, rate: Double = 1.0, vol: Double = 1.0) {
         if text.isEmpty && key == nil {                        // 关闭播报:全部停止
-            for n in voiceNodes { n.stop() }
+            for (i, n) in voiceNodes.enumerated() { nodeGen[i] += 1; n.stop() }; curNode = -1
             synth.stopSpeaking(at: .immediate); return
         }
         let r = min(1.8, max(0.6, rate)), v = Float(min(1.0, max(0.0, vol)))
@@ -239,11 +256,22 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         if let k = key, let buf = voiceBuffers[k] ?? voiceBuffers[k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k], !voiceNodes.isEmpty {
             if !voiceEngine.isRunning { try? voiceEngine.start() }   // 被电话/Siri 等打断后自动恢复
             if voiceEngine.isRunning {
+                let nowT = Date(); let gap = nowT.timeIntervalSince(lastSpeakAt); lastSpeakAt = nowT
+                let bare = k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k
+                let isDigitKey = bare.count <= 2 || bare == "dot" || bare == "neg"          // 数字/小数点/负号才追赶,功能键(删除/清空/确认)读完整
+                var rr = r
+                if isDigitKey && gap < 0.45 {
+                    let boost: Double = gap > 0.25 ? 1.25 : (gap > 0.17 ? 1.5 : 1.8)
+                    rr = min(1.8, max(r, boost))
+                }
+                if isDigitKey && curNode >= 0 && gap < 0.45 { fadeOut(curNode) }    // 上一个快速淡出;慢速按键不打断
                 let i = voiceNodeIdx
                 voiceNodeIdx = (voiceNodeIdx + 1) % voiceNodes.count
+                nodeGen[i] += 1                                                     // 取消该通道上尚未完成的淡出
+                curNode = i
                 let node = voiceNodes[i]
-                voiceRateUnits[i].rate = Float(r)
-                voiceRateUnits[i].bypass = abs(r - 1.0) < 0.01   // 原速时绕过变速单元,省掉它的处理延迟
+                voiceRateUnits[i].rate = Float(rr)
+                voiceRateUnits[i].bypass = abs(rr - 1.0) < 0.01   // 原速时绕过变速单元,省掉它的处理延迟
                 node.volume = v
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)

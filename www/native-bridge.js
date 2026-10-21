@@ -48,7 +48,9 @@
   NB.setVoiceName = function (n) { localStorage.setItem('voiceName', n === 'yi' ? 'yi' : 'xiaoxiao'); };
   NB.voiceKey = function (k) { return (NB.getVoiceName() === 'yi' ? 'yi/' : '') + k; };
   function keyFeedback(kk) {
-    if (flag('keySound')) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
+    var spoken = flag('keyVoice') && SPEAK[kk];
+    var isNum = /^(\d|00|\.|-)$/.test(kk);        // 数字/小数点/负号:语音已开时不再叠系统按键音,听感更干净
+    if (flag('keySound') && !(spoken && isNum)) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
     if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: NB.voiceKey(SPEAKKEY[kk] || kk), rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
   }
   // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
