@@ -201,7 +201,6 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     let voiceEngine = AVAudioEngine()
     var voiceBuffers: [String: AVAudioPCMBuffer] = [:]
     var voiceNodes: [AVAudioPlayerNode] = []
-    var voiceRateUnits: [AVAudioUnitTimePitch] = []        // 变速不变调:语速 0.6×~1.8× 都不会变尖或变粗
     var voiceNodeIdx = 0
     // 保证音频引擎处于运行状态:停手一会儿后系统可能已把它停掉,第一下按键才临时重启会晚几十毫秒,
     // 紧接着的第二键又把它淡出——表现为"第一个数字消失"。所以在触摸发生的一刻就提前唤醒。
@@ -223,13 +222,14 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     // 追赶式播报:连按时,新数字一来上一个在 ~30ms 内淡出收尾(避免声音叠在一起),
     // 并按手速自动加快语速(间隔越短越快,最高 1.8×),保证耳朵里始终只有最新一键的清晰数字。
     var lastSpeakAt = Date.distantPast
+    var userVol: Float = 1.0
     var curNode = -1
-    var nodeGen: [Int] = Array(repeating: 0, count: 8)
-    var nodeStart: [Date] = Array(repeating: .distantPast, count: 8)   // 该通道真正开始发声的时刻(不是按键时刻)
+    var nodeGen: [Int] = Array(repeating: 0, count: 12)
+    var nodeStart: [Date] = Array(repeating: .distantPast, count: 12)   // 该通道真正开始发声的时刻(不是按键时刻)
     func fadeOut(_ i: Int) {
         guard i >= 0, i < voiceNodes.count else { return }
         nodeGen[i] += 1; let gen = nodeGen[i]
-        let node = voiceNodes[i], v0 = node.volume
+        let node = voiceNodes[i], v0 = userVol      // 用「设定音量」作基准,不读当前值:连按时当前值可能已被上一次淡出降到一半,恢复成半音量就会让那个通道的数字很轻
         let steps = 6
         // 每个数字至少完整响 80ms 才开始淡出:发声稍有延迟时(如停手后的第一下)不会还没听清就被下一键切掉
         let wait = max(0, 0.08 - Date().timeIntervalSince(nodeStart[i]))
@@ -243,7 +243,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     func preloadVoices() {
         var format: AVAudioFormat?
         var entries: [(String, URL)] = []
-        for (sub, prefix) in [("www/voice", ""), ("www/voice-yi", "yi/")] {
+        for (sub, prefix) in [("www/voice", ""), ("www/voice-yi", "yi/"), ("www/voice-rate", ""), ("www/voice-yi-rate", "yi/")] {
             let d = Bundle.main.bundleURL.appendingPathComponent(sub)
             guard let fs = try? FileManager.default.contentsOfDirectory(atPath: d.path) else { continue }
             for f in fs where f.hasSuffix(".mp3") { entries.append((prefix + String(f.dropLast(4)), d.appendingPathComponent(f))) }
@@ -257,13 +257,13 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             voiceBuffers[key] = buf
         }
         guard let fmt = format else { return }
-        for _ in 0..<8 {
+        // 不再在链路里放变速单元:语速改为预渲染好的多档录音(见 voice-rate),按键只管"选档 + 播放"。
+        // 变速单元不仅有处理延迟,在整段缓冲很短(0.2s)时还会吃掉开头/结尾的响度,是"尾字很轻"的原因之一。
+        for _ in 0..<12 {
             let node = AVAudioPlayerNode()
-            let tp = AVAudioUnitTimePitch()
-            voiceEngine.attach(node); voiceEngine.attach(tp)
-            voiceEngine.connect(node, to: tp, format: fmt)
-            voiceEngine.connect(tp, to: voiceEngine.mainMixerNode, format: fmt)
-            voiceNodes.append(node); voiceRateUnits.append(tp)
+            voiceEngine.attach(node)
+            voiceEngine.connect(node, to: voiceEngine.mainMixerNode, format: fmt)
+            voiceNodes.append(node)
         }
         voiceEngine.prepare()
         try? voiceEngine.start()
@@ -276,8 +276,9 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             synth.stopSpeaking(at: .immediate); return
         }
         let r = min(1.8, max(0.6, rate)), v = Float(min(1.0, max(0.0, vol)))
+        userVol = v
         if v <= 0.001 { return }                               // 音量拉到 0 等于静音
-        if let k = key, let buf = voiceBuffers[k] ?? voiceBuffers[k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k], !voiceNodes.isEmpty {
+        if let k = key, voiceBuffers[k] != nil || voiceBuffers[k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k] != nil, !voiceNodes.isEmpty {
             if !voiceEngine.isRunning { try? voiceEngine.start() }   // 被电话/Siri 等打断后自动恢复
             if voiceEngine.isRunning {
                 let nowT = Date(); let gap = nowT.timeIntervalSince(lastSpeakAt); lastSpeakAt = nowT
@@ -294,8 +295,11 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
                 nodeGen[i] += 1                                                     // 取消该通道上尚未完成的淡出
                 curNode = i
                 let node = voiceNodes[i]
-                voiceRateUnits[i].rate = Float(rr)
-                voiceRateUnits[i].bypass = abs(rr - 1.0) < 0.01   // 原速时绕过变速单元,省掉它的处理延迟
+                // 选最接近的预渲染档位(0.6 / 0.8 / 1.0 / 1.25 / 1.5 / 1.8)
+                let tiers: [(Double, String)] = [(0.6, "@0.6"), (0.8, "@0.8"), (1.0, ""), (1.25, "@1.25"), (1.5, "@1.5"), (1.8, "@1.8")]
+                let suffix = tiers.min(by: { abs($0.0 - rr) < abs($1.0 - rr) })!.1
+                let base = k.hasPrefix("yi/") ? String(k.dropFirst(3)) : k
+                let buf = voiceBuffers[k + suffix] ?? voiceBuffers[base + suffix] ?? voiceBuffers[k] ?? voiceBuffers[base]!
                 node.volume = v
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
