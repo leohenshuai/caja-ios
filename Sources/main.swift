@@ -181,16 +181,28 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     // ---- 触觉 ----
     // ---- 提示音(系统按键音,跟随静音开关)与数字播报 ----
     func playKeySound(_ type: String) {
+        // 名称映射到自带的短音效;"key" 用于键盘按键
+        let name = ["delete", "action", "tap", "tab", "danger", "success", "warning", "error", "key"].contains(type) ? type : "tap"
+        if let buf = sfxBuffers[name], !sfxNodes.isEmpty {
+            if !voiceEngine.isRunning { try? voiceEngine.start() }
+            if voiceEngine.isRunning {
+                let node = sfxNodes[sfxIdx]; sfxIdx = (sfxIdx + 1) % sfxNodes.count
+                node.volume = 0.7
+                node.stop()
+                node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
+                node.play()
+                return
+            }
+        }
+        // 引擎起不来时,回退到系统音
         switch type {
-        case "delete": AudioServicesPlaySystemSound(1155)      // 键盘删除音
-        case "action": AudioServicesPlaySystemSound(1156)      // 键盘功能键音
-        case "tap":    AudioServicesPlaySystemSound(1104)      // 普通按钮:轻点音
-        case "tab":    AudioServicesPlaySystemSound(1306)      // 标签/选项切换:轻咔嗒
-        case "danger": AudioServicesPlaySystemSound(1107)      // 危险操作(清零/重置/删除):低沉
-        case "success": AudioServicesPlaySystemSound(1407)     // 保存成功
-        case "warning": AudioServicesPlaySystemSound(1053)     // 警告
-        case "error":  AudioServicesPlaySystemSound(1521)      // 报错:短促震鸣音
-        default: AudioServicesPlaySystemSound(1104)            // 键盘按键音
+        case "delete": AudioServicesPlaySystemSound(1155)
+        case "action": AudioServicesPlaySystemSound(1156)
+        case "danger": AudioServicesPlaySystemSound(1107)
+        case "success": AudioServicesPlaySystemSound(1407)
+        case "warning": AudioServicesPlaySystemSound(1053)
+        case "error":  AudioServicesPlaySystemSound(1521)
+        default: AudioServicesPlaySystemSound(1104)
         }
     }
     lazy var synth = AVSpeechSynthesizer()
@@ -202,6 +214,9 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     var voiceBuffers: [String: AVAudioPCMBuffer] = [:]
     var voiceNodes: [AVAudioPlayerNode] = []
     var voiceNodeIdx = 0
+    var sfxBuffers: [String: AVAudioPCMBuffer] = [:]
+    var sfxNodes: [AVAudioPlayerNode] = []
+    var sfxIdx = 0
     // 保证音频引擎处于运行状态:停手一会儿后系统可能已把它停掉,第一下按键才临时重启会晚几十毫秒,
     // 紧接着的第二键又把它淡出——表现为"第一个数字消失"。所以在触摸发生的一刻就提前唤醒。
     func ensureAudio() {
@@ -257,6 +272,23 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             voiceBuffers[key] = buf
         }
         guard let fmt = format else { return }
+        // 提示音:和语音走同一个引擎混音,不再用系统的 AudioServices(它走另一条通路,播放时会把 App 里的语音压小声)
+        let sd = Bundle.main.bundleURL.appendingPathComponent("www/sfx")
+        if let fs = try? FileManager.default.contentsOfDirectory(atPath: sd.path) {
+            for f in fs where f.hasSuffix(".mp3") {
+                guard let file = try? AVAudioFile(forReading: sd.appendingPathComponent(f)),
+                      let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+                      (try? file.read(into: buf)) != nil,
+                      buf.format.sampleRate == fmt.sampleRate, buf.format.channelCount == fmt.channelCount else { continue }
+                sfxBuffers[String(f.dropLast(4))] = buf
+            }
+        }
+        for _ in 0..<4 {
+            let node = AVAudioPlayerNode()
+            voiceEngine.attach(node)
+            voiceEngine.connect(node, to: voiceEngine.mainMixerNode, format: fmt)
+            sfxNodes.append(node)
+        }
         // 不再在链路里放变速单元:语速改为预渲染好的多档录音(见 voice-rate),按键只管"选档 + 播放"。
         // 变速单元不仅有处理延迟,在整段缓冲很短(0.2s)时还会吃掉开头/结尾的响度,是"尾字很轻"的原因之一。
         for _ in 0..<12 {
