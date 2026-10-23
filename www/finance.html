@@ -1701,12 +1701,24 @@ class FinanceApp {
             } catch (error) { reject(error); }
         });
     }
+    /* 白色机器有数值 → 推送给资金到账系统(为 0 或无数据绝不覆盖;值相同不重复写) */
+    pushWhiteToArrival() {
+        try {
+            const v = Math.round(listSum(this.data.white_list) * 100) / 100;
+            if (!v) return;
+            const K = 'arrival-white-v1', old = JSON.parse(localStorage.getItem(K) || 'null');
+            if (old && old.value === v) return;
+            const t = new Date(), p = n => String(n).padStart(2, '0');
+            localStorage.setItem(K, JSON.stringify({ value: v, at: `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}` }));
+        } catch (e) {}
+    }
     async saveToStorage({ silent = false } = {}) {
         if (!this.db) return false;
         try {
             const updatedAt = Date.now();
             this.data.updated_at = updatedAt;
             await this._putDailyRecord({ ...this.data, id: 'current', _cajaHistory: this.cajaHistory, _version: DATA_VERSION, updated_at: updatedAt });
+            this.pushWhiteToArrival();
             if (!silent) this.showToast('已自动保存到本地', 'success');
             this.updateGlobalStatus();
             this.refreshProjectStatusUI();
@@ -1745,6 +1757,7 @@ class FinanceApp {
                     if (request.result._cajaHistory) { this.cajaHistory = request.result._cajaHistory; }
                     this.initializeAutoCarryMarker(request.result);
                     this.dataLoaded = true;
+                    this.pushWhiteToArrival();
                     this.syncUI();
                     if (migrated) { this.saveToStorage(); this.showToast('旧版数据已自动迁移（面值顺序更新）', 'success'); } else { this.showToast('已恢复上次数据', 'success'); }
                 }
