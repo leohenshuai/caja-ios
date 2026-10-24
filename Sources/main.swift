@@ -509,11 +509,12 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             try data.write(to: backupDir.appendingPathComponent(name), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             try data.write(to: backupDir.appendingPathComponent("latest.json"), options: .atomic)
         } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
-        // 滚动保留:自动备份最近 20 份,手动/快照最近 30 份
-        let limits = ["auto": 20, "manual": 30, "snapshot": 5]
-        if let lim = limits[kind], let files = try? fm.contentsOfDirectory(atPath: backupDir.path) {
-            let mine = files.filter { $0.hasPrefix(kind + "_") }.sorted(by: >)
-            for old in mine.dropFirst(lim) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
+        // 滚动保留:自动 / 手动 / 快照 各最多 5 份;顺带把所有类型里多出来的旧备份一起清掉
+        if let files = try? fm.contentsOfDirectory(atPath: backupDir.path) {
+            for k in ["auto", "manual", "snapshot"] {
+                let mine = files.filter { $0.hasPrefix(k + "_") && $0.hasSuffix(".json") }.sorted(by: >)
+                for old in mine.dropFirst(5) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
+            }
         }
         reply(id, ["ok": true, "name": name, "size": data.count])
     }
