@@ -509,12 +509,12 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             try data.write(to: backupDir.appendingPathComponent(name), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             try data.write(to: backupDir.appendingPathComponent("latest.json"), options: .atomic)
         } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
-        // 滚动保留:自动 / 手动 / 快照 各最多 5 份;顺带把所有类型里多出来的旧备份一起清掉
+        // 滚动保留:自动 + 手动 合计最多 5 份(两者共用名额),快照单独最多 5 份
         if let files = try? fm.contentsOfDirectory(atPath: backupDir.path) {
-            for k in ["auto", "manual", "snapshot"] {
-                let mine = files.filter { $0.hasPrefix(k + "_") && $0.hasSuffix(".json") }.sorted(by: >)
-                for old in mine.dropFirst(5) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
-            }
+            let regular = files.filter { ($0.hasPrefix("auto_") || $0.hasPrefix("manual_")) && $0.hasSuffix(".json") }.sorted(by: >)
+            for old in regular.dropFirst(5) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
+            let snap = files.filter { $0.hasPrefix("snapshot_") && $0.hasSuffix(".json") }.sorted(by: >)
+            for old in snap.dropFirst(5) { try? fm.removeItem(at: backupDir.appendingPathComponent(old)) }
         }
         reply(id, ["ok": true, "name": name, "size": data.count])
     }
