@@ -436,7 +436,7 @@ const InputFilter = {
 class CashBoxApp {
     constructor() { this.data = getInitData(); this.skipAuto = true; this.skipFaces = this._defaultSkip(); this.inputCallback = null; this.confirmCallback = null; this.db = null; this.init(); }
     init() {
-        DBHelper.init().then(async (db) => { this.db = db; await this.loadData(); this.skipFaces = this._defaultSkip(); this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this._autoFocusInput(`face-${this._firstActiveFace()}`); }).catch(err => { this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this._autoFocusInput(`face-${this._firstActiveFace()}`); });
+        DBHelper.init().then(async (db) => { this.db = db; await this.loadData(); this.skipFaces = this._defaultSkip(); this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this.claimTheoretical(); document.addEventListener('visibilitychange', () => { if (!document.hidden) this.claimTheoretical(); }); window.addEventListener('focus', () => this.claimTheoretical()); this._autoFocusInput(`face-${this._firstActiveFace()}`); }).catch(err => { this.initResetSchedule(); this.renderFaceGrid(); this.updateAllMetrics(); this._autoFocusInput(`face-${this._firstActiveFace()}`); });
     }
     nextReset(time, now = new Date()) {
         const [h, m] = time.split(':').map(Number);
@@ -1018,6 +1018,18 @@ class CashBoxApp {
         const assignments = right.split(','); let count = 0;
         assignments.forEach(item => { const parts = item.split('='); if (parts.length === 2) { const face = parseInt(parts[0].trim()); const cnt = Calc.parseSum(parts[1].trim()); const idx = CASH_FACES.indexOf(face); if (idx !== -1 && cnt >= 0) { this.data.cash_counts[idx] = cnt; count++; } } });
         if (count > 0) { this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast(`已设置 ${count} 个面值`, 'success'); }
+    }
+    /* 领取财务系统推送的理论库存(只处理一次;覆盖;为 0 不覆盖) */
+    claimTheoretical() {
+        try {
+            const o = JSON.parse(localStorage.getItem('caja-theoretical-push-v1') || 'null');
+            if (!o || !o.seq || !(Number(o.value) > 0)) return;
+            if (this.data.theo_push_seq === o.seq) return;
+            this.data.theo_push_seq = o.seq;
+            this.data.theoretical_inventory = Math.round(Number(o.value));
+            this.updateAllMetrics(); this.saveData();
+            this.showToast(`理论库存已同步:${this.data.theoretical_inventory.toLocaleString()}(财务系统 ${o.at})`, 'success');
+        } catch (e) {}
     }
     editTheoretical() { this.showInputModal('修改理论库存', '请输入新的理论库存', this.data.theoretical_inventory, (val) => { if (val >= 0) { this.data.theoretical_inventory = val; this.updateAllMetrics(); this.saveData(); this.showToast('理论库存已更新', 'success'); } }); }
     editBigMoney() { this.showInputModal('修改整的大钱', '请输入新的整的大钱', this.data.big_money, (val) => { if (val >= 0) { this.data.big_money = val; this.updateAllMetrics(); this.saveData(); this.showToast('整的大钱已更新', 'success'); } }); }

@@ -153,6 +153,40 @@
             border-radius:12px; background:linear-gradient(135deg, rgba(6,182,212,.14), rgba(15,23,42,.35));
             box-shadow:0 0 18px rgba(6,182,212,.10);
         }
+        .auto-copy-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 14px; margin:0 0 16px; border-radius:12px; border:1px solid var(--border,rgba(148,163,184,.25)); background:rgba(15,23,42,.35); }
+        .auto-copy-row span { display:flex; flex-direction:column; gap:4px; min-width:0; }
+        .auto-copy-row small { font-size:12px; line-height:1.5; color:var(--text-muted); }
+        .ac-chips { margin:-6px 0 16px; padding:10px 14px 12px; border-radius:12px; border:1px solid var(--border,rgba(148,163,184,.25)); background:rgba(15,23,42,.25); }
+        .ac-lab { display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:700; margin-bottom:8px; }
+        .ac-lab small { font-size:11px; font-weight:500; color:var(--text-muted); }
+        .ac-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .ac-chip { display:flex; align-items:center; justify-content:center; gap:6px; min-height:42px; border-radius:11px; border:1px solid rgba(148,163,184,.3); background:rgba(15,23,42,.45); font-size:15px; font-weight:800; color:var(--text-muted); margin:0; -webkit-tap-highlight-color:transparent; }
+        .ac-chip.on { border-color:var(--cyan); background:rgba(6,182,212,.18); color:var(--text,#e5e7eb); }
+        .ac-chip input { width:16px; height:16px; accent-color:var(--cyan); margin:0; }
+        .auto-copy-row input { width:46px; height:28px; flex:none; accent-color:var(--cyan); }
+        .caja-grand-total { display:block; padding:8px 10px; }
+        .caja-grand-total > summary { list-style:none; cursor:pointer; margin-top:0; -webkit-tap-highlight-color:transparent; }
+        .cgt-head { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 4px; }
+        .cgt-head .cgt-v { margin-left:auto; font-size:24px; }
+        .caja-grand-total > summary::-webkit-details-marker { display:none; }
+        .cgt-arrow { font-style:normal; color:var(--cyan); font-size:20px; line-height:1; margin-left:2px; transition:transform .2s; }
+        .caja-grand-total[open] .cgt-arrow { transform:rotate(90deg); }
+        .cgt-body { display:flex; flex-direction:column; gap:12px; padding:12px 0 4px; border-top:1px solid rgba(103,232,249,.22); margin-top:6px; }
+        .cgt-body > * { margin:0 !important; flex:none; }
+        .cgt-line { display:flex; align-items:center; justify-content:space-between; gap:10px; height:44px; margin:0; box-sizing:border-box; overflow:hidden; }
+        .cgt-l { font-size:13px; font-weight:700; color:var(--text-muted); white-space:nowrap; display:flex; align-items:baseline; gap:5px; }
+        .cgt-l small { font-size:10px; font-weight:500; opacity:.7; }
+        .cgt-v { color:var(--cyan); font:700 19px/1 'Courier New', monospace; letter-spacing:-.5px; }
+        .cgt-input { width:48%; box-sizing:border-box; height:40px; flex:none; padding:0 10px; border-radius:9px; border:1px solid rgba(103,232,249,.3); background:rgba(15,23,42,.5); color:var(--text,#e5e7eb); font:700 17px/1 'Courier New', monospace; display:block; text-align:right; min-width:0; }
+        .cgt-input:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(6,182,212,.18); }
+        .cgt-total { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:0; padding:8px 12px; border-radius:10px; background:linear-gradient(135deg, rgba(74,222,128,.16), rgba(6,182,212,.10)); border:1px solid rgba(74,222,128,.32); }
+        .cgt-tl { font-size:14px; font-weight:800; display:flex; align-items:baseline; gap:5px; }
+        .cgt-tv { color:var(--green,#4ade80); font:800 24px/1 'Courier New', monospace; letter-spacing:-.5px; }
+        .cgt-push { width:100%; margin-top:0; min-height:40px; padding:5px 12px; border-radius:9px; border:1px solid rgba(103,232,249,.35); background:rgba(6,182,212,.12); color:var(--text,#e5e7eb); font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:8px; -webkit-tap-highlight-color:transparent; }
+        .cgt-push:active { transform:scale(.98); background:rgba(6,182,212,.28); }
+        .cgt-push span { white-space:nowrap; }
+        .cgt-push small { font-size:10px; font-weight:500; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+        .cgt-push small:empty { display:none; }
         .caja-grand-total-label { color:var(--text-muted); font-size:12px; }
         .caja-grand-total-title { font-size:17px; font-weight:700; margin-top:3px; }
         .caja-grand-total-value { color:var(--cyan); font:700 26px/1 'Courier New', monospace; text-align:right; }
@@ -827,10 +861,15 @@
     </div>
 
     <div id="tab-caja" class="tab-content active">
-        <div class="caja-grand-total" aria-live="polite">
-            <div><div class="caja-grand-total-label">全部 Caja 汇总</div><div class="caja-grand-total-title">💵 实际现金总额</div></div>
-            <div><div class="caja-grand-total-value" id="caja-actual-g-total">0</div><div class="caja-grand-total-code">实际现金 G 值</div></div>
-        </div>
+        <details class="caja-grand-total" id="cgt-box" aria-live="polite" ontoggle="try{localStorage.setItem('cgt-open-v1',this.open?'1':'0')}catch(e){}">
+            <summary class="cgt-head"><span class="cgt-l">💵 实际总caja现金</span><b class="cgt-v" id="caja-actual-g-total">0</b><em class="cgt-arrow">›</em></summary>
+            <div class="cgt-body">
+                <label class="cgt-line"><span class="cgt-l">📦 实际库余<small>手动输入</small></span><input type="text" id="actual_stock" class="cgt-input" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="0" onchange="app.updateField('actual_stock', this.value, { after: () => app.refreshCajaGrandTotal() })"></label>
+                <div class="cgt-total"><span class="cgt-tl">💰 实际总现金</span><b class="cgt-tv" id="caja-actual-all-total">0</b></div>
+                <button type="button" class="cgt-push" id="cgt-push" onclick="app.pushTheoretical()"><span>📤 设为现金箱理论库存</span><small id="cgt-push-state"></small></button>
+            </div>
+        </details>
+        <script>try{if(localStorage.getItem('cgt-open-v1')==='1')document.getElementById('cgt-box').open=true}catch(e){}</script>
         <!-- 面值清点面板：作为普通 Caja 使用，C1~C4 切换各台独立数据 -->
         <div class="caja-card central-panel" id="centralPanel">
             <div class="caja-header">
@@ -1171,6 +1210,14 @@
 
     <div id="tab-carry" class="tab-content">
         <div class="section">
+            <div class="section-title">📋 清点自动复制</div>
+            <label class="auto-copy-row"><span><strong>最后一台清点完成后自动复制</strong><small>下面勾选的 Caja 今日最终清点都完成时,自动复制最后完成那台的最后一次张数,会覆盖剪贴板里上次的复制</small></span><input type="checkbox" id="autoCopyToggle" onchange="app.toggleAutoCopy(this.checked)"></label>
+            <div class="ac-chips"><span class="ac-lab">参与的 Caja<small>不常用的那台取消勾选</small></span><div class="ac-row">
+                <label class="ac-chip"><input type="checkbox" onchange="app.toggleAutoCopyCaja(0,this.checked)">C1</label>
+                <label class="ac-chip"><input type="checkbox" onchange="app.toggleAutoCopyCaja(1,this.checked)">C2</label>
+                <label class="ac-chip"><input type="checkbox" onchange="app.toggleAutoCopyCaja(2,this.checked)">C3</label>
+                <label class="ac-chip"><input type="checkbox" onchange="app.toggleAutoCopyCaja(3,this.checked)">C4</label>
+            </div></div>
             <div class="section-title">⚡ 每日账目一键结转</div>
             <div class="auto-carry-status">
                 <div class="auto-carry-copy">
@@ -1595,7 +1642,7 @@ function getInitData() {
         dni_a1: '', dni_b1: '', dni_c1: '', dni_z1: '',
         merc_f2: '', merc_b2: '', merc_c2: '',
         white_list: [], black_k_list: [], z3_ref: '',
-        f_exp: '', b_last: '', k_vault: '',
+        f_exp: '', b_last: '', k_vault: '', actual_stock: '',
         COEFF_ORANGE: 1.05, COEFF_DNI: 1.021,
         all_cajas_cleared: false,
         caja_reserve: emptyReserveFlags(),
@@ -1877,6 +1924,8 @@ class FinanceApp {
         const coeffOrangeEl = $('coeff_orange_display'); const coeffDniEl = $('coeff_dni_display');
         if (coeffOrangeEl) coeffOrangeEl.value = this.data.COEFF_ORANGE;
         if (coeffDniEl) coeffDniEl.value = this.data.COEFF_DNI;
+        const acEl = $('autoCopyToggle'); if (acEl) acEl.checked = this._autoCopyEnabled();
+        this._paintAutoCopyCajas();
         const autoCarryTimeEl = $('autoCarryTime');
         if (autoCarryTimeEl) autoCarryTimeEl.value = this.getAutoCarryTime();
         this.refreshAllCaja(); this.refreshLists(); this.updateGlobalStatus(); this.refreshPlatformPreview(); this.refreshProjectStatusUI(); this.refreshMachineStatusUI();
@@ -1910,9 +1959,26 @@ class FinanceApp {
             else { statusEl.textContent = diff === 0 ? '已平账' : (diff > 0 ? '盈余' : '亏损'); statusEl.style.color = diff >= 0 ? 'var(--green)' : 'var(--red)'; }
         }
     }
+    /* 把实际总现金(Caja 现金 + 实际库存)交给现金箱,作为它的理论库存;为 0 不推送 */
+    pushTheoretical() {
+        const g = Calc.getReportValues(this.data, this.cajaHistory).actualG;
+        const v = Math.round(g + num(this.data.actual_stock));
+        if (!v) { this.showToast('实际总现金为 0,不推送', 'warning'); return; }
+        try {
+            const t = new Date(), p = n => String(n).padStart(2, '0');
+            localStorage.setItem('caja-theoretical-push-v1', JSON.stringify({ value: v, seq: Date.now(), at: `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}` }));
+            this.showToast(`已设为现金箱理论库存:${v.toLocaleString()}`, 'success');
+            this.refreshCajaGrandTotal();
+        } catch (e) { this.showToast('写入失败', 'error'); }
+    }
     refreshCajaGrandTotal() {
         const el = $('caja-actual-g-total');
-        if (el) el.textContent = fmt(Calc.getReportValues(this.data, this.cajaHistory).actualG);
+        const g = Calc.getReportValues(this.data, this.cajaHistory).actualG;
+        if (el) el.textContent = fmt(g);
+        const all = $('caja-actual-all-total'); if (all) all.textContent = fmt(g + num(this.data.actual_stock));
+        const ps = $('cgt-push-state');
+        if (ps) { try { const o = JSON.parse(localStorage.getItem('caja-theoretical-push-v1') || 'null'); ps.textContent = o ? `上次 ${o.at} · ${Number(o.value).toLocaleString()}` : ''; } catch (e) { ps.textContent = ''; } }
+        const inp = $('actual_stock'); if (inp && document.activeElement !== inp) inp.value = this.data.actual_stock ? this.data.actual_stock : '';
     }
     // ===== 统一面值清点面板 =====
     renderCentralPanel() {
@@ -2328,8 +2394,29 @@ class FinanceApp {
         this.updateCajaPreview(cajaIdx); this.updateSessionPanel(cajaIdx);
         this.updateFinalCountUI();
         this.showToast(isFinalCount ? `Caja ${cajaIdx + 1} 今日最终清点已完成` : `Caja ${cajaIdx + 1} 清点已确认: 合计 +${fmt(total)}`, 'success');
+        if (isFinalCount) this._autoCopyLastCaja(cajaIdx, pending);
         this.debouncedSave(); this.updateGlobalStatus();
         if ($('tab-report').classList.contains('active')) { this.generateReport(); }
+    }
+    /* 自动复制:四台 Caja 今日最终清点全部完成时,复制"最后完成的那一台"的最后一次本次张数 */
+    _autoCopyEnabled() { return localStorage.getItem('caja-auto-copy-last-v1') !== '0'; }
+    _autoCopyCajas() { try { const a = JSON.parse(localStorage.getItem('caja-auto-copy-cajas-v1') || 'null'); if (Array.isArray(a) && a.length === 4) return a.map(Boolean); } catch (e) {} return [true, true, true, true]; }
+    toggleAutoCopyCaja(i, on) { const a = this._autoCopyCajas(); a[i] = !!on; try { localStorage.setItem('caja-auto-copy-cajas-v1', JSON.stringify(a)); } catch (e) {} this._paintAutoCopyCajas(); const names = a.map((v, k) => v ? `Caja ${k + 1}` : null).filter(Boolean); this.showToast(names.length ? `参与自动复制:${names.join('、')}` : '没有选中任何 Caja,不会自动复制', names.length ? 'success' : 'warning'); }
+    _paintAutoCopyCajas() { const a = this._autoCopyCajas(); document.querySelectorAll('.ac-chip input').forEach((el, i) => { el.checked = !!a[i]; el.closest('.ac-chip').classList.toggle('on', !!a[i]); }); }
+    toggleAutoCopy(on) { try { localStorage.setItem('caja-auto-copy-last-v1', on ? '1' : '0'); } catch (e) {} this.showToast(on ? '已开启:最后一台清点完成后自动复制' : '已关闭自动复制', on ? 'success' : 'warning'); }
+    _autoCopyLastCaja(cajaIdx, pending) {
+        try {
+            if (!this._autoCopyEnabled()) return;
+            const part = this._autoCopyCajas();
+            if (!part[cajaIdx]) return; // 刚完成的这台不参与
+            if (!part.some(Boolean)) return;
+            if (!part.every((on, i) => !on || (this.data.caja_final_count_dates || [])[i] === todayStr())) return; // 参与的几台还没全部完成
+            const counts = CASH_FACES.map((_, f) => pending[f] || 0);
+            if (!counts.some(n => n > 0)) return;
+            localStorage.removeItem('caja-denomination-clipboard-v1');
+            localStorage.setItem('caja-denomination-clipboard-v1', JSON.stringify(this._denominationPayload(counts, `财务系统 Caja ${cajaIdx + 1} 最后一次清点(自动)`)));
+            this.showToast(`已自动复制 Caja ${cajaIdx + 1} 最后一次清点(覆盖了上次的复制)`, 'success', 4500);
+        } catch (e) {}
     }
     // ===== 历史清点记录编辑 =====
     openHistoryEdit(cajaIdx, recIdx) {
