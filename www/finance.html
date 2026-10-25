@@ -1739,7 +1739,7 @@ class FinanceApp {
         this.initCajaSwipe();
     }
     async initDB() { return new Promise((resolve) => { const request = indexedDB.open('financeDB', 1); request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains('dailyData')) { db.createObjectStore('dailyData', { keyPath: 'id' }); } }; request.onsuccess = (e) => { this.db = e.target.result; resolve(); }; request.onerror = () => resolve(); }); }
-    debouncedSave() { this.saveToStorage(); }
+    debouncedSave() { this.saveToStorage({ silent: true }); }   // 同上:自动保存不弹提示,免得和面值跳转的反馈叠在一起
     _putDailyRecord(record) {
         if (!this.db) return Promise.resolve(false);
         return new Promise((resolve, reject) => {
