@@ -27,7 +27,6 @@
   // 触觉覆盖范围:按钮、标签、卡片、自制键盘按键、弹窗里的选项、开关/复选/单选、下拉、可点击行、输入框聚焦
   var lastHap = 0;
   function tick(kind) {                       // 40ms 内去重,避免 pointerdown 与 click 重复震
-    if (Date.now() < (NB._suppressUntil || 0)) return;   // 页面自己要在同一时刻发反馈时,先静音这里,避免两次震动撞在一起被系统吞掉
     var n = Date.now(); if (n - lastHap < 40) return; lastHap = n; NB.haptic(kind);
   }
   // 提示音 / 数字播报:各自独立开关(localStorage keySound / keyVoice),默认都开

@@ -2124,19 +2124,6 @@ class FinanceApp {
         if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
     }
     onCentralBlur(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.remove('active'); }
-    // 自动跳转的反馈:轻震 + 一点提示音,新的面值框闪一下,提示"光标已经换位置了"
-    _jumpFeedback(fidx) {
-        try {
-            const NB = window.NativeBridge;
-            const w = $(`central-input-wrapper${fidx}`);
-            if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
-            if (NB && NB.available) {
-                NB.call('sound', { type: 'tab' });          // 声音立即给
-                NB._suppressUntil = Date.now() + 300;       // 屏蔽跳转过程中聚焦产生的震动
-                setTimeout(() => { NB._suppressUntil = 0; NB.haptic('medium'); }, 120);  // 只由这里震一次
-            }
-        } catch (e) {}
-    }
     _scheduleCentralAutoJump(fidx) {
         if (!this._centralJumpTimers) this._centralJumpTimers = {};
         if (this._centralJumpTimers[fidx]) clearTimeout(this._centralJumpTimers[fidx]);
