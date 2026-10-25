@@ -92,7 +92,7 @@
   }, true);
   // 面值张数输入框(财务 central-faceN / 现金箱 face-N / 财务 central-z):聚焦时统一给 震动+提示音。
   // 手动点、回车、自动跳转都走 focusin,所以三种方式表现完全一致;150ms 去重保证一次聚焦只响一下。
-  var FACE_INPUT = /^(central-face\d+|face-\d+|central-z)$/;
+  var FACE_INPUT = /^(central-face\d+|face-\d+)$/;
   var lastFaceFb = 0;
   function faceFocusFeedback() {
     var n = Date.now(); if (n - lastFaceFb < 150) return; lastFaceFb = n;
@@ -102,6 +102,7 @@
     tick('light');
     uiSound('tap');
   }
+  NB.faceFeedback = faceFocusFeedback;   // 供页面显式调用(如差额框),与 focusin 自动触发的是同一个函数
   // 点进输入框(弹出键盘)也给一下轻触
   document.addEventListener('focusin', function (e) {
     var t = e.target; if (!t || !t.tagName) return;

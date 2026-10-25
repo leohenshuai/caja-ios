@@ -2118,7 +2118,9 @@ class FinanceApp {
     onCentralFocus(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.add('active'); this._focusFeedback(fidx); }
     // 焦点到达面值框时的统一反馈:震动 + 轻提示音 + 光圈闪一下。挂在 onfocus 上,无论手动点、回车、还是自动跳转都会触发
     _focusFeedback(fidx) {
-        // 震动与提示音由 native-bridge 统一发(与现金箱同一份实现),这里只负责视觉闪烁
+        // 震动与提示音一律由 native-bridge 的 faceFeedback 发(与现金箱、与面值框完全同一份实现);
+        // 差额框不在自动识别范围内,因此在这里显式调用同一个函数。这里只负责视觉闪烁
+        if (fidx < 0) { try { const NB = window.NativeBridge; if (NB && NB.faceFeedback) NB.faceFeedback(); } catch (e) {} }
         const w = fidx >= 0 ? $(`central-input-wrapper${fidx}`) : null;
         if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
     }
