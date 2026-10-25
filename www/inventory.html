@@ -989,7 +989,6 @@ class CashBoxApp {
         this._autoJumpTimers[actualIdx] = setTimeout(() => {
             const latestInput = document.getElementById(`face-${actualIdx}`); if (!latestInput || document.activeElement !== latestInput) return;
             const latestValue = latestInput.value.trim(); if (!latestValue || latestValue !== currentValue) return;
-            latestInput.blur();
             const nextActualIdx = this._nextActiveFace(actualIdx);
             const next = document.getElementById(`face-${nextActualIdx}`);
             if (next) { next.focus({ preventScroll: true }); next.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
