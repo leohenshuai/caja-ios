@@ -933,6 +933,7 @@
                     <label>电脑值 (z)</label>
                     <input type="text" id="central-z" placeholder="空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false"
                            oninput="app.updateCentralZ(this.value)"
+                           onfocus="app._focusFeedback(-1)"
                            onchange="app.updateCentralZ(this.value)" onblur="app.updateCentralZ(this.value)">
                 </div>
                 <div class="summary-row" style="margin-top:10px; font-size:16px;"><span>差额</span><span id="central-diff" class="diff-zero" style="font-weight:700;">0</span></div>
@@ -2114,15 +2115,26 @@ class FinanceApp {
         if (next >= 0) { focusAndScroll($(`central-face${next}`)); }
         else { focusAndScroll($('central-z')); }
     }
-    onCentralFocus(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.add('active'); }
+    onCentralFocus(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.add('active'); this._focusFeedback(fidx); }
+    // 焦点到达面值框时的统一反馈:震动 + 轻提示音 + 光圈闪一下。挂在 onfocus 上,无论手动点、回车、还是自动跳转都会触发
+    _focusFeedback(fidx) {
+        const now = Date.now(); if (now - (this._lastFocusFb || 0) < 220) return; this._lastFocusFb = now;
+        try { const NB = window.NativeBridge; if (NB && NB.available) { NB.haptic('medium'); NB.call('sound', { type: 'tab' }); } } catch (e) {}
+        const w = fidx >= 0 ? $(`central-input-wrapper${fidx}`) : null;
+        if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
+    }
     onCentralBlur(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.remove('active'); }
     // 自动跳转的反馈:轻震 + 一点提示音,新的面值框闪一下,提示"光标已经换位置了"
     _jumpFeedback(fidx) {
         try {
             const NB = window.NativeBridge;
-            if (NB && NB.available) { NB.haptic('medium'); NB.call('sound', { type: 'tab' }); }
             const w = $(`central-input-wrapper${fidx}`);
             if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
+            if (NB && NB.available) {
+                NB.call('sound', { type: 'tab' });          // 声音立即给
+                NB._suppressUntil = Date.now() + 300;       // 屏蔽跳转过程中聚焦产生的震动
+                setTimeout(() => { NB._suppressUntil = 0; NB.haptic('medium'); }, 120);  // 只由这里震一次
+            }
         } catch (e) {}
     }
     _scheduleCentralAutoJump(fidx) {
@@ -2139,7 +2151,6 @@ class FinanceApp {
             const target = next >= 0 ? $(`central-face${next}`) : $('central-z');
             if (latestInput && latestInput.blur) latestInput.blur();   // 与现金箱一致:先提交失焦,再切到下一个
             focusAndScroll(target);
-            this._jumpFeedback(next >= 0 ? next : -1);
         }, 1200);
     }
     toggleCentralCollapse() { /* 清点面板常驻展开，不再收缩 */ }
@@ -2720,7 +2731,7 @@ class FinanceApp {
             this._autoConfirmAndJump(cajaIdx, faceIdx);
         }, 1200);
     }
-    _autoConfirmAndJump(cajaIdx, faceIdx) { this.handleInputBlur(cajaIdx, faceIdx); this._focusNextFace(cajaIdx, faceIdx); this._jumpFeedback(-1); }
+    _autoConfirmAndJump(cajaIdx, faceIdx) { this.handleInputBlur(cajaIdx, faceIdx); this._focusNextFace(cajaIdx, faceIdx); this._focusFeedback(-1); }
     // 下一个输入目标：未到最后一个面值 → 下一面值，否则 → z 输入框
     _nextFaceEl(cajaIdx, faceIdx) { return faceIdx < CASH_FACES.length - 1 ? cajaEl(cajaIdx, `face${faceIdx + 1}`) : cajaEl(cajaIdx, 'z'); }
     _focusNextFace(cajaIdx, faceIdx) { focusAndScroll(this._nextFaceEl(cajaIdx, faceIdx)); }
