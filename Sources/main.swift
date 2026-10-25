@@ -184,7 +184,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         // 名称映射到自带的短音效;"key" 用于键盘按键
         let name = ["delete", "action", "tap", "tab", "danger", "success", "warning", "error", "key"].contains(type) ? type : "tap"
         if let buf = sfxBuffers[name], !sfxNodes.isEmpty {
-            if !voiceEngine.isRunning { try? voiceEngine.start() }
+            ensureAudio()          // 自动跳转等"非触摸"时机不一定会预热,这里兜住:两处声音因此完全一致
             if voiceEngine.isRunning {
                 let node = sfxNodes[sfxIdx]; sfxIdx = (sfxIdx + 1) % sfxNodes.count
                 node.volume = 0.7
@@ -221,10 +221,13 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     // 紧接着的第二键又把它淡出——表现为"第一个数字消失"。所以在触摸发生的一刻就提前唤醒。
     func ensureAudio() {
         if voiceNodes.isEmpty { return }
-        if !voiceEngine.isRunning {
-            try? AVAudioSession.sharedInstance().setActive(true)
-            try? voiceEngine.start()
-        }
+        guard !voiceEngine.isRunning else { return }
+        // 空闲一段时间后系统会停掉引擎甚至让会话失效,只调 start() 会失败 → 必须重新激活会话
+        let s = AVAudioSession.sharedInstance()
+        try? s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? s.setActive(true)
+        try? voiceEngine.start()
+        if !voiceEngine.isRunning { try? voiceEngine.start() }
     }
     func watchAudioEvents() {
         let nc = NotificationCenter.default
@@ -371,7 +374,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         if warmTimer != nil { return }
         warmTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] t in
             guard let self = self else { t.invalidate(); return }
-            if Date().timeIntervalSince(self.lastTouchAt) > 8 { t.invalidate(); self.warmTimer = nil; return }
+            if Date().timeIntervalSince(self.lastTouchAt) > 30 { t.invalidate(); self.warmTimer = nil; return }
             self.gLight.prepare(); self.gRigid.prepare()
         }
         gLight.prepare(); gRigid.prepare()

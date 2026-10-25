@@ -96,6 +96,9 @@
   var lastFaceFb = 0;
   function faceFocusFeedback() {
     var n = Date.now(); if (n - lastFaceFb < 150) return; lastFaceFb = n;
+    // 先预热(和管理手动点击时 pointerdown 做的事一致),再发触觉与提示音:
+    // 自动跳转没有 pointerdown,不预热的话引擎/发生器可能是冷的,表现会和手动跳转不一样
+    H.postMessage({ id: 'w', op: 'warm', payload: {} });
     tick('light');
     uiSound('tap');
   }
