@@ -1206,6 +1206,7 @@
 
     <div id="tab-report" class="tab-content">
         <div class="report" id="reportContent"></div>
+        <div id="diffLog"></div>
     </div>
 
     <div id="tab-carry" class="tab-content">
@@ -3790,6 +3791,8 @@ window.settleApp = new CashAllocationApp();
     <script src="./common.js"></script>
     <script src="./clipboard.js"></script>
 <script src="./keypad-extra.js"></script>
+<script src="./manual-log.js"></script>
+<script>ManualLog.mount({ el: document.getElementById('diffLog'), key: 'finance-diff-log-v1', title: '📒 总账差额记录', btn: '记录当前总账差额', maxDays: 15, getValue: () => Calc.getReportValues(app.data, app.cajaHistory).diffC, color: v => Math.round(v) <= 0 ? 'var(--green)' : 'var(--red)', toast: m => app.showToast(m, 'success') });</script>
 <script src="./keyboard-avoid.js"></script>
 </body>
 </html>

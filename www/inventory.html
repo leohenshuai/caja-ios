@@ -236,6 +236,7 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
         <div class="metric-card"><div class="metric-label">实际库存</div><div class="metric-value green" id="metric-actual">0</div></div>
         <div class="metric-card editable" onclick="app.editTheoretical()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">理论库存</div><div class="metric-value yellow" id="metric-theoretical">0</div></div>
     </div>
+    <div id="changeLog"></div>
     <div class="progress-section">
         <div class="progress-header"><span class="progress-label">实际/理论库存比例</span><span class="progress-percent" id="progress-percent">0%</span></div>
         <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%"></div></div>
@@ -1279,6 +1280,8 @@ document.addEventListener('keydown', (e) => {
     <script src="./common.js"></script>
     <script src="./clipboard.js"></script>
 <script src="./keypad-extra.js"></script>
+<script src="./manual-log.js"></script>
+<script>ManualLog.mount({ el: document.getElementById('changeLog'), key: 'inventory-change-log-v1', title: '💰 总零钱记录', btn: '记录当前总零钱', maxCount: 5, getValue: () => Calc.getTotalChange(app.data), toast: m => app.showToast(m, 'success') });</script>
 <script src="./keyboard-avoid.js"></script>
 <script src="./tabs-glass.js"></script>
 </body>
