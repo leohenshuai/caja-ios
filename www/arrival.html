@@ -240,15 +240,15 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   /* ===== 白色机器(来自财务系统)与未扣税合计对比 ===== */
   const WHITE_KEY='arrival-white-v1',CMP_KEY='arrival-compare-v1',SHORT_MIN=5000;
   const r2=n=>Math.round(n*100)/100;
-  const jget=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');return v==null?d:v}catch(e){return d}};
+  const jget=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v==null)return d;if(k==='arrival-compare-v1'&&Array.isArray(v))v.forEach(c=>{const df=Math.round((c.tot-c.white)*100)/100;c.diff=df;c.st=df>0?'more':df===0?'even':'short'});return v}catch(e){return d}};
   /* 白色机器由财务系统在有数值时主动写入 WHITE_KEY(覆盖规则在财务端);这里只读取 */
   async function syncWhite(){return jget(WHITE_KEY,null)}
   function compareWhite(white,tot,date,fileName){
-    const diff=r2(white-tot),st=diff>0?'more':diff===0?'even':'short';
+    const diff=r2(tot-white),st=diff>0?'more':diff===0?'even':'short';
     let list=jget(CMP_KEY,[]).filter(x=>x.date!==date);list.push({date,white,tot,diff,st,file:fileName||''});list.sort((a,b)=>a.date.localeCompare(b.date));try{localStorage.setItem(CMP_KEY,JSON.stringify(list.slice(-15)))}catch(e){}
     let added=false,changed=false;
     if(st==='short'&&-diff>SHORT_MIN){
-      const ref='short-'+date,amt=-diff,note=`白色机器 ${fmtAmountInput(white)} − 未扣税 ${fmtAmountInput(tot)}`,ex=items.find(x=>x.type==='short'&&x.reference===ref);
+      const ref='short-'+date,amt=-diff,note=`未扣税 ${fmtAmountInput(tot)} − 白色机器 ${fmtAmountInput(white)}`,ex=items.find(x=>x.type==='short'&&x.reference===ref);
       if(!ex){items.push({id:crypto.randomUUID(),type:'short',amount:amt,currency:'ARS',saleDate:date,arrivalDate:'',reference:ref,note,arrived:false});added=true}
       else if(!ex.arrived&&ex.amount!==amt){ex.amount=amt;ex.note=note;changed=true}
     }
@@ -265,8 +265,8 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     pruneCompare();
     const w=jget(WHITE_KEY,null),list=jget(CMP_KEY,[]).slice().reverse().slice(0,4);
     const head=`<div class="wm-card"><div><div class="wm-l">白色机器</div><div class="wm-v">${w?money(w.value,'ARS'):'暂无'}</div></div><div class="wm-t">${w?'财务系统<br>'+w.at:'等待财务系统录入'}</div></div>`;
-    const rows=list.length?list.map(c=>{const t=CMP_TXT[c.st],skip=c.st==='short'&&-c.diff<=SHORT_MIN;return `<div class="cmp-row"><div class="cmp-l"><b>${c.date.slice(5).replace('-','/')}</b><span>未扣税 ${money(c.tot,'ARS')}</span></div><div class="cmp-r ${t[1]}"><b>${c.diff>0?'+':c.diff<0?'−':''}${money(Math.abs(c.diff),'ARS')}</b><span>${t[0]}${skip?' · 不计入':''}</span></div></div>`}).join(''):'<div class="cmp-empty">导入含「未扣税合计」的文件后,这里显示每日对比</div>';
-    $('cmpBox').innerHTML=head+(list.length?'<div class="sec-t">每日对比<small>白色机器 − 未扣税</small></div>'+rows:'');
+    const rows=list.length?list.map(c=>{const t=CMP_TXT[c.st],skip=c.st==='short'&&-c.diff<=SHORT_MIN;return `<div class="cmp-row"><div class="cmp-l"><b>${c.date.slice(5).replace('-','/')}</b><span>未扣税 ${money(c.tot,'ARS')}</span></div><div class="cmp-r ${t[1]}"><b>${c.st==='short'?'−':c.st==='more'?'+':''}${money(Math.abs(c.diff),'ARS')}</b><span>${t[0]}${skip?' · 不计入':''}</span></div></div>`}).join(''):'<div class="cmp-empty">导入含「未扣税合计」的文件后,这里显示每日对比</div>';
+    $('cmpBox').innerHTML=head+(list.length?'<div class="sec-t">每日对比<small>未扣税 − 白色机器</small></div>'+rows:'');
   }
   const shortOpen=new Set();
   function renderShort(){
@@ -419,7 +419,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
           const c=compareWhite(w.value,meta.tot,date,r.name);
           if(c.added||c.changed){save();render();cmpAlert=true}else renderShort();
           const T={more:'多钱',even:'平账',short:'差钱'}[c.st];
-          cmpMsg=`\n\n💰 白色机器 ${money(w.value,'ARS')} − 未扣税 ${money(meta.tot,'ARS')} = ${money(c.diff,'ARS')}(${T})`+(c.added?`\n已记入差钱分类(交易日期 ${date})`:c.changed?'\n已更新差钱金额':c.st==='short'?`\n差额不超过 ${SHORT_MIN},不计入差钱分类`:'');
+          cmpMsg=`\n\n💰 未扣税 ${money(meta.tot,'ARS')} − 白色机器 ${money(w.value,'ARS')} = ${money(c.diff,'ARS')}(${T})`+(c.added?`\n已记入差钱分类(交易日期 ${date})`:c.changed?'\n已更新差钱金额':c.st==='short'?`\n差额不超过 ${SHORT_MIN},不计入差钱分类`:'');
         }else cmpMsg='\n\n⚠️ 财务系统里还没有白色机器数值,这次没做对比';
       }
       localStorage.setItem(WKEY,r.sig);
