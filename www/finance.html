@@ -1633,7 +1633,16 @@ function emptyZList() { return [0, 0, 0, 0]; }
 // 全局 Toast（全系统唯一实现），duration 毫秒
 function showToast(msg, type = 'success', duration = 3000) { const toast = $('toast'); if (!toast) return; if (toast._timer) clearTimeout(toast._timer); toast.textContent = msg; toast.className = `toast ${type} show`; toast._timer = setTimeout(() => toast.classList.remove('show'), duration); }
 // 聚焦并滚动到可见区域（全系统唯一交互）
-function focusAndScroll(el) { if (!el) return; el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+function focusAndScroll(el) {
+    if (!el) return;
+    // 与现金箱一致:先让当前输入框失焦(提交内容,并触发失焦/聚焦的触觉反馈),再聚焦下一个
+    const id = el.id, a = document.activeElement;
+    if (a && a !== el && a.tagName === 'INPUT' && typeof a.blur === 'function') {
+        a.blur();
+        if (!el.isConnected && id) el = document.getElementById(id) || el;
+    }
+    el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 function getInitData() {
     return {
         all_cajas_counts: emptyCountsMatrix(),
@@ -3663,6 +3672,7 @@ window.settleApp = new CashAllocationApp();
     // 也会显式重新打开自制键盘，不依赖 focusin 是否再次触发。
     window.focusFinanceInputWithKeypad = (input) => {
         if (!isTargetInput(input)) return false;
+        { const a = document.activeElement; if (a && a !== input && a.tagName === 'INPUT') a.blur(); }
         input.focus({ preventScroll: true });
         if (typeof input.select === 'function') input.select();
         showForInput(input);
