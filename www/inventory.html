@@ -660,8 +660,8 @@ class CashBoxApp {
     async loadData() {
         try { const parsed = await DBHelper.get(this.db, 'cashBoxData'); if (parsed) { this.data = { ...getInitData(), ...parsed }; if (this.data.cash_counts.length !== NUM_FACES) this.data.cash_counts = new Array(NUM_FACES).fill(0); this.showToast('已恢复上次数据', 'success'); } } catch (e) { console.error('Load failed:', e); }
     }
-    async saveData(silent) {
-        try { this.data.updated_at = Date.now(); await DBHelper.put(this.db, 'cashBoxData', this.data); if (!silent) this.showToast('数据已保存', 'success'); } catch (e) { this.showToast('保存失败', 'error'); }
+    async saveData() {
+        try { this.data.updated_at = Date.now(); await DBHelper.put(this.db, 'cashBoxData', this.data); this.showToast('数据已保存', 'success'); } catch (e) { this.showToast('保存失败', 'error'); }
     }
     renderFaceGrid() {
         const container = document.getElementById('faceGrid'); container.innerHTML = '';
@@ -989,13 +989,14 @@ class CashBoxApp {
         this._autoJumpTimers[actualIdx] = setTimeout(() => {
             const latestInput = document.getElementById(`face-${actualIdx}`); if (!latestInput || document.activeElement !== latestInput) return;
             const latestValue = latestInput.value.trim(); if (!latestValue || latestValue !== currentValue) return;
+            latestInput.blur();
             const nextActualIdx = this._nextActiveFace(actualIdx);
             const next = document.getElementById(`face-${nextActualIdx}`);
             if (next) { next.focus({ preventScroll: true }); next.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
         }, 1200);
     }
 
-    debouncedSave() { this.saveData(true); }   // 输入提交的自动保存不弹提示、不震动:面值跳转的反馈统一由 native-bridge 发
+    debouncedSave() { this.saveData(); }
     showToast(message, type = 'success', duration = 2000) { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = 'toast show ' + type; if (toast._timer) clearTimeout(toast._timer); toast._timer = setTimeout(() => toast.classList.remove('show'), duration); }
     executeQuickCmd(cmd) {
         cmd = cmd.trim().toLowerCase(); if (!cmd) return; document.getElementById('quickCmd').value = '';

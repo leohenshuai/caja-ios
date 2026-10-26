@@ -153,9 +153,6 @@
             border-radius:12px; background:linear-gradient(135deg, rgba(6,182,212,.14), rgba(15,23,42,.35));
             box-shadow:0 0 18px rgba(6,182,212,.10);
         }
-        .face-input.active { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(6,182,212,.35); }
-        .face-input.jump-flash { animation: jumpFlash .45s ease-out; }
-        @keyframes jumpFlash { 0% { box-shadow: 0 0 0 3px rgba(6,182,212,.75); } 100% { box-shadow: 0 0 0 0 rgba(6,182,212,0); } }
         .auto-copy-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 14px; margin:0 0 16px; border-radius:12px; border:1px solid var(--border,rgba(148,163,184,.25)); background:rgba(15,23,42,.35); }
         .auto-copy-row span { display:flex; flex-direction:column; gap:4px; min-width:0; }
         .auto-copy-row small { font-size:12px; line-height:1.5; color:var(--text-muted); }
@@ -933,7 +930,6 @@
                     <label>电脑值 (z)</label>
                     <input type="text" id="central-z" placeholder="空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false"
                            oninput="app.updateCentralZ(this.value)"
-                           onfocus="app._focusFeedback(-1)"
                            onchange="app.updateCentralZ(this.value)" onblur="app.updateCentralZ(this.value)">
                 </div>
                 <div class="summary-row" style="margin-top:10px; font-size:16px;"><span>差额</span><span id="central-diff" class="diff-zero" style="font-weight:700;">0</span></div>
@@ -1739,7 +1735,7 @@ class FinanceApp {
         this.initCajaSwipe();
     }
     async initDB() { return new Promise((resolve) => { const request = indexedDB.open('financeDB', 1); request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains('dailyData')) { db.createObjectStore('dailyData', { keyPath: 'id' }); } }; request.onsuccess = (e) => { this.db = e.target.result; resolve(); }; request.onerror = () => resolve(); }); }
-    debouncedSave() { this.saveToStorage({ silent: true }); }   // 同上:自动保存不弹提示,免得和面值跳转的反馈叠在一起
+    debouncedSave() { this.saveToStorage(); }
     _putDailyRecord(record) {
         if (!this.db) return Promise.resolve(false);
         return new Promise((resolve, reject) => {
@@ -1994,8 +1990,6 @@ class FinanceApp {
                     <label>${CASH_LABELS[fidx]}</label>
                     <input type="text" id="central-face${fidx}" value="" placeholder="张数" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false"
                            oninput="app.handleCentralInput(${fidx}, this.value)"
-                           onfocus="app.onCentralFocus(${fidx})"
-                           onblur="app.onCentralBlur(${fidx})"
                            onkeydown="app.handleCentralNav(event, ${fidx})">
                     <div class="face-total" id="central-subtotal${fidx}">小计: 0</div>
                 </div>
@@ -2115,16 +2109,6 @@ class FinanceApp {
         if (next >= 0) { focusAndScroll($(`central-face${next}`)); }
         else { focusAndScroll($('central-z')); }
     }
-    onCentralFocus(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.add('active'); this._focusFeedback(fidx); }
-    // 焦点到达面值框时的统一反馈:震动 + 轻提示音 + 光圈闪一下。挂在 onfocus 上,无论手动点、回车、还是自动跳转都会触发
-    _focusFeedback(fidx) {
-        // 震动与提示音一律由 native-bridge 的 faceFeedback 发(与现金箱、与面值框完全同一份实现);
-        // 差额框不在自动识别范围内,因此在这里显式调用同一个函数。这里只负责视觉闪烁
-        if (fidx < 0) { try { const NB = window.NativeBridge; if (NB && NB.faceFeedback) NB.faceFeedback(); } catch (e) {} }
-        const w = fidx >= 0 ? $(`central-input-wrapper${fidx}`) : null;
-        if (w) { w.classList.add('jump-flash'); setTimeout(() => w.classList.remove('jump-flash'), 450); }
-    }
-    onCentralBlur(fidx) { const w = $(`central-input-wrapper${fidx}`); if (w) w.classList.remove('active'); }
     _scheduleCentralAutoJump(fidx) {
         if (!this._centralJumpTimers) this._centralJumpTimers = {};
         if (this._centralJumpTimers[fidx]) clearTimeout(this._centralJumpTimers[fidx]);
@@ -2136,9 +2120,7 @@ class FinanceApp {
             const latestInput = $(`central-face${fidx}`); if (!latestInput || document.activeElement !== latestInput) return;
             const latestValue = latestInput.value.trim(); if (!latestValue || latestValue !== currentValue) return;
             const next = this._nextActiveFace(this.centralTarget, fidx);
-            const target = next >= 0 ? $(`central-face${next}`) : $('central-z');
-            if (latestInput && latestInput.blur) latestInput.blur();   // 与现金箱一致:先提交失焦,再切到下一个
-            focusAndScroll(target);
+            focusAndScroll(next >= 0 ? $(`central-face${next}`) : $('central-z'));
         }, 1200);
     }
     toggleCentralCollapse() { /* 清点面板常驻展开，不再收缩 */ }
@@ -2719,7 +2701,7 @@ class FinanceApp {
             this._autoConfirmAndJump(cajaIdx, faceIdx);
         }, 1200);
     }
-    _autoConfirmAndJump(cajaIdx, faceIdx) { this.handleInputBlur(cajaIdx, faceIdx); this._focusNextFace(cajaIdx, faceIdx); this._focusFeedback(-1); }
+    _autoConfirmAndJump(cajaIdx, faceIdx) { this.handleInputBlur(cajaIdx, faceIdx); this._focusNextFace(cajaIdx, faceIdx); }
     // 下一个输入目标：未到最后一个面值 → 下一面值，否则 → z 输入框
     _nextFaceEl(cajaIdx, faceIdx) { return faceIdx < CASH_FACES.length - 1 ? cajaEl(cajaIdx, `face${faceIdx + 1}`) : cajaEl(cajaIdx, 'z'); }
     _focusNextFace(cajaIdx, faceIdx) { focusAndScroll(this._nextFaceEl(cajaIdx, faceIdx)); }

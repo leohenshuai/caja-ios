@@ -50,13 +50,13 @@
   function keyFeedback(kk) {
     var spoken = flag('keyVoice') && SPEAK[kk];
     var isNum = /^(\d|00|\.|-)$/.test(kk);        // 数字/小数点/负号:语音已开时不再叠系统按键音,听感更干净
-    if (flag('keySound') && !(spoken && isNum)) H.postMessage({ id: 's', op: 'sound', payload: { type: 'tap' } });   // 全站统一同一个提示音
+    if (flag('keySound') && !(spoken && isNum)) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
     if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: NB.voiceKey(SPEAKKEY[kk] || kk), rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
   }
   // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
   NB.isUiSoundOn = function () { return flag('uiSound'); };
   NB.setUiSound = function (v) { localStorage.setItem('uiSound', v ? '1' : '0'); };
-  function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: 'tap' } }); }   // 全站统一同一个提示音(不再按类型区分)
+  function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: type } }); }
   var DANGER = /danger|clear|reset|delete|remove|清零|重置|删除|全清|清空|移除/i;
   function isDanger(el) {
     var b = el.closest('button, [role=button], .app-card, [onclick]'); if (!b) return false;
@@ -90,24 +90,9 @@
     if (t.closest('input[type=checkbox], input[type=radio], input[type=range]')) { uiSound('tab'); return tick('selection'); }
     if (t.closest(SEL_PRESS)) { uiSound(isDanger(t) ? 'danger' : 'tap'); tick('light'); }
   }, true);
-  // 面值张数输入框(财务 central-faceN / 现金箱 face-N / 财务 central-z):聚焦时统一给 震动+提示音。
-  // 手动点、回车、自动跳转都走 focusin,所以三种方式表现完全一致;150ms 去重保证一次聚焦只响一下。
-  var FACE_INPUT = /^(central-face\d+|face-\d+)$/;
-  var lastFaceFb = 0;
-  function faceFocusFeedback() {
-    var n = Date.now(); if (n - lastFaceFb < 150) return; lastFaceFb = n;
-    // 先预热(和管理手动点击时 pointerdown 做的事一致),再发触觉与提示音:
-    // 自动跳转没有 pointerdown,不预热的话引擎/发生器可能是冷的,表现会和手动跳转不一样
-    H.postMessage({ id: 'w', op: 'warm', payload: {} });
-    tick('light');
-    uiSound('tap');
-  }
-  NB.faceFeedback = faceFocusFeedback;   // 供页面显式调用(如差额框),与 focusin 自动触发的是同一个函数
   // 点进输入框(弹出键盘)也给一下轻触
   document.addEventListener('focusin', function (e) {
-    var t = e.target; if (!t || !t.tagName) return;
-    if (FACE_INPUT.test(t.id || '')) { faceFocusFeedback(); return; }
-    if (/^(INPUT|TEXTAREA)$/.test(t.tagName) && !/^(checkbox|radio|button|submit|file|range|hidden)$/.test(t.type)) tick('light');
+    var t = e.target; if (t && t.tagName && /^(INPUT|TEXTAREA)$/.test(t.tagName) && !/^(checkbox|radio|button|submit|file|range|hidden)$/.test(t.type)) tick('light');
   }, true);
   // toast 的类型决定震动：成功/警告/错误（页面里 toast 元素的 class 变化）
   new MutationObserver(function (list) {
