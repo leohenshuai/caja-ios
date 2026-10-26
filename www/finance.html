@@ -1633,6 +1633,18 @@ function emptyZList() { return [0, 0, 0, 0]; }
 // 全局 Toast（全系统唯一实现），duration 毫秒
 function showToast(msg, type = 'success', duration = 3000) { const toast = $('toast'); if (!toast) return; if (toast._timer) clearTimeout(toast._timer); toast.textContent = msg; toast.className = `toast ${type} show`; toast._timer = setTimeout(() => toast.classList.remove('show'), duration); }
 // 聚焦并滚动到可见区域（全系统唯一交互）
+// 面值框之间切换(自动/回车/手动点选)时给成功反馈,与现金箱一致
+(function () {
+    const FACE = /^(central-face\d+|central-z|caja\d-(face\d+|z))$/;
+    let lastOut = 0;
+    document.addEventListener('focusout', (e) => { if (e.target && FACE.test(e.target.id || '')) lastOut = Date.now(); }, true);
+    document.addEventListener('focusin', (e) => {
+        if (!e.target || !FACE.test(e.target.id || '')) return;
+        if (Date.now() - lastOut > 400) return;
+        lastOut = 0;
+        const NB = window.NativeBridge; if (NB && NB.available && NB.faceSwitchFeedback) NB.faceSwitchFeedback();
+    }, true);
+})();
 function focusAndScroll(el) {
     if (!el) return;
     // 与现金箱一致:先让当前输入框失焦(提交内容,并触发失焦/聚焦的触觉反馈),再聚焦下一个

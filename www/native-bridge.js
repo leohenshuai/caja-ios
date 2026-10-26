@@ -57,6 +57,8 @@
   NB.isUiSoundOn = function () { return flag('uiSound'); };
   NB.setUiSound = function (v) { localStorage.setItem('uiSound', v ? '1' : '0'); };
   function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: type } }); }
+  // 面值框切换反馈:与现金箱「数据已保存」成功提示的震动+音效一致(只发反馈,不弹提示、不改保存)
+  NB.faceSwitchFeedback = function () { NB.haptic('success'); uiSound('success'); };
   var DANGER = /danger|clear|reset|delete|remove|清零|重置|删除|全清|清空|移除/i;
   function isDanger(el) {
     var b = el.closest('button, [role=button], .app-card, [onclick]'); if (!b) return false;
