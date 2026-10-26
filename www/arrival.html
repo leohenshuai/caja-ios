@@ -249,8 +249,8 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     let added=false,changed=false;
     if(st==='short'&&-diff>SHORT_MIN){
       const ref='short-'+date,amt=-diff,note=`未扣税 ${fmtAmountInput(tot)} − 白色机器 ${fmtAmountInput(white)}`,ex=items.find(x=>x.type==='short'&&x.reference===ref);
-      if(!ex){items.push({id:crypto.randomUUID(),type:'short',amount:amt,currency:'ARS',saleDate:date,arrivalDate:'',reference:ref,note,arrived:false});added=true}
-      else if(!ex.arrived&&ex.amount!==amt){ex.amount=amt;ex.note=note;changed=true}
+      if(!ex){items.push({id:crypto.randomUUID(),type:'short',amount:amt,currency:'ARS',saleDate:date,arrivalDate:'',reference:ref,note,white,arrived:false});added=true}
+      else if(!ex.arrived&&(ex.amount!==amt||ex.white!==white)){ex.amount=amt;ex.note=note;ex.white=white;changed=true}
     }
     return{diff,st,added,changed};
   }
@@ -266,7 +266,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     const w=jget(WHITE_KEY,null),list=jget(CMP_KEY,[]).slice().reverse().slice(0,4);
     const head=`<div class="wm-card"><div><div class="wm-l">白色机器</div><div class="wm-v">${w?money(w.value,'ARS'):'暂无'}</div></div><div class="wm-t">${w?'财务系统<br>'+w.at:'等待财务系统录入'}</div></div>`;
     const rows=list.length?list.map(c=>{const t=CMP_TXT[c.st],skip=c.st==='short'&&-c.diff<=SHORT_MIN;return `<div class="cmp-row"><div class="cmp-l"><b>${c.date.slice(5).replace('-','/')}</b><span>未扣税 ${money(c.tot,'ARS')}</span></div><div class="cmp-r ${t[1]}"><b>${c.st==='short'?'−':c.st==='more'?'+':''}${money(Math.abs(c.diff),'ARS')}</b><span>${t[0]}${skip?' · 不计入':''}</span></div></div>`}).join(''):'<div class="cmp-empty">导入含「未扣税合计」的文件后,这里显示每日对比</div>';
-    $('cmpBox').innerHTML=head+(list.length?'<div class="sec-t">每日对比<small>未扣税 − 白色机器</small></div>'+rows:'');
+    $('cmpBox').innerHTML=head;
   }
   const shortOpen=new Set();
   function renderShort(){
@@ -274,8 +274,11 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     const md=iso=>{const t=iso.split('-');return Number(t[1])+'/'+Number(t[2])},list=items.filter(isShort).sort((a,b)=>b.saleDate.localeCompare(a.saleDate)||String(a.id).localeCompare(String(b.id)));
     const open=list.filter(x=>!x.arrived),done=list.filter(x=>x.arrived),tot={};open.forEach(x=>{const c=x.currency||'ARS';tot[c]=(tot[c]||0)+Number(x.amount)});
     $('shortSum').innerHTML=open.length?`<b class="sh-red">${open.length} 笔未补</b> · ${totalsText(tot)}`:(list.length?'<span class="sh-ok">全部已补上</span>':'暂无');
-    const row=x=>{const st=x.arrived?`<span class="sh-ok">${x.arrivalDate?md(x.arrivalDate)+' 补上':'已补上'}</span>`:x.arrivalDate?`<span class="sh-amb">预计 ${md(x.arrivalDate)}</span>`:'<span class="sh-red">待定</span>',ex=shortOpen.has(x.id);
-      return `<div class="sh-row${ex?' ex':''}" data-short-row="${x.id}"><div class="sh-main"><span class="sh-date">${md(x.saleDate)}</span><span class="sh-note">${esc(x.note||'')}</span><span class="sh-st">${st}</span><span class="sh-amt">${money(x.amount,x.currency||'ARS')}</span></div>${ex?`<div class="sh-edit"><label>${x.arrived?'补上日':'预计补上日'}<input type="date" data-short-date="${x.id}" value="${x.arrivalDate||''}" min="${x.saleDate}"></label>${x.arrived?`<button class="tiny" data-short-undo="${x.id}">撤销</button>`:`<button class="tiny" data-short-done="${x.id}">已补上</button>`}</div>`:''}</div>`};
+    const cmpList=jget(CMP_KEY,[]);
+    const whiteOf=x=>{if(x.white!=null&&Number.isFinite(Number(x.white)))return Number(x.white);const c=cmpList.find(c=>'short-'+c.date===x.reference);if(c&&c.white!=null)return Number(c.white);const m=/白色机器\s*([\d.,]+)/.exec(x.note||'');if(!m)return null;const n=Number(m[1].replace(/\./g,'').replace(',','.'));return Number.isFinite(n)?n:null};
+    let _bf=false;list.forEach(x=>{if(x.white==null){const v=whiteOf(x);if(v!=null){x.white=v;_bf=true}}});if(_bf)try{save()}catch(e){}
+    const row=x=>{const wv=whiteOf(x),st=x.arrived?`<span class="sh-ok">${x.arrivalDate?md(x.arrivalDate)+' 补上':'已补上'}</span>`:x.arrivalDate?`<span class="sh-amb">预计 ${md(x.arrivalDate)}</span>`:'<span class="sh-red">待定</span>',ex=shortOpen.has(x.id);
+      return `<div class="sh-row${ex?' ex':''}" data-short-row="${x.id}"><div class="sh-main"><span class="sh-date">${md(x.saleDate)}</span><span class="sh-note">${wv!=null?'白色机器 '+money(wv,x.currency||'ARS'):esc(x.note||'')}</span><span class="sh-st">${st}</span><span class="sh-amt">${money(x.amount,x.currency||'ARS')}</span></div>${ex?`<div class="sh-edit">${x.note?`<div class="sh-full" style="flex-basis:100%;font-size:12px;opacity:.7">${esc(x.note)}</div>`:''}<label>${x.arrived?'补上日':'预计补上日'}<input type="date" data-short-date="${x.id}" value="${x.arrivalDate||''}" min="${x.saleDate}"></label>${x.arrived?`<button class="tiny" data-short-undo="${x.id}">撤销</button>`:`<button class="tiny" data-short-done="${x.id}">已补上</button>`}</div>`:''}</div>`};
     $('shortList').innerHTML=(list.length?'<div class="sec-t">差钱记录<small>'+(open.length?open.length+' 笔未补':'全部已补上')+'</small></div>':'')+(list.length?(open.length?open.map(row).join(''):'')+(done.length?`<details class="sh-done"><summary>已补上 ${done.length} 笔</summary>${done.map(row).join('')}</details>`:''):'<div class="schedule-empty">暂无差钱记录</div>');
   }
   $('shortList').addEventListener('click',e=>{if(e.target.closest('[data-short-done],[data-short-date],[data-short-undo],label'))return;const r=e.target.closest('[data-short-row]');if(!r)return;const id=r.dataset.shortRow;shortOpen.has(id)?shortOpen.delete(id):shortOpen.add(id);renderShort()});
