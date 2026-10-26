@@ -105,7 +105,7 @@
   paintKb(); paintVn(); paintAw();
   $('vaultVn').onclick = function () { NB.setVoiceName(NB.getVoiceName() === 'yi' ? 'xiaoxiao' : 'yi'); paintVn(); NB.haptic('selection'); NB.call('speak', { text: '一二三', key: NB.voiceKey('1') }); setTimeout(function () { NB.call('speak', { text: '二', key: NB.voiceKey('2') }); }, 260); setTimeout(function () { NB.call('speak', { text: '三', key: NB.voiceKey('3') }); }, 520); };
   $('vaultAwake').onclick = function () { if (window.KeepAwakeCtl) window.KeepAwakeCtl.toggle(); setTimeout(paintAw, 50); NB.haptic('selection'); };
-  $('vaultSnd').onclick = function () { NB.setSound(!NB.isSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isSoundOn()) NB.call('sound', { type: 'key' }); };
+  $('vaultSnd').onclick = function () { NB.setSound(!NB.isSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isSoundOn()) NB.call('sound', { type: 'tap' }); };
   $('vaultUi').onclick = function () { NB.setUiSound(!NB.isUiSoundOn()); paintKb(); NB.haptic('selection'); if (NB.isUiSoundOn()) NB.call('sound', { type: 'tap' }); };
   $('vaultVoc').onclick = function () { NB.setVoice(!NB.isVoiceOn()); paintKb(); NB.haptic('selection'); if (NB.isVoiceOn()) NB.call('speak', { text: '数字播报已开启' }); };
   $('vaultImport').onclick = function () { $('vaultFile').click(); };

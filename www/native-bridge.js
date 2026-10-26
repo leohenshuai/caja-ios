@@ -50,13 +50,13 @@
   function keyFeedback(kk) {
     var spoken = flag('keyVoice') && SPEAK[kk];
     var isNum = /^(\d|00|\.|-)$/.test(kk);        // 数字/小数点/负号:语音已开时不再叠系统按键音,听感更干净
-    if (flag('keySound') && !(spoken && isNum)) H.postMessage({ id: 's', op: 'sound', payload: { type: kk === 'back' || kk === 'clear' ? 'delete' : (kk === 'enter' || kk === 'hide' ? 'action' : 'key') } });
+    if (flag('keySound') && !(spoken && isNum)) H.postMessage({ id: 's', op: 'sound', payload: { type: 'tap' } });   // 全站统一同一个提示音
     if (flag('keyVoice') && SPEAK[kk]) H.postMessage({ id: 's', op: 'speak', payload: { text: SPEAK[kk], key: NB.voiceKey(SPEAKKEY[kk] || kk), rate: NB.getVoiceRate(), vol: NB.getVoiceVol() } });
   }
   // 其他按钮的提示音:独立开关 uiSound(默认开)。按类型区分,避免所有按钮同一个声音
   NB.isUiSoundOn = function () { return flag('uiSound'); };
   NB.setUiSound = function (v) { localStorage.setItem('uiSound', v ? '1' : '0'); };
-  function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: type } }); }
+  function uiSound(type) { if (flag('uiSound')) H.postMessage({ id: 's', op: 'sound', payload: { type: 'tap' } }); }   // 全站统一同一个提示音(不再按类型区分)
   var DANGER = /danger|clear|reset|delete|remove|清零|重置|删除|全清|清空|移除/i;
   function isDanger(el) {
     var b = el.closest('button, [role=button], .app-card, [onclick]'); if (!b) return false;
