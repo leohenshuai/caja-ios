@@ -238,7 +238,7 @@
 return `<section class="day-group${overdue}"><div class="day-head"><div class="day-title">${displayDate(date)} <span class="date-badge ${badge}">${dayLabel(date)}</span><small>${list.length} 笔</small></div><div class="day-head-right"><div class="day-total">${totalsText(totals)}</div>${list.length?`<button class="tiny day-confirm" data-day-confirm="${date}">当天全部到账</button>`:''}</div></div><div class="day-items">${content}</div></section>`}).join('')
   }
   /* ===== 白色机器(来自财务系统)与未扣税合计对比 ===== */
-  const WHITE_KEY='arrival-white-v1',CMP_KEY='arrival-compare-v1',SHORT_MIN=3000,MATCH_TOL=3000;
+  const WHITE_KEY='arrival-white-v1',CMP_KEY='arrival-compare-v1',SHORT_MIN=5000,MATCH_TOL=2000;
   const r2=n=>Math.round(n*100)/100;
   const jget=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v==null)return d;if(k==='arrival-compare-v1'&&Array.isArray(v))v.forEach(c=>{const df=Math.round((c.tot-c.white)*100)/100;c.diff=df;c.st=df>0?'more':df===0?'even':'short'});return v}catch(e){return d}};
   /* 白色机器由财务系统在有数值时主动写入 WHITE_KEY(覆盖规则在财务端);这里只读取 */
