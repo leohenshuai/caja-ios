@@ -238,7 +238,7 @@
 return `<section class="day-group${overdue}"><div class="day-head"><div class="day-title">${displayDate(date)} <span class="date-badge ${badge}">${dayLabel(date)}</span><small>${list.length} 笔</small></div><div class="day-head-right"><div class="day-total">${totalsText(totals)}</div>${list.length?`<button class="tiny day-confirm" data-day-confirm="${date}">当天全部到账</button>`:''}</div></div><div class="day-items">${content}</div></section>`}).join('')
   }
   /* ===== 白色机器(来自财务系统)与未扣税合计对比 ===== */
-  const WHITE_KEY='arrival-white-v1',CMP_KEY='arrival-compare-v1',SHORT_MIN=5000;
+  const WHITE_KEY='arrival-white-v1',CMP_KEY='arrival-compare-v1',SHORT_MIN=5000,MATCH_TOL=5000;
   const r2=n=>Math.round(n*100)/100;
   const jget=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');if(v==null)return d;if(k==='arrival-compare-v1'&&Array.isArray(v))v.forEach(c=>{const df=Math.round((c.tot-c.white)*100)/100;c.diff=df;c.st=df>0?'more':df===0?'even':'short'});return v}catch(e){return d}};
   /* 白色机器由财务系统在有数值时主动写入 WHITE_KEY(覆盖规则在财务端);这里只读取 */
@@ -252,7 +252,20 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
       if(!ex){items.push({id:crypto.randomUUID(),type:'short',amount:amt,currency:'ARS',saleDate:date,arrivalDate:'',reference:ref,note,white,arrived:false});added=true}
       else if(!ex.arrived&&(ex.amount!==amt||ex.white!==white)){ex.amount=amt;ex.note=note;ex.white=white;changed=true}
     }
-    return{diff,st,added,changed};
+    /* 多钱时:与未补上的差钱逐笔比对,对得上就标记已补上,补上日期取这一批数据的交易日期 */
+    const filled=[];
+    if(st==='more'){
+      let left=diff;
+      items.filter(x=>x.type==='short'&&!x.arrived).sort((a,b)=>String(a.saleDate).localeCompare(String(b.saleDate))).forEach(x=>{
+        const amt=Math.abs(Number(x.amount)||0);
+        if(left<=0||amt<=0)return;
+        if(left+MATCH_TOL>=amt){
+          x.arrived=true;x.arrivalDate=date;x.filledBy={date,diff,at:Date.now()};
+          left=r2(left-amt);filled.push(x);
+        }
+      });
+    }
+    return{diff,st,added,changed,filled};
   }
   /* 对比行必须有对应的(未补上的)差钱记录,没有就删除,存储里也不留 */
   function pruneCompare(){
@@ -420,9 +433,10 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
           const cnt={};good.forEach(x=>cnt[x.saleDate]=(cnt[x.saleDate]||0)+1);
           const date=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||b.localeCompare(a))[0]||meta.target||addDays(localISO(),-1);
           const c=compareWhite(w.value,meta.tot,date,r.name);
-          if(c.added||c.changed){save();render();cmpAlert=true}else renderShort();
+          const filledN=c.filled?c.filled.length:0;
+          if(c.added||c.changed||filledN){save();render();cmpAlert=true}else renderShort();
           const T={more:'多钱',even:'平账',short:'差钱'}[c.st];
-          cmpMsg=`\n\n💰 未扣税 ${money(meta.tot,'ARS')} − 白色机器 ${money(w.value,'ARS')} = ${money(c.diff,'ARS')}(${T})`+(c.added?`\n已记入差钱分类(交易日期 ${date})`:c.changed?'\n已更新差钱金额':c.st==='short'?`\n差额不超过 ${SHORT_MIN},不计入差钱分类`:'');
+          cmpMsg=`\n\n💰 未扣税 ${money(meta.tot,'ARS')} − 白色机器 ${money(w.value,'ARS')} = ${money(c.diff,'ARS')}(${T})`+(c.added?`\n已记入差钱分类(交易日期 ${date})`:c.changed?'\n已更新差钱金额':c.st==='short'?`\n差额不超过 ${SHORT_MIN},不计入差钱分类`:'')+(filledN?`\n✅ 已标记 ${filledN} 笔差钱为已补上(补上日期 ${date})`:'');
         }else cmpMsg='\n\n⚠️ 财务系统里还没有白色机器数值,这次没做对比';
       }
       localStorage.setItem(WKEY,r.sig);
