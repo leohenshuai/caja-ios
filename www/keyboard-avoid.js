@@ -65,11 +65,18 @@
     }
   }
   // 页面底部留白:保证最下面的输入框也有地方可滚出来
+  // --kb-room 会改 body 的 padding-bottom = 整页重排(实测 6~7ms),所以值没变时不写
+  var lastRoom = -1;
+  function setRoom(need) {
+    if (need === lastRoom) return;
+    lastRoom = need;
+    document.documentElement.style.setProperty('--kb-room', need + 'px');
+  }
   function ensureRoom() {
     var kp = keypadTop(), need = 0;
     if (kp !== Infinity) need = Math.max(0, window.innerHeight - kp) + 24;
     else if (window.visualViewport) need = Math.max(0, window.innerHeight - (window.visualViewport.offsetTop + window.visualViewport.height)) + 24;
-    document.documentElement.style.setProperty('--kb-room', need + 'px');
+    setRoom(need);
   }
   function schedule(el, smooth) {
     clearTimeout(timer);
@@ -85,7 +92,7 @@
     active = e.target; schedule(active, true);
   }, true);
   document.addEventListener('focusout', function () {
-    setTimeout(function () { if (!isField(document.activeElement)) { active = null; document.documentElement.style.setProperty('--kb-room', '0px'); } }, 80);
+    setTimeout(function () { if (!isField(document.activeElement)) { active = null; setRoom(0); } }, 80);
   }, true);
   if (window.visualViewport) {
     ['resize', 'scroll'].forEach(function (ev) {

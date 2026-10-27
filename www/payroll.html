@@ -4199,6 +4199,15 @@ class SalaryApp {
 
     renderStaffList() {
         const container = document.getElementById('staffListContainer');
+        // 「员工管理」页签不在前台时不重建：这一页是隐藏的 (display:none)，
+        // 重建它没有任何可见收益，却会新建 N 个卡片节点、触发全文档观察者扫描。
+        // 只记脏标记，切到该页签时再补渲染。
+        const staffTab = document.getElementById('tab-staff');
+        if (container && staffTab && !staffTab.classList.contains('active')) {
+            this._staffListDirty = true;
+            return;
+        }
+        this._staffListDirty = false;
         const names = this.getStaffNames();
 
         document.getElementById('staffCount').textContent = `${names.length} 人`;
@@ -5076,6 +5085,10 @@ class SalaryApp {
 
         if (tabName === 'report') {
             this.generateReport();
+        }
+        // 员工管理页签：之前在后台被改脏了，切过来时补一次渲染
+        if (tabName === 'staff' && this._staffListDirty) {
+            this.renderStaffList();
         }
     }
 

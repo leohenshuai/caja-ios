@@ -44,8 +44,13 @@
       list.forEach(function (m) {
         var el = m.target;
         if (el.classList && el.classList.contains('tab-content') && el.classList.contains('active')) {
-          el.animate([{ opacity: 0, transform: 'translateY(14px) scale(.985)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }],
+          var anim = el.animate([{ opacity: 0, transform: 'translateY(14px) scale(.985)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }],
             { duration: 420, easing: 'cubic-bezier(.22,1.1,.36,1)' });
+          // 兜底：动画一旦因环境原因不推进（后台/预览环境常见），页签会一直停在透明。
+          // 动画正常跑完时 playState 是 finished，这里什么都不做；只有没跑完才撤掉动画让内容恢复可见。
+          setTimeout(function () {
+            try { if (anim && anim.playState !== 'finished') anim.cancel(); } catch (e) {}
+          }, 520);
         }
       });
     }).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
