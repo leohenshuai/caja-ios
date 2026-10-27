@@ -1148,6 +1148,7 @@
                     <div class="preview-card mercado">
                         <div class="preview-card-title">[ Mercado ]</div>
                         <div class="preview-row"><span>总余额 (f2):</span><span id="preview_merc_f2" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>其他店收入:</span><span id="preview_merc_other" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>今日收入 (e2):</span><span id="preview_merc_e2" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
                     </div>
                 </div>
@@ -1155,6 +1156,7 @@
                     <div class="form-item"><label>总余额 (merc_f2)</label><input type="text" id="merc_f2" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('merc_f2', this.value)" onkeydown="app.handlePlatformNav(event, 'merc_f2')"></div>
                     <div class="form-item"><label>昨日余额 (merc_b2) <span style="color:var(--text-muted)">[自动跳过]</span></label><input type="text" id="merc_b2" class="skip-key" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('merc_b2', this.value)" onkeydown="app.handlePlatformNav(event, 'merc_b2')"></div>
                     <div class="form-item"><label>支出 (merc_c2)</label><input type="text" id="merc_c2" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('merc_c2', this.value)" onkeydown="app.handlePlatformNav(event, 'merc_c2')"></div>
+                    <div class="form-item"><label>其他店收入 (merc_other)</label><input type="text" id="merc_other" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('merc_other', this.value)" onkeydown="app.handlePlatformNav(event, 'merc_other')"></div>
                 </div>
             </div>
         </div>
@@ -1325,13 +1327,13 @@
 const PLATFORM_PROJECTS_CONFIG = [
     { name: "Orange", keys: ["orange_f", "orange_b", "orange_c", "orange_z"], z_key: "orange_z", completion_key: "orange_z" },
     { name: "DNI", keys: ["dni_a1", "dni_b1", "dni_c1", "dni_z1"], z_key: "dni_z1", completion_key: "dni_z1" },
-    { name: "Mercado", keys: ["merc_f2", "merc_b2", "merc_c2"], z_key: null, completion_key: "merc_c2" }
+    { name: "Mercado", keys: ["merc_f2", "merc_b2", "merc_c2", "merc_other"], z_key: null, completion_key: "merc_c2" }
 ];
 const SKIP_KEYS = new Set(["orange_b", "dni_b1", "merc_b2"]);
 const PLATFORM_KEYS_ORDER = [
     "orange_f", "orange_b", "orange_c", "orange_z",
     "dni_a1", "dni_b1", "dni_c1", "dni_z1",
-    "merc_f2", "merc_b2", "merc_c2",
+    "merc_f2", "merc_b2", "merc_c2", "merc_other",
     "white_list", "black_k_list", "z3_ref"
 ];
 let _keyToProjectCache = null;
@@ -1481,7 +1483,7 @@ function getKeyToProject() {
   }
   class ReportCache {
     constructor(maxSize) { this._cache = {}; this._keys = []; this._maxSize = maxSize !== undefined ? maxSize : 5; }
-    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "merc_f2", "merc_b2", "merc_c2", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI" ];
+    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "merc_f2", "merc_b2", "merc_c2", "merc_other", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI" ];
     static _djb2Hash(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); } return (hash >>> 0).toString(16).padStart(8, "0"); }
     _makeKey(data) { const subset = {}; for (const key of ReportCache._KEY_FIELDS) { subset[key] = data[key]; } const serialized = JSON.stringify(subset, Object.keys(subset).sort()); return ReportCache._djb2Hash(serialized); }
     get(data) { const key = this._makeKey(data); return this._cache[key]; }
@@ -1662,7 +1664,7 @@ function getInitData() {
         z_list: emptyZList(),
         orange_f: '', orange_b: '', orange_c: '', orange_z: '',
         dni_a1: '', dni_b1: '', dni_c1: '', dni_z1: '',
-        merc_f2: '', merc_b2: '', merc_c2: '',
+        merc_f2: '', merc_b2: '', merc_c2: '', merc_other: '',
         white_list: [], black_k_list: [], z3_ref: '',
         f_exp: '', b_last: '', k_vault: '', actual_stock: '',
         COEFF_ORANGE: 1.05, COEFF_DNI: 1.021,
@@ -1714,7 +1716,7 @@ const Calc = {
         const a1 = num(data.dni_a1);
         const e1 = (a1 - num(data.dni_b1) + num(data.dni_c1)) * (num(data.COEFF_DNI) || 1.021);
         const f2 = num(data.merc_f2);
-        const e2 = f2 - num(data.merc_b2) + num(data.merc_c2);
+        const e2 = f2 - num(data.merc_b2) + num(data.merc_c2) - num(data.merc_other);
         const sNonCash = e2 + num(data.orange_z) + num(data.dni_z1) + jTotal + kTotal;
         const z3Ref = num(data.z3_ref);
         const zRevenue = listSum(data.z_list) + z3Ref;
@@ -1942,7 +1944,7 @@ class FinanceApp {
         $('f_exp').value = this.data.f_exp || '';
         $('b_last').value = this.data.b_last || '';
         $('k_vault').value = this.data.k_vault || '';
-        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'merc_f2', 'merc_b2', 'merc_c2', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
+        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'merc_f2', 'merc_b2', 'merc_c2', 'merc_other', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
         const coeffOrangeEl = $('coeff_orange_display'); const coeffDniEl = $('coeff_dni_display');
         if (coeffOrangeEl) coeffOrangeEl.value = this.data.COEFF_ORANGE;
         if (coeffDniEl) coeffDniEl.value = this.data.COEFF_DNI;
@@ -2680,7 +2682,7 @@ class FinanceApp {
                 case 'base': this.data.f_exp = ''; this.data.b_last = ''; this.data.k_vault = ''; break;
                 case 'orange': this.data.orange_f = ''; this.data.orange_b = ''; this.data.orange_c = ''; this.data.orange_z = ''; break;
                 case 'dni': this.data.dni_a1 = ''; this.data.dni_b1 = ''; this.data.dni_c1 = ''; this.data.dni_z1 = ''; break;
-                case 'mercado': this.data.merc_f2 = ''; this.data.merc_b2 = ''; this.data.merc_c2 = ''; break;
+                case 'mercado': this.data.merc_f2 = ''; this.data.merc_b2 = ''; this.data.merc_c2 = ''; this.data.merc_other = ''; break;
                 case 'coeff': this.data.COEFF_ORANGE = 1.05; this.data.COEFF_DNI = 1.021; break;
                 case 'machines': this.data.white_list = []; this.data.black_k_list = []; break;
                 case 'z3': this.data.z3_ref = ''; break;
@@ -2885,7 +2887,7 @@ class FinanceApp {
         const data = this.data; const coeffOrange = num(data.COEFF_ORANGE) || 1.05; const coeffDni = num(data.COEFF_DNI) || 1.021;
         const orangeF = num(data.orange_f); const orangeB = num(data.orange_b); const orangeC = num(data.orange_c); const orangeZ = num(data.orange_z); const orangeE_raw = (orangeF - orangeB + orangeC) * coeffOrange; const orangeL_raw = orangeE_raw - orangeZ;
         const dniA1 = num(data.dni_a1); const dniB1 = num(data.dni_b1); const dniC1 = num(data.dni_c1); const dniZ1 = num(data.dni_z1); const dniE1_raw = (dniA1 - dniB1 + dniC1) * coeffDni; const dniL1_raw = dniE1_raw - dniZ1;
-        const mercF2 = num(data.merc_f2); const mercB2 = num(data.merc_b2); const mercC2 = num(data.merc_c2); const mercE2_raw = mercF2 - mercB2 + mercC2;
+        const mercF2 = num(data.merc_f2); const mercB2 = num(data.merc_b2); const mercC2 = num(data.merc_c2); const mercOther = num(data.merc_other); const mercE2_raw = mercF2 - mercB2 + mercC2 - mercOther;
         const fmt = fmtInt;
         const fmtDiff = (v, inverse = false) => { const val = Math.round(v); let color, tag; if (val === 0) { color = 'var(--text)'; tag = '平账'; } else if (inverse) { color = val < 0 ? 'var(--green)' : 'var(--red)'; tag = val < 0 ? '盈余' : '亏损'; } else { color = val > 0 ? 'var(--green)' : 'var(--red)'; tag = val > 0 ? '盈余' : '亏损'; } return `<span style="color:${color}">${val > 0 ? '+' : ''}${fmt(val)} (${tag})</span>`; };
         $('preview_orange_f').textContent = fmt(orangeF);
@@ -2897,6 +2899,7 @@ class FinanceApp {
         $('preview_dni_z1').textContent = fmt(dniZ1);
         $('preview_dni_l1').innerHTML = fmtDiff(dniL1_raw, true);
         $('preview_merc_f2').textContent = fmt(mercF2);
+        { const mo = $('preview_merc_other'); if (mo) mo.textContent = fmt(mercOther); }
         $('preview_merc_e2').textContent = fmt(Math.round(mercE2_raw));
         const orangeL = Math.round(orangeL_raw); const orangeDiffEl = $('platform-orange-diff'); orangeDiffEl.textContent = (orangeL > 0 ? '+' : '') + fmt(orangeL) + (orangeL === 0 ? '' : (orangeL < 0 ? ' 盈余' : ' 亏损')); orangeDiffEl.className = orangeL < 0 ? 'platform-header-diff diff-positive' : (orangeL > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const dniL1 = Math.round(dniL1_raw); const dniDiffEl = $('platform-dni-diff'); dniDiffEl.textContent = (dniL1 > 0 ? '+' : '') + fmt(dniL1) + (dniL1 === 0 ? '' : (dniL1 < 0 ? ' 盈余' : ' 亏损')); dniDiffEl.className = dniL1 < 0 ? 'platform-header-diff diff-positive' : (dniL1 > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
@@ -2975,7 +2978,7 @@ class FinanceApp {
         this.data.orange_b = this.data.orange_f;
         this.data.dni_b1 = this.data.dni_a1;
         this.data.merc_b2 = this.data.merc_f2;
-        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'merc_c2', 'z3_ref', 'orange_f', 'dni_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
+        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'merc_c2', 'merc_other', 'z3_ref', 'orange_f', 'dni_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
         this.data.all_cajas_counts = emptyCountsMatrix();
         this.data.z_list = emptyZList();
         this.data.white_list = [];
