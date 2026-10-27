@@ -289,7 +289,7 @@
     // ---------- 打开 / 关闭 ----------
     function open() {
         try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
-        build(); editState = null; delPending = null; view('list');
+        build(); attachGuards(); editState = null; delPending = null; view('list');
         ov.classList.add('show'); lock(); renderList();
     }
     function close() {
@@ -306,7 +306,7 @@
         if (!shield) { shield = document.createElement('div'); shield.id = 'cajaClipShield'; }
         if (!shield.parentNode) document.body.appendChild(shield);
         clearTimeout(shieldTimer);
-        shieldTimer = setTimeout(function () { if (shield && shield.parentNode) shield.parentNode.removeChild(shield); }, 700);
+        shieldTimer = setTimeout(function () { if (shield && shield.parentNode) shield.parentNode.removeChild(shield); detachGuards(); }, 700);
     }
 
     // ---------- 防穿透：弹窗打开期间，底层界面不接收任何点击/触摸/焦点，也不滚动 ----------
@@ -350,14 +350,31 @@
         }
         e.stopPropagation(); if (e.cancelable) e.preventDefault();
     }
-    ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'touchstart', 'touchend', 'contextmenu'].forEach(function (t) {
-        document.addEventListener(t, guard, { capture: true, passive: false });
-    });
-    document.addEventListener('keydown', function (e) {
+    // 拦截类监听只在弹窗开着时挂上：document 上的非 passive touchstart/touchmove
+    // 会让 WebKit 放弃滚动快速通道（每次滚动起手都要等主线程），常驻不值得。
+    var GUARD_EVENTS = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'touchstart', 'touchend', 'contextmenu'];
+    var guardsOn = false;
+    function onKeyDown(e) {
         if (!isShown()) return;
         if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (editState) editAct('e-cancel'); else close(); }
         else if (!allowed(e.target)) e.stopPropagation(); // 底层页面的快捷键不响应
-    }, true);
+    }
+    function attachGuards() {
+        if (guardsOn) return; guardsOn = true;
+        GUARD_EVENTS.forEach(function (t) { document.addEventListener(t, guard, { capture: true, passive: false }); });
+        document.addEventListener('keydown', onKeyDown, true);
+        document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+        document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+        document.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    }
+    function detachGuards() {
+        if (!guardsOn) return; guardsOn = false;
+        GUARD_EVENTS.forEach(function (t) { document.removeEventListener(t, guard, { capture: true }); });
+        document.removeEventListener('keydown', onKeyDown, true);
+        document.removeEventListener('touchstart', onTouchStart, { capture: true });
+        document.removeEventListener('touchmove', onTouchMove, { capture: true });
+        document.removeEventListener('wheel', onWheel, { capture: true });
+    }
     // ---------- 防滑动穿透：弹窗里的任何滑动都不能带动底层界面 ----------
     // 找到手指所在位置向上最近的“真的能滚动”的容器（只在弹窗内找）
     function scroller(t) {
@@ -377,10 +394,10 @@
         if (dy < 0) return sc.scrollTop + sc.clientHeight < sc.scrollHeight - 1;
         return true;
     }
-    document.addEventListener('touchstart', function (e) {
+    function onTouchStart(e) {
         if (isShown() && e.touches.length) touchY = e.touches[0].clientY;
-    }, { capture: true, passive: true });
-    document.addEventListener('touchmove', function (e) {
+    }
+    function onTouchMove(e) {
         if (!isShown()) return;
         if (e.target.closest && e.target.closest('#vk-keypad')) { if (!e.target.closest('input[type=range]')) e.preventDefault(); return; }
         var dy = e.touches[0].clientY - touchY;
@@ -388,13 +405,13 @@
             if (e.cancelable) e.preventDefault(); // 容器已滑到头 / 在空白处 / 在弹窗外：一律吃掉，不让它滚到底层
         }
         touchY = e.touches[0].clientY;
-    }, { capture: true, passive: false });
-    document.addEventListener('wheel', function (e) {
+    }
+    function onWheel(e) {
         if (!isShown()) return;
         if (!ov.contains(e.target) || !canScroll(scroller(e.target), -e.deltaY)) {
             if (e.cancelable) e.preventDefault();
         }
-    }, { capture: true, passive: false });
+    }
 
     // 另一个页面/标签页复制后，自动刷新角标与列表
     window.addEventListener('storage', function (e) {

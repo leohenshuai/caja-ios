@@ -3084,6 +3084,8 @@ class SalaryApp {
                         this.data = migrateData(saved);
                         this.data.timesheet = {};
                         this.excludedStaff = new Set(this.data.excluded || []);
+                        this.renderStaffCards();
+                        this.renderStaffList();
                         await this.saveToStorage();
                         this.showToast('已升级到新版本，旧数据已备份导出，旧考勤已清空', 'success');
                     } catch (migErr) {
@@ -3119,7 +3121,9 @@ class SalaryApp {
                 await DBHelper.put(this.db, 'salaryData', this.data);
             }
             this.editedStaff.clear();
-            this.renderStaffCards();
+            // 保存后「已修改」徽章要消失：直接摘掉徽章节点，不重建整张列表。
+            // 列表本来就在调用点渲染过了，再重建一次等于同一个动作做两遍（每次 15ms）。
+            document.querySelectorAll('#staffContainer .row-badge.edited').forEach(el => el.remove());
             this.showToast('数据已保存', 'success');
         } catch (e) {
             this.showToast('保存失败', 'error');
@@ -3790,7 +3794,7 @@ class SalaryApp {
                 if (!this.data.manualHoursFlags) this.data.manualHoursFlags = {};
                 this.data.manualHoursFlags[name] = true;
             }
-            this.updateStaffCard(name);
+            this.updateStaffCard(name, { light: true });
             this.updateTotal();
             // 同步刷新员工管理界面（扣除/时薪徽章需要实时更新）
             if (fieldIdx !== 1) {
@@ -3804,13 +3808,13 @@ class SalaryApp {
                 if (this.data.manualHoursFlags) delete this.data.manualHoursFlags[name];
                 record[fieldKey] = 0;
                 this.editedStaff.add(name);
-                this.updateStaffCard(name);
+                this.updateStaffCard(name, { light: true });
                 this.updateTotal();
             } else {
                 // 核心修复：空值时数据归零为0，但输入框保持空白
                 record[fieldKey] = 0;
                 this.editedStaff.add(name);
-                this.updateStaffCard(name);
+                this.updateStaffCard(name, { light: true });
                 this.updateTotal();
                 // 同步刷新员工管理界面（扣除/时薪徽章清除需要实时更新）
                 if (fieldIdx !== 1) {
@@ -3847,7 +3851,7 @@ class SalaryApp {
         return roundHours(minutes / 60);
     }
 
-    updateStaffCard(name) {
+    updateStaffCard(name, opts) {
         const names = this.getStaffNames();
         const idx = names.indexOf(name);
         if (idx < 0) return;
@@ -3895,7 +3899,10 @@ class SalaryApp {
             }
         }
 
-        if (this._expandedRows && this._expandedRows.has(name)) {
+        // 轻量模式：只改数值，不重建展开面板。
+        // 编辑时薪/工时/扣除只影响数字，考勤汇总、工时录入面板、结算按钮都跟这三个字段无关，
+        // 重建一次面板要 10ms，还会把正在填的输入框换掉（焦点、光标、滚动位置全丢）。
+        if (!(opts && opts.light) && this._expandedRows && this._expandedRows.has(name)) {
             const content = document.getElementById(`staff-content-${idx}`);
             if (content) this.renderRowContent(name, idx, content);
         }
@@ -3911,6 +3918,13 @@ class SalaryApp {
             if (hoursInput) {
                 const isCustomHours = !!(this.data.manualHoursFlags && this.data.manualHoursFlags[name]);
                 hoursInput.value = (typeof record.hours === 'number' ? (isCustomHours ? record.hours : roundHours(record.hours)) : record.hours) || 0;
+                // 工时框上方的提示（✏️ 自定义 / 按考勤表汇总）跟着变，
+                // 否则轻量模式下改完工时会停在旧提示上
+                const hoursHint = hoursInput.previousElementSibling;
+                if (hoursHint && hoursHint.tagName === 'DIV') {
+                    hoursHint.style.color = isCustomHours ? 'var(--yellow)' : 'var(--text-muted)';
+                    hoursHint.textContent = isCustomHours ? '✏️ 自定义值用于工资计算' : '按考勤表汇总，可直接修改';
+                }
             }
             const penaltyInput = document.getElementById(`field-${idx}-2`);
             if (penaltyInput) penaltyInput.value = record.penalty || '';
@@ -4074,6 +4088,7 @@ class SalaryApp {
                     this.embeddedCalcDay(name, i);
                 }
             }
+            this.renderStaffCards();
             this.saveToStorage();
             this.showToast(`${name} 的工时数据已恢复为默认值`, 'success');
         });
@@ -4107,6 +4122,7 @@ class SalaryApp {
         });
         // Update global holiday button UI
         this.updateHolidayButtons();
+        this.renderStaffCards();
         this.saveToStorage();
         const days = ['周一','周二','周三','周四','周五','周六','周日'];
         this.showToast(`${days[day]} 已${!isHoliday ? '设为' : '取消'}节假日`, 'success');
@@ -6185,7 +6201,6 @@ window.addEventListener('beforeunload', () => {
 
 function initInputNavigation() {
     const EXCLUDED_IDS = ['quickCmd', 'newStaffName', 'newStaffWage', 'newStaffWageMax', 'newStaffRequiredDays', 'newStaffCycle', 'defaultWageMinInput', 'defaultWageMaxInput', 'renameInput', 'cycleSelect', 'importFile', 'pickerManualInput'];
-    let _debounceTimer = null;
 
     const getNumericInputs = () => {
         return Array.from(document.querySelectorAll('input[type="text"], input[type="number"]')).filter(input => {
@@ -6226,30 +6241,14 @@ function initInputNavigation() {
         }
     };
 
-    const bindEvents = () => {
-        const inputs = getNumericInputs();
-        inputs.forEach(input => {
-            if (input._hasNavBinding) return;
-            input._hasNavBinding = true;
-            input.addEventListener('blur', handleBlur);
-            input.addEventListener('keydown', handleKeydown);
-        });
-    };
+    // 事件委托：不再用 MutationObserver 盯着整个 body、每次 DOM 变化后全文档扫一遍。
+    // keydown/focusout 都会冒泡到 document，用委托同样能覆盖后来动态插入的输入框。
+    const isNavInput = (el) => el && el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number') && !!el.id && !EXCLUDED_IDS.includes(el.id);
 
-    const debouncedBind = () => {
-        if (_debounceTimer) clearTimeout(_debounceTimer);
-        _debounceTimer = setTimeout(bindEvents, 100);
-    };
+    document.addEventListener('keydown', (e) => { if (isNavInput(e.target)) handleKeydown(e); });
+    document.addEventListener('focusout', (e) => { if (isNavInput(e.target)) handleBlur(e); });
 
-    bindEvents();
-
-    const _inputObserver = new MutationObserver(debouncedBind);
-    _inputObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-
-    window._salaryInputObserver = _inputObserver;
+    window._salaryInputObserver = null;
 }
 
 if (document.readyState === 'loading') {
@@ -6306,17 +6305,27 @@ if (document.readyState === 'loading') {
         el.id !== 'quickCmd' && !el.disabled && !isVkSkipped(el);
 
     // 1) 抑制系统键盘：除文字编辑输入框外，其余文本/数字输入框统一改为 inputmode="none"
-    const suppressSystemKeyboard = () => {
-        document.querySelectorAll('input[type="text"], input[type="number"]').forEach(el => {
-            if (isVkSkipped(el)) {
-                if (el.getAttribute('inputmode') === 'none') el.removeAttribute('inputmode');
-                return;
-            }
-            if (el.getAttribute('inputmode') !== 'none') el.setAttribute('inputmode', 'none');
-        });
+    const suppressOne = (el) => {
+        if (isVkSkipped(el)) {
+            if (el.getAttribute('inputmode') === 'none') el.removeAttribute('inputmode');
+            return;
+        }
+        if (el.getAttribute('inputmode') !== 'none') el.setAttribute('inputmode', 'none');
+    };
+    const suppressSystemKeyboard = (root) => {
+        (root || document).querySelectorAll('input[type="text"], input[type="number"]').forEach(suppressOne);
     };
     suppressSystemKeyboard();
-    new MutationObserver(suppressSystemKeyboard).observe(document.body, { childList: true, subtree: true });
+    // 只扫新插进来的子树，不再每次 DOM 变化都把整页输入框过滤一遍
+    new MutationObserver((muts) => {
+        for (const m of muts) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                if (node.tagName === 'INPUT') suppressOne(node);
+                else suppressSystemKeyboard(node);
+            }
+        }
+    }).observe(document.body, { childList: true, subtree: true });
 
     // 1.5) 输入时自动加千分位（只处理纯整数；含空格求和/算式/小数点的内容原样保留）
     const formatThousands = (el) => {

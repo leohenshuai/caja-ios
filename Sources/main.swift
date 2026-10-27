@@ -13,16 +13,21 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
         if path.isEmpty || path == "/" { path = "/index.html" }
         let file = root.appendingPathComponent(String(path.dropFirst()).removingPercentEncoding ?? "")
         guard file.standardizedFileURL.path.hasPrefix(root.standardizedFileURL.path),
-              let data = try? Data(contentsOf: file) else {
+              let data = try? Data(contentsOf: file, options: .mappedIfSafe) else {
             task.didReceive(HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil)!)
             task.didFinish(); return
         }
         let mimes = ["html": "text/html; charset=utf-8", "js": "application/javascript; charset=utf-8",
                      "css": "text/css; charset=utf-8", "png": "image/png", "webmanifest": "application/manifest+json",
                      "json": "application/json", "svg": "image/svg+xml", "mp3": "audio/mpeg"]
-        let mime = mimes[file.pathExtension.lowercased()] ?? "application/octet-stream"
+        let ext = file.pathExtension.lowercased()
+        let mime = mimes[ext] ?? "application/octet-stream"
+        // 页面用 no-cache（每次导航都拿最新的一份，反正读的是本地文件）；
+        // 其余静态资源给长缓存，避免每次切页面都重新走一遍 scheme handler。
+        // 换 build 时 App 启动会清一次 WebView 缓存（见 VC.purgeCacheIfNewBuild），所以不会串版本。
+        let cache = (ext == "html") ? "no-cache" : "public, max-age=31536000, immutable"
         let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
-                                   headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)", "Cache-Control": "no-cache"])!
+                                   headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)", "Cache-Control": cache])!
         task.didReceive(resp); task.didReceive(data); task.didFinish()
     }
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
@@ -47,9 +52,12 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let lang = Locale.preferredLanguages.first ?? "zh-Hans"
         cfg.userContentController.addUserScript(WKUserScript(source: "document.documentElement.lang='\(lang)';", injectionTime: .atDocumentStart, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: cfg)
-        web.isOpaque = false
-        web.backgroundColor = .clear
-        web.scrollView.backgroundColor = .clear
+        // 整页都有 CSS 背景，没必要让 WKWebView 做透明合成：不透明能少一次全屏混合，
+        // 切页面时也不会先露出底下的透明层。底色与 html 兜底色 #0a1020 一致。
+        let shell = UIColor(red: 0.039, green: 0.063, blue: 0.125, alpha: 1)
+        web.isOpaque = true
+        web.backgroundColor = shell
+        web.scrollView.backgroundColor = shell
         web.navigationDelegate = self
         web.uiDelegate = self
         web.scrollView.contentInsetAdjustmentBehavior = .never
@@ -65,8 +73,23 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         setupAudioSession()
         preloadVoices()
         apply()
-        web.load(URLRequest(url: URL(string: "app://localhost/index.html")!))
+        purgeCacheIfNewBuild { [weak self] in
+            self?.web.load(URLRequest(url: URL(string: "app://localhost/index.html")!))
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(apply), name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+
+    // 静态资源带了长缓存，换 build 时必须清一次 WebView 缓存，否则会拿到上一个版本的 css/js。
+    // 换 build 才清，平时启动不做任何事；清完再加载首页，避免抢在清缓存前面读到旧的。
+    func purgeCacheIfNewBuild(_ done: @escaping () -> Void) {
+        let cur = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
+        if UserDefaults.standard.integer(forKey: "cacheBuild") == cur { done(); return }
+        let types: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache,
+                                  WKWebsiteDataTypeOfflineWebApplicationCache]
+        WKWebsiteDataStore.default().removeData(ofTypes: types, modifiedSince: Date(timeIntervalSince1970: 0)) {
+            UserDefaults.standard.set(cur, forKey: "cacheBuild")
+            DispatchQueue.main.async { done() }
+        }
     }
     var lastCheck = Date.distantPast
     @objc func apply() {
