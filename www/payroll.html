@@ -1317,6 +1317,11 @@
             min-width: 0;
             padding: 5px 4px;
             font-size: 12px;
+            /* 胶囊被 flex:1 拉成等宽后，文本在 flex 容器里默认靠左，text-align 管不到，
+               必须用 justify-content 居中，否则右边会空出一截（实测左 3px / 右 11.6px） */
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: var(--surface-light);
             border: 1px solid var(--border);
             color: var(--text);
