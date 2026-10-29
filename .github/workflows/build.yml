@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: '编译成功后是否发布 Release(默认不发布)'
+        description: "发布到 Release（仅手动运行且勾选时生效）"
         type: boolean
         default: false
   push:
@@ -34,8 +34,18 @@ jobs:
         with:
           name: Caja-ipa
           path: build/Caja.ipa
+
+  release:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release == true
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Caja-ipa
+          path: build
       - name: Publish release
-        if: ${{ github.event_name == 'push' || inputs.release == true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
