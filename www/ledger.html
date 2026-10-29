@@ -112,7 +112,20 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 .header h1 { white-space:nowrap; font-size:17px; flex:none; }
 .header { gap:8px; }
 .header-actions { margin-left:auto; flex:none; }
-#lg-date { min-width:0 !important; font-size:13px !important; white-space:nowrap; color:var(--text); }
+#lg-date { min-width:0 !important; font-size:13px !important; white-space:nowrap; color:var(--text); cursor:pointer; }
+.lg-cal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.lg-cal-nav { min-width:40px; min-height:40px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:20px; line-height:1; }
+.lg-cal-nav:disabled { opacity:.3; }
+.lg-cal-title { flex:1; min-width:0; text-align:center; font-size:15px; font-weight:800; color:var(--text); }
+.lg-cal-week { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+.lg-cal-week span { text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); padding:2px 0; }
+.lg-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.lg-cal-cell { min-width:40px; min-height:40px; border-radius:10px; border:1px solid transparent; background:rgba(255,255,255,.05); color:var(--text); font-size:13px; font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0; }
+.lg-cal-cell.blank { background:transparent; border-color:transparent; pointer-events:none; }
+.lg-cal-cell.today { border-color:rgba(103,232,249,.55); }
+.lg-cal-cell.sel { background:linear-gradient(180deg,#38bdf8,#0ea5e9); border-color:transparent; color:#04202e; }
+.lg-cal-dot { width:4px; height:4px; margin-top:2px; border-radius:50%; background:rgba(103,232,249,.9); }
+.lg-cal-cell.sel .lg-cal-dot { background:#04202e; }
 #lg-today { white-space:nowrap; padding:0 14px !important; opacity:1 !important; color:var(--text); font-weight:700; }
 #lg-prev, #lg-next { min-width:44px !important; padding:0 !important; display:inline-flex !important; align-items:center; justify-content:center; font-size:22px !important; line-height:1; color:var(--text); }
 .tab { color:var(--text); }
@@ -264,6 +277,24 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <div class="lg-modal-btns">
       <button id="cf-cancel">取消</button>
       <button class="primary" id="cf-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 日历选日期弹窗 ===== -->
+<div class="modal" id="lg-cal">
+  <div class="modal-content">
+    <h3>选择日期</h3>
+    <div class="lg-cal-head">
+      <button type="button" class="lg-cal-nav" id="cal-prev">‹</button>
+      <div class="lg-cal-title" id="cal-title"></div>
+      <button type="button" class="lg-cal-nav" id="cal-next">›</button>
+    </div>
+    <div class="lg-cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="lg-cal-grid" id="cal-grid"></div>
+    <div class="lg-modal-btns">
+      <button type="button" id="cal-today">回到今天</button>
+      <button type="button" class="primary" id="cal-close">关闭</button>
     </div>
   </div>
 </div>
@@ -692,6 +723,54 @@ function askPrompt(title, defVal, cb) {
 function closePrompt() { $('lg-prompt').classList.remove('show'); promptCb = null; }
 function askConfirm(msg, cb) { $('cf-text').textContent = msg; confirmCb = cb; $('lg-confirm').classList.add('show'); }
 function closeConfirm() { $('lg-confirm').classList.remove('show'); confirmCb = null; }
+/* ================= 日历选日期 ================= */
+let calYear = 0, calMonth = 0;
+function calPad(n) { return String(n).padStart(2, '0'); }
+function calDateStr(y, m, d) { return y + '-' + calPad(m + 1) + '-' + calPad(d); }
+function hasLedgerOn(ds) {
+    if (state.opening && Object.prototype.hasOwnProperty.call(state.opening, ds)) return true;
+    return (state.entries || []).some((e) => e && e.date === ds);
+}
+function renderCal() {
+    if (!$('cal-grid') || !$('cal-title')) return;
+    $('cal-title').textContent = calYear + '年' + (calMonth + 1) + '月';
+    if ($('cal-prev')) $('cal-prev').disabled = (calYear <= 2000 && calMonth === 0);
+    if ($('cal-next')) $('cal-next').disabled = (calYear >= 2099 && calMonth === 11);
+    const first = new Date(calYear, calMonth, 1);
+    const offset = (first.getDay() + 6) % 7;
+    const days = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayStr = localDateStr();
+    let html = '';
+    for (let i = 0; i < 42; i++) {
+        const day = i - offset + 1;
+        if (day < 1 || day > days) { html += '<button type="button" class="lg-cal-cell blank" tabindex="-1"></button>'; continue; }
+        const ds = calDateStr(calYear, calMonth, day);
+        let cls = 'lg-cal-cell';
+        if (ds === state.curDate) cls += ' sel';
+        if (ds === todayStr) cls += ' today';
+        html += '<button type="button" class="' + cls + '" data-cal-date="' + ds + '">' + day + (hasLedgerOn(ds) ? '<span class="lg-cal-dot"></span>' : '') + '</button>';
+    }
+    $('cal-grid').innerHTML = html;
+}
+function openCal() {
+    const p = String(state.curDate || localDateStr()).split('-').map(Number);
+    calYear = p[0]; calMonth = p[1] - 1;
+    if (!(calYear >= 2000 && calYear <= 2099) || !(calMonth >= 0 && calMonth <= 11)) { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); }
+    renderCal();
+    $('lg-cal').classList.add('show');
+}
+function closeCal() { $('lg-cal').classList.remove('show'); }
+function calMove(delta) {
+    let y = calYear, m = calMonth + delta;
+    if (m < 0) { m = 11; y -= 1; } else if (m > 11) { m = 0; y += 1; }
+    if (y < 2000 || y > 2099) return;
+    calYear = y; calMonth = m; renderCal();
+}
+function pickCalDate(ds) {
+    state.curDate = ds;
+    closeCal();
+    renderAll();
+}
 /* ================= 记账 ================= */
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0').slice(0, 4); }
 async function saveEntry(book) {
@@ -953,6 +1032,17 @@ function bind() {
     $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
     $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
     $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
+    $('lg-date').addEventListener('click', () => { openCal(); });
+    $('cal-prev').addEventListener('click', () => { calMove(-1); });
+    $('cal-next').addEventListener('click', () => { calMove(1); });
+    $('cal-close').addEventListener('click', () => { closeCal(); });
+    $('cal-today').addEventListener('click', () => { pickCalDate(localDateStr()); });
+    $('cal-grid').addEventListener('click', (e) => {
+        const cell = e.target.closest('[data-cal-date]');
+        if (!cell) return;
+        pickCalDate(cell.dataset.calDate);
+    });
+    $('lg-cal').addEventListener('click', (e) => { if (e.target === $('lg-cal')) closeCal(); });
     $('lg-tabs').addEventListener('click', (e) => {
         const tab = e.target.closest('.tab');
         if (!tab) return;
