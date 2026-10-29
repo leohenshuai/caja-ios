@@ -11,6 +11,7 @@
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
 <style>
+:root { --green:#10b981; --red:#ef4444; --yellow:#f59e0b; --cyan:#06b6d4; --purple:#8b5cf6; --bg:#0f172a; --surface:#1e293b; --surface-light:#334155; --text:#f1f5f9; --text-muted:#b4c0d3; --border:#334155; }
 /* ===== 本页特有样式 ===== */
 .tabs { display:flex; align-items:center; margin:12px 12px 0; overflow-x:auto; }
 .tab { white-space:nowrap; cursor:pointer; font-size:13px; font-weight:600; }
@@ -101,6 +102,14 @@
 .lg-modal-btns button { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
 .lg-modal-btns .primary { background:linear-gradient(180deg,#38bdf8,#0284c7); color:#03121c; border-color:transparent; }
 body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.header h1 { white-space:nowrap; font-size:17px; flex:none; }
+.header { gap:8px; }
+.header-actions { margin-left:auto; flex:none; }
+#lg-date { min-width:0 !important; font-size:13px !important; white-space:nowrap; color:var(--text); }
+#lg-today { white-space:nowrap; padding:0 14px !important; opacity:1 !important; color:var(--text); font-weight:700; }
+#lg-prev, #lg-next { min-width:44px !important; padding:0 !important; display:inline-flex !important; align-items:center; justify-content:center; font-size:22px !important; line-height:1; color:var(--text); }
+.tab { color:var(--text); }
+.lg-card-title { color:var(--text); }
 </style>
 </head>
 <body>
@@ -537,7 +546,7 @@ function balanceOf(date) { const o = openOf(date); return o === null ? null : ro
 /* ================= 渲染 ================= */
 function renderDate() {
     if ($('lg-date')) $('lg-date').textContent = state.curDate;
-    if ($('lg-today')) $('lg-today').style.opacity = (state.curDate === localDateStr()) ? '.45' : '1';
+    if ($('lg-today')) $('lg-today').style.opacity = (state.curDate === localDateStr()) ? '.7' : '1';
 }
 function renderTypeButtons(book) {
     document.querySelectorAll('.lg-type[data-book="' + book + '"]').forEach((btn) => btn.classList.toggle('on', btn.dataset.type === state.form[book].type));
