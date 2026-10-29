@@ -24,7 +24,7 @@
 .cgt-push small:empty { display:none; }
 
 .lg-wrap { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-.lg-card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:14px; margin:10px 12px; backdrop-filter:none; }
+.lg-card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:14px; margin:10px 12px; }
 .lg-card-title { font-size:13px; font-weight:800; color:var(--text-muted); letter-spacing:.3px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
 .lg-inp { width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(15,23,42,.5); color:var(--text,#e5e7eb); font-size:17px; font-weight:700; font-family:'Courier New', monospace; }
 .lg-inp:focus { outline:none; border-color:rgba(103,232,249,.55); }
@@ -137,6 +137,198 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 .bk-row button { min-height:36px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; font-weight:700; }
 .bk-row button.danger { color:#f87171; }
 .tabs .tab[data-tab="manage"] { min-width:44px; font-weight:700; }
+/* ===== 统计卡 .lg-cs-* 补齐 ===== */
+.lg-cs-overview {
+  display:inline-block;
+  margin:0 0 12px;
+  padding:7px 12px;
+  border-radius:999px;
+  background:var(--g-fill);
+  border:1px solid var(--g-stroke);
+  font-size:13px;
+  font-weight:800;
+  color:var(--text);
+}
+.lg-cs-book {
+  margin:0 0 14px;
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.lg-cs-book:last-child {
+  margin-bottom:0;
+  padding-bottom:0;
+  border-bottom:none;
+}
+.lg-cs-bookname {
+  position:relative;
+  margin:0 0 2px;
+  padding-left:11px;
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+  color:var(--text);
+}
+.lg-cs-bookname::before {
+  content:'';
+  position:absolute;
+  left:0;
+  top:50%;
+  width:3px;
+  height:14px;
+  margin-top:-7px;
+  border-radius:2px;
+  background:var(--cyan);
+}
+.lg-cs-head {
+  margin:8px 0 4px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.3px;
+  color:var(--text-muted);
+}
+.lg-cs-row {
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  column-gap:12px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.lg-cs-row:last-child { border-bottom:none; }
+.lg-cs-name {
+  font-size:14px;
+  color:var(--text);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.lg-cs-n {
+  font-size:12px;
+  color:var(--text-muted);
+  white-space:nowrap;
+}
+.lg-cs-amt {
+  font-family:'Courier New', monospace;
+  font-size:16px;
+  font-weight:800;
+  text-align:right;
+  min-width:64px;
+}
+.lg-cs-empty {
+  padding:6px 0;
+  font-size:13px;
+  color:var(--text-muted);
+}
+
+/* ===== iOS 26 液态玻璃视觉层 ===== */
+.lg-card {
+  background:var(--g-fill);
+  border:1px solid var(--g-stroke);
+  border-radius:26px;
+  padding:16px;
+  box-shadow:var(--g-hi), var(--g-shadow);
+}
+/* 同一屏最多 3 处 backdrop-filter:仅现金首卡与弹窗开模糊,其余卡片只用半透明底+高光+投影 */
+#tab-cash > .lg-card:first-child,
+#lg-cal .modal-content,
+.modal .modal-content {
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  backdrop-filter:blur(18px) saturate(160%);
+}
+.lg-card-title {
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.4px;
+  color:var(--text-muted);
+}
+/* ios26.css 里 input/select/textarea 带 !important,此处同样 !important 且选择器更具体 */
+.lg-inp {
+  border-radius:16px !important;
+  background:rgba(0,0,0,.22) !important;
+  border:1px solid var(--g-stroke) !important;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.35);
+  transition:border-color .2s, box-shadow .2s, background .2s;
+}
+.lg-inp:focus {
+  border-color:rgba(103,232,249,.7) !important;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.35), 0 0 0 4px rgba(56,189,248,.18) !important;
+}
+.lg-chip,
+.lg-type,
+.lg-copy,
+.cgt-push,
+.lg-btn-main {
+  background:var(--g-fill-strong);
+  box-shadow:var(--g-hi);
+  transition:transform .35s var(--spring), background .2s;
+}
+.lg-type, .lg-copy, .cgt-push, .lg-btn-main { min-height:44px; }
+.lg-chip { min-height:36px; }
+.lg-chip:active,
+.lg-type:active,
+.lg-copy:active,
+.cgt-push:active,
+.lg-btn-main:active { transform:scale(.96); }
+.lg-chip.on {
+  background:linear-gradient(180deg,#38bdf8,#0ea5e9);
+  box-shadow:0 6px 16px rgba(14,165,233,.35), var(--g-hi);
+  color:#04202e;
+}
+.lg-type.on.out { box-shadow:0 6px 16px rgba(255,107,107,.35), var(--g-hi); }
+.lg-type.on.in { box-shadow:0 6px 16px rgba(52,211,153,.35), var(--g-hi); }
+.lg-bal-main .big {
+  font-size:34px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#fff,#cbd5e1);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.lg-bal-main .big.warn {
+  color:var(--text-muted);
+  font-size:15px;
+  letter-spacing:0;
+  font-family:inherit;
+  background:none;
+  -webkit-background-clip:border-box;
+  background-clip:border-box;
+  -webkit-text-fill-color:currentColor;
+}
+.lg-row {
+  border-radius:16px;
+  background:rgba(255,255,255,.05);
+  box-shadow:var(--g-hi);
+  padding:10px 12px;
+  margin-bottom:8px;
+  border-bottom:none;
+  transition:transform .35s var(--spring), background .2s;
+}
+.lg-row:last-child { margin-bottom:0; }
+.lg-sum-row .v { font-variant-numeric:tabular-nums; }
+.header, .tabs { box-shadow:var(--g-shadow); }
+.lg-cal-cell { transition:transform .35s var(--spring), background .2s; }
+.lg-cal-cell.sel { box-shadow:0 8px 20px rgba(14,165,233,.45); }
+/* 空白格:ios26 全局规则会画底,这里压掉 */
+#lg-cal .lg-cal-cell.blank {
+  background:none !important;
+  border:none !important;
+  box-shadow:none !important;
+  pointer-events:none;
+}
+.tab-content.active > .lg-card { animation:lgIn .45s var(--spring) both; }
+.tab-content.active > .lg-card:nth-child(1) { animation-delay:0s; }
+.tab-content.active > .lg-card:nth-child(2) { animation-delay:.04s; }
+.tab-content.active > .lg-card:nth-child(3) { animation-delay:.08s; }
+.tab-content.active > .lg-card:nth-child(n+4) { animation-delay:.12s; }
+@keyframes lgIn {
+  from { transform:translateY(8px); }
+  to { transform:none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation:none !important; transition:none !important; }
+}
 </style>
 </head>
 <body>
