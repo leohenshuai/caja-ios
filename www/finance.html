@@ -1757,6 +1757,8 @@ class FinanceApp {
         this.renderCentralPanel();
         this.selectCentralTarget(0);
         this.initCajaSwipe();
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.claimLedgerSync(); });
+        window.addEventListener('focus', () => this.claimLedgerSync());
     }
     async initDB() { return new Promise((resolve) => { const request = indexedDB.open('financeDB', 1); request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains('dailyData')) { db.createObjectStore('dailyData', { keyPath: 'id' }); } }; request.onsuccess = (e) => { this.db = e.target.result; resolve(); }; request.onerror = () => resolve(); }); }
     debouncedSave() { this.saveToStorage(); }
@@ -1836,6 +1838,7 @@ class FinanceApp {
                 // 数据恢复完成后，初始入口自动跳过“今日最终已完成”的 Caja。
                 this.selectInitialCajaTarget();
                 this.startAutoCarryOver();
+                this.claimLedgerSync();
             };
             request.onerror = () => { this.dataLoaded = true; this.selectInitialCajaTarget(); this.startAutoCarryOver(); };
         } catch(e) {
@@ -2850,6 +2853,32 @@ class FinanceApp {
     }
     handlePlatformNav(e, currentKey) { if (e.key !== 'Enter') return; e.preventDefault(); if (currentKey === 'white_list' || currentKey === 'black_k_list') { } else { this.updatePlatform(currentKey, e.target.value); } const nextKey = this.getNextActivePlatformKey(currentKey); if (nextKey) { let targetEl = null; if (nextKey === 'white_list') { targetEl = $('whiteInput'); } else if (nextKey === 'black_k_list') { targetEl = $('blackInput'); } else { targetEl = $(nextKey); } focusAndScroll(targetEl); } else { this.showToast('平台项目录入完成', 'success'); } }
     updatePlatform(key, value) { this.updateField(key, value, { after: () => { this.refreshPlatformPreview(); this.refreshProjectStatusUI(); } }); }
+    /* 领取记账系统推送的支出/实际库余(按 seq 只处理一次;非今天的日期只标记不应用) */
+    claimLedgerSync() {
+        if (!this.dataLoaded) return;
+        let o = null;
+        try { o = JSON.parse(localStorage.getItem('ledger-sync-v1') || 'null'); } catch (e) { return; }
+        if (!o || !o.seq) return;
+        let claimed = null;
+        try { claimed = localStorage.getItem('finance-ledger-claimed-seq'); } catch (e) { return; }
+        if (claimed !== null && Number(o.seq) === Number(claimed)) return;
+        try { localStorage.setItem('finance-ledger-claimed-seq', String(o.seq)); } catch (e) {}
+        if (o.date !== todayStr()) { this.showToast('记账页同步的是 ' + o.date + ' 的数据,不是今天,已忽略', 'warning'); return; }
+        const names = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
+        const vals = o.values || {};
+        const done = [];
+        Object.keys(names).forEach((key) => {
+            if (vals[key] === undefined || vals[key] === null) return;
+            const v = String(vals[key]);
+            if (key === 'f_exp') this.updateBase(key, v);
+            else if (key === 'orange_c' || key === 'dni_c1' || key === 'merc_c2') this.updatePlatform(key, v);
+            else this.updateField(key, v, { after: () => this.refreshCajaGrandTotal() });
+            const el = $(key);
+            if (el) el.value = v;
+            done.push(names[key]);
+        });
+        this.showToast('已从记账系统同步:' + done.join('、'), 'success');
+    }
     refreshProjectStatusUI() {
         PLATFORM_PROJECTS_CONFIG.forEach(proj => { const completed = this.isProjectCompleted(proj); proj.keys.forEach(k => { const inputEl = $(k); if (inputEl) { inputEl.classList.toggle('project-completed', completed); } }); });
         PLATFORM_PROJECTS_CONFIG.forEach(proj => { const card = $(`platform-${proj.name.toLowerCase()}`); if (!card) return; const completed = this.isProjectCompleted(proj); if (completed) { card.style.borderColor = 'var(--green)'; } else { const hasData = proj.keys.some(k => hasValue(this.data[k])); card.style.borderColor = hasData ? 'var(--yellow)' : 'var(--border)'; } });
