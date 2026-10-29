@@ -242,6 +242,10 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <div class="lg-sum-row"><span class="k">转账账 DNI 支出</span><span class="v lg-out" id="sum-dni">0</span></div>
     <div class="lg-sum-row"><span class="k">转账账 Mercado 支出</span><span class="v lg-out" id="sum-merc">0</span></div>
   </div>
+  <div class="lg-card" id="sum-cats">
+    <div class="lg-card-title">分类统计(笔数)</div>
+    <div id="sum-cats-body"></div>
+  </div>
   <div class="lg-card">
     <div class="lg-card-title">同步到财务系统(手动)</div>
     <div class="lg-sync-hint">同步后到财务系统页面打开即自动填入(只接收当天数据)</div>
@@ -600,6 +604,46 @@ function renderSummary() {
         if (sbtn) sbtn.disabled = (vals[k] === null);
     });
     renderSyncState();
+    renderCatStats();
+}
+function catStatsGroup(book, ents, type) {
+    const rows = ents.filter((e) => e.type === type);
+    const cls = (type === 'out') ? 'lg-out' : 'lg-in';
+    const label = (type === 'out') ? '支出' : '收入';
+    const base = Array.isArray(state.cats[book.id]) ? state.cats[book.id].slice() : [];
+    const order = base.slice();
+    rows.forEach((e) => { const c = String(e.cat === null || e.cat === undefined ? '' : e.cat); if (order.indexOf(c) === -1) order.push(c); });
+    const sum = round2(rows.reduce((a, e) => a + Number(e.amount || 0), 0));
+    let html = '<div class="lg-cs-head"><span class="' + cls + '">' + label + ' ' + rows.length + ' 笔 · 合计 ' + fmtNum(sum) + '</span></div>';
+    if (!rows.length) return html + '<div class="lg-cs-empty">无</div>';
+    order.forEach((cat) => {
+        const list = rows.filter((e) => String(e.cat === null || e.cat === undefined ? '' : e.cat) === cat);
+        if (!list.length) return;
+        const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
+        html += '<div class="lg-cs-row"><span class="lg-cs-name">' + escHtml(cat || '(未分类)') + '</span>' +
+            '<span class="lg-cs-n">' + list.length + ' 笔</span>' +
+            '<span class="lg-cs-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
+    });
+    return html;
+}
+function renderCatStats() {
+    const wrap = $('sum-cats-body');
+    if (!wrap) return;
+    const d = state.curDate;
+    let totalOut = 0, totalIn = 0;
+    const perBook = state.books.map((b) => {
+        const ents = dayEntries(b.id, d);
+        const nOut = ents.filter((e) => e.type === 'out').length;
+        const nIn = ents.filter((e) => e.type === 'in').length;
+        totalOut += nOut; totalIn += nIn;
+        return { book: b, ents: ents };
+    });
+    let html = '<div class="lg-cs-overview">全部账本 · 支出 ' + totalOut + ' 笔 · 收入 ' + totalIn + ' 笔</div>';
+    perBook.forEach((it) => {
+        html += '<div class="lg-cs-book"><div class="lg-cs-bookname">' + escHtml(it.book.name) + '</div>' +
+            catStatsGroup(it.book, it.ents, 'out') + catStatsGroup(it.book, it.ents, 'in') + '</div>';
+    });
+    wrap.innerHTML = html;
 }
 function renderSyncState() {
     const el = $('lg-sync-state');
@@ -1120,6 +1164,30 @@ function bind() {
     $('md-save').addEventListener('click', saveEdit);
     $('pm-cancel').addEventListener('click', closePrompt);
     $('pm-ok').addEventListener('click', () => { const cb = promptCb, val = $('pm-input').value; closePrompt(); if (cb) cb(val); });
+    $('cf-cancel').addEventListener('click', closeConfirm);
+    $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
+    $('bk-close').addEventListener('click', closeBooks);
+    $('bk-new').addEventListener('click', newBook);
+    $('bk-list').addEventListener('click', (e) => {
+        const ren = e.target.closest('[data-bkren]');
+        if (ren) { renameBook(ren.dataset.bkren); return; }
+        const del = e.target.closest('[data-bkdel]');
+        if (del) { deleteBook(del.dataset.bkdel); return; }
+    });
+}
+/* ================= 启动 ================= */
+document.addEventListener('DOMContentLoaded', async () => {
+    bind();
+    try { await loadAll(); } catch (err) { showToast('数据加载失败', 'error'); }
+    renderAll();
+});
+</script>
+<script src="./fx.js"></script>
+<script src="./common.js"></script>
+<script src="./keyboard-avoid.js"></script>
+<script src="./tabs-glass.js"></script>
+</body>
+</html>f (cb) cb(val); });
     $('cf-cancel').addEventListener('click', closeConfirm);
     $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
     $('bk-close').addEventListener('click', closeBooks);
