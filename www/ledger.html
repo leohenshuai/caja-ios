@@ -110,6 +110,13 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 #lg-prev, #lg-next { min-width:44px !important; padding:0 !important; display:inline-flex !important; align-items:center; justify-content:center; font-size:22px !important; line-height:1; color:var(--text); }
 .tab { color:var(--text); }
 .lg-card-title { color:var(--text); }
+#bk-list { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.bk-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border:1px solid rgba(255,255,255,.12); border-radius:12px; }
+.bk-row .bk-name { font-size:15px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bk-row .bk-acts { display:flex; gap:6px; flex-shrink:0; }
+.bk-row button { min-height:36px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; font-weight:700; }
+.bk-row button.danger { color:#f87171; }
+.tabs .tab[data-tab="manage"] { min-width:44px; font-weight:700; }
 </style>
 </head>
 <body>
@@ -122,11 +129,7 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <button id="lg-today" style="min-height:44px">今天</button>
   </div>
 </div>
-<div class="tabs">
-  <div class="tab active" data-tab="cash">现金账</div>
-  <div class="tab" data-tab="transfer">转账账</div>
-  <div class="tab" data-tab="summary">汇总</div>
-</div>
+<div class="tabs" id="lg-tabs"></div>
 <div class="lg-wrap">
 <!-- ==================== 页签1: 现金账 ==================== -->
 <div id="tab-cash" class="tab-content active">
@@ -206,6 +209,8 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <div class="lg-list" id="tr-list"></div>
   </div>
 </div>
+<!-- ==================== 自定义账本(动态生成) ==================== -->
+<div id="tab-dyn" class="tab-content"></div>
 <!-- ==================== 页签3: 汇总 ==================== -->
 <div id="tab-summary" class="tab-content">
   <div class="lg-card">
@@ -277,6 +282,18 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
   </div>
 </div>
 
+<!-- ===== 账本管理弹窗 ===== -->
+<div class="modal" id="lg-books">
+  <div class="modal-content">
+    <h3>账本管理</h3>
+    <div id="bk-list"></div>
+    <div class="lg-modal-btns">
+      <button id="bk-new">＋ 新建账本</button>
+      <button class="primary" id="bk-close">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -333,8 +350,11 @@ class LedgerDB {
     }
 }
 const TX_CATS = ['橙色', 'DNI', 'Mercado'];
+const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
     db: null, entries: [], opening: {},
+    books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
+    tab: 'cash',
     cats: { cash: ['白色机器', '其他'], transfer: TX_CATS.slice() },
     ver: 1, curDate: localDateStr(),
     form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '橙色' } },
@@ -378,10 +398,19 @@ async function loadAll() {
     state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
     if (!Array.isArray(state.entries)) state.entries = [];
     state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
-    const cats = await LedgerDB.get(state.db, 'cats');
-    state.cats.cash = (cats && Array.isArray(cats.cash) && cats.cash.length) ? cats.cash.slice() : ['白色机器', '其他'];
-    state.cats.transfer = TX_CATS.slice();
-    if (state.cats.cash.indexOf(state.form.cash.cat) === -1) state.form.cash.cat = state.cats.cash[0];
+    const rawCats = await LedgerDB.get(state.db, 'cats');
+    const books = await LedgerDB.get(state.db, 'books');
+    if (Array.isArray(books) && books.length) state.books = books.filter((b) => b && b.id).map((b) => ({ id: b.id, name: b.name || b.id, type: b.type || 'plain' }));
+    else state.books = DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type }));
+    DEFAULT_BOOKS.forEach((d) => { if (!state.books.some((b) => b.id === d.id)) state.books.unshift({ id: d.id, name: d.name, type: d.type }); });
+    state.books.forEach((b) => {
+        if (b.id === 'cash') state.cats.cash = (rawCats && Array.isArray(rawCats.cash) && rawCats.cash.length) ? rawCats.cash.slice() : ['白色机器', '其他'];
+        else if (b.id === 'transfer') state.cats.transfer = TX_CATS.slice();
+        else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
+        if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
+        if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0];
+    });
+    if (!state.books.some((b) => b.id === state.tab)) state.tab = 'cash';
     state.ver = (await LedgerDB.get(state.db, 'ver')) || 1;
 }
 async function saveKey(key) {
@@ -396,6 +425,69 @@ function sumTransferCat(date, cat, type = 'out') { return round2(dayEntries('tra
 function openOf(date) { const v = state.opening[date]; if (v === undefined || v === null || v === '') return null; const n = Number(v); return isFinite(n) ? n : null; }
 function balanceOf(date) { const o = openOf(date); return o === null ? null : round2(o - sumBook('cash', date, 'out') + sumBook('cash', date, 'in')); }
 /* ================= 渲染 ================= */
+function eid(book, field) {
+    if (book === 'cash') return 'cash-' + field;
+    if (book === 'transfer') return 'tr-' + field;
+    return 'bk-' + book + '-' + field;
+}
+function bookOf(id) { return state.books.find((b) => b.id === id) || null; }
+function bookName(id) { const b = bookOf(id); return b ? b.name : id; }
+function renderTabs() {
+    const bar = $('lg-tabs');
+    if (!bar) return;
+    let html = '';
+    state.books.forEach((b) => {
+        html += '<div class="tab' + (state.tab === b.id ? ' active' : '') + '" data-tab="' + escHtml(b.id) + '">' + escHtml(b.name) + '</div>';
+    });
+    html += '<div class="tab' + (state.tab === 'summary' ? ' active' : '') + '" data-tab="summary">汇总</div>';
+    html += '<div class="tab' + (state.tab === 'manage' ? ' active' : '') + '" data-tab="manage">＋</div>';
+    // 只替换 .tab 节点,保留 tabs-glass.js 插入的滑块(ind)与已初始化标记
+    Array.prototype.slice.call(bar.querySelectorAll('.tab')).forEach((t) => t.remove());
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    while (tmp.firstChild) bar.appendChild(tmp.firstChild);
+    // tabs-glass.js 的滑块依赖 .tab/.tab.active,生成后触发它原来的 resize 刷新
+    try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+}
+function applyTabVisible() {
+    ['cash', 'transfer', 'summary'].forEach((t) => { const el = $('tab-' + t); if (el) el.classList.toggle('active', state.tab === t); });
+    const dyn = $('tab-dyn'), bk = bookOf(state.tab);
+    if (dyn) dyn.classList.toggle('active', !!bk && bk.type === 'plain');
+}
+function plainHtml(bk) {
+    const d = state.curDate, f = state.form[bk.id];
+    return '<div class="lg-stats">' +
+        '<div class="lg-stat"><div class="k">支出合计</div><div class="v lg-out" id="' + eid(bk.id, 'stat-out') + '">' + fmtNum(sumBook(bk.id, d, 'out')) + '</div></div>' +
+        '<div class="lg-stat"><div class="k">收入合计</div><div class="v lg-in" id="' + eid(bk.id, 'stat-in') + '">' + fmtNum(sumBook(bk.id, d, 'in')) + '</div></div>' +
+        '</div>' +
+        '<div class="lg-card">' +
+        '<div class="lg-card-title">记一笔</div>' +
+        '<div class="lg-seg" data-book="' + escHtml(bk.id) + '">' +
+        '<button class="lg-type' + (f.type === 'out' ? ' on out' : '') + '" data-book="' + escHtml(bk.id) + '" data-type="out">支出</button>' +
+        '<button class="lg-type' + (f.type === 'in' ? ' on in' : '') + '" data-book="' + escHtml(bk.id) + '" data-type="in">收入</button>' +
+        '</div>' +
+        '<div class="lg-field"><div class="lg-label">金额</div>' +
+        '<input class="lg-inp" id="' + eid(bk.id, 'amt') + '" placeholder="支持 100 200 求和" autocomplete="off"></div>' +
+        '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
+        '<div class="lg-field"><div class="lg-label">备注</div>' +
+        '<input class="lg-inp lg-inp-note" id="' + eid(bk.id, 'note') + '" placeholder="选填,可自动匹配历史" autocomplete="off">' +
+        '<div id="' + eid(bk.id, 'sughead') + '" class="lg-sug-head"></div>' +
+        '<div class="lg-sugs" id="' + eid(bk.id, 'sug') + '"></div></div>' +
+        '<button class="lg-btn-main" id="' + eid(bk.id, 'save') + '">记一笔</button>' +
+        '</div>' +
+        '<div class="lg-card"><div class="lg-card-title">当日' + escHtml(bk.name) + '</div>' +
+        '<div class="lg-list" id="' + eid(bk.id, 'list') + '"></div></div>';
+}
+function renderDyn() {
+    const box = $('tab-dyn');
+    applyTabVisible();
+    if (!box) return;
+    const bk = bookOf(state.tab);
+    if (!bk || bk.type !== 'plain') { box.classList.remove('active'); return; }
+    box.innerHTML = plainHtml(bk);
+    box.classList.add('active');
+    renderCats(bk.id); renderTypeButtons(bk.id); renderList(bk.id); renderSuggest(bk.id);
+}
 function renderDate() {
     if ($('lg-date')) $('lg-date').textContent = state.curDate;
     if ($('lg-today')) $('lg-today').style.opacity = (state.curDate === localDateStr()) ? '.7' : '1';
@@ -404,11 +496,12 @@ function renderTypeButtons(book) {
     document.querySelectorAll('.lg-type[data-book="' + book + '"]').forEach((btn) => btn.classList.toggle('on', btn.dataset.type === state.form[book].type));
 }
 function renderCats(book) {
-    const box = $(book === 'cash' ? 'cash-cats' : 'tr-cats');
+    const box = $(eid(book, 'cats'));
     if (!box) return;
+    const cats = state.cats[book] || [];
     let html = '';
-    state.cats[book].forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
-    if (book === 'cash') html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    if (book !== 'transfer') html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
     box.innerHTML = html;
 }
 function renderCash() {
@@ -465,10 +558,10 @@ function renderPushState() {
     try { const o = JSON.parse(localStorage.getItem('ledger-theoretical-push-v1') || 'null'); ps.textContent = o ? ('上次 ' + o.at + ' · ' + Number(o.value).toLocaleString()) : ''; } catch (e) { ps.textContent = ''; }
 }
 function renderAll() {
-    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderSuggest('cash'); renderSuggest('transfer');
+    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer');
 }
 function renderList(book) {
-    const box = $(book === 'cash' ? 'cash-list' : 'tr-list');
+    const box = $(eid(book, 'list'));
     if (!box) return;
     const list = dayEntries(book, state.curDate).sort((a, b) => b.ts - a.ts);
     if (!list.length) { box.innerHTML = '<div class="lg-empty">当日无记录</div>'; return; }
@@ -524,7 +617,7 @@ function hiNote(text, q) {
     return out + escHtml(text.slice(i));
 }
 function renderSuggest(book) {
-    const noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note'), box = $(book === 'cash' ? 'cash-sug' : 'tr-sug'), head = $(book === 'cash' ? 'cash-sughead' : 'tr-sughead');
+    const noteEl = $(eid(book, 'note')), box = $(eid(book, 'sug')), head = $(eid(book, 'sughead'));
     if (!noteEl || !box) return;
     const q = (noteEl.value || '').trim(), items = suggestFor(book, q);
     if (!items.length) { box.innerHTML = ''; if (head) head.textContent = ''; return; }
@@ -549,7 +642,7 @@ function closeConfirm() { $('lg-confirm').classList.remove('show'); confirmCb = 
 /* ================= 记账 ================= */
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0').slice(0, 4); }
 async function saveEntry(book) {
-    const amtEl = $(book === 'cash' ? 'cash-amt' : 'tr-amt'), noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note');
+    const amtEl = $(eid(book, 'amt')), noteEl = $(eid(book, 'note'));
     const amt = parseSum(amtEl ? amtEl.value : '');
     if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
     const cat = state.form[book].cat;
@@ -564,20 +657,25 @@ async function saveEntry(book) {
 }
 /* ================= 分类增删 ================= */
 function addCat(book) {
-    if (book !== 'cash') return;
-    askPrompt('新增现金账分类(最长 8 字)', '', (val) => {
+    if (book === 'transfer') return;
+    askPrompt('新增' + bookName(book) + '分类(最长 8 字)', '', (val) => {
         const name = String(val || '').trim().slice(0, 8);
         if (!name) return;
-        if (state.cats.cash.indexOf(name) !== -1) { showToast('分类已存在', 'warning'); return; }
-        state.cats.cash.push(name); saveKey('cats'); state.form.cash.cat = name; renderCash();
+        if (!state.cats[book]) state.cats[book] = ['其他'];
+        if (state.cats[book].indexOf(name) !== -1) { showToast('分类已存在', 'warning'); return; }
+        state.cats[book].push(name); saveKey('cats'); state.form[book].cat = name;
+        if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
     });
 }
 function removeCat(book, cat) {
-    if (book !== 'cash') return;
+    if (book === 'transfer') return;
     askConfirm('删除分类「' + cat + '」?已有账目不会被删除。', async () => {
-        state.cats.cash = state.cats.cash.filter((c) => c !== cat);
-        if (state.form.cash.cat === cat) state.form.cash.cat = state.cats.cash[0] || '';
-        await saveKey('cats'); renderCash(); showToast('分类已删除');
+        if (!state.cats[book]) state.cats[book] = [];
+        state.cats[book] = state.cats[book].filter((c) => c !== cat);
+        if (state.form[book].cat === cat) state.form[book].cat = state.cats[book][0] || '';
+        await saveKey('cats');
+        if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
+        showToast('分类已删除');
     });
 }
 /* ================= 推送理论库存 ================= */
@@ -640,16 +738,174 @@ function deleteEntry(id) {
         await saveKey('entries'); renderAll(); showToast('已删除');
     });
 }
+/* ================= 账本管理 ================= */
+function validBookName(name, exceptId) {
+    const n = String(name || '').trim().slice(0, 8);
+    if (!n) { showToast('账本名不能为空', 'error'); return ''; }
+    if (state.books.some((b) => b.name === n && b.id !== exceptId)) { showToast('账本名称已存在', 'warning'); return ''; }
+    return n;
+}
+function bookEntryCount(id) { return state.entries.filter((e) => e.book === id).length; }
+function switchTab(id) {
+    state.tab = id;
+    renderTabs();
+    renderAll();
+}
+function openBooks() {
+    $('lg-books').classList.add('show');
+    renderBooks();
+}
+function closeBooks() { $('lg-books').classList.remove('show'); }
+function renderBooks() {
+    const box = $('bk-list');
+    if (!box) return;
+    let html = '';
+    state.books.forEach((b) => {
+        html += '<div class="bk-row" data-bkid="' + escHtml(b.id) + '">' +
+            '<span class="bk-name">' + escHtml(b.name) + '</span>' +
+            '<span class="bk-acts"><button data-bkren="' + escHtml(b.id) + '">改名</button>' +
+            (b.type === 'plain' ? '<button class="danger" data-bkdel="' + escHtml(b.id) + '">删除</button>' : '') +
+            '</span></div>';
+    });
+    box.innerHTML = html;
+}
+function renameBook(id) {
+    const bk = bookOf(id);
+    if (!bk) return;
+    askPrompt('账本新名称(最长 8 字)', bk.name, (val) => {
+        const name = validBookName(val, id);
+        if (!name) return;
+        bk.name = name;
+        saveKey('books');
+        renderBooks(); renderAll();
+        showToast('已改名');
+    });
+}
+function deleteBook(id) {
+    const bk = bookOf(id);
+    if (!bk || bk.type !== 'plain') return;
+    const n = bookEntryCount(id);
+    askConfirm('删除后该账本的 ' + n + ' 笔账目也会一并删除,无法恢复', async () => {
+        state.entries = state.entries.filter((e) => e.book !== id);
+        state.books = state.books.filter((b) => b.id !== id);
+        delete state.cats[id];
+        delete state.form[id];
+        await saveKey('entries'); await saveKey('books'); await saveKey('cats');
+        if (state.tab === id) state.tab = 'cash';
+        renderBooks(); renderAll(); showToast('账本已删除');
+    });
+}
+function newBook() {
+    askPrompt('新账本名称(最长 8 字)', '', async (val) => {
+        const name = validBookName(val, null);
+        if (!name) return;
+        const id = 'bk_' + newId();
+        state.books.push({ id: id, name: name, type: 'plain' });
+        state.cats[id] = ['其他'];
+        state.form[id] = { type: 'out', cat: '其他' };
+        await saveKey('books'); await saveKey('cats');
+        state.tab = id;
+        renderBooks(); renderAll(); showToast('账本已创建');
+    });
+}
 /* ================= 事件绑定 ================= */
+function bindCatBox(book, box, sugBox, noteEl, amtEl) {
+    if (!box || !sugBox || !noteEl || !amtEl) return;
+    let lpTimer = null, lpFired = false;
+    const startLp = (chip) => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; removeCat(book, chip.dataset.cat); }, 650); };
+    const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
+    box.addEventListener('pointerdown', (e) => { const chip = e.target.closest('.lg-chip'); if (chip && chip.dataset.cat) startLp(chip); });
+    box.addEventListener('pointerup', cancelLp);
+    box.addEventListener('pointerleave', cancelLp);
+    box.addEventListener('pointercancel', cancelLp);
+    box.addEventListener('click', (e) => {
+        const chip = e.target.closest('.lg-chip');
+        if (!chip) return;
+        if (lpFired) { lpFired = false; return; }
+        if (chip.dataset.add) { addCat(book); return; }
+        if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
+    });
+    noteEl.addEventListener('input', () => renderSuggest(book));
+    const guard = (e) => e.preventDefault();
+    sugBox.addEventListener('mousedown', guard);
+    sugBox.addEventListener('touchstart', guard, { passive: false });
+    sugBox.addEventListener('click', (e) => {
+        const b = e.target.closest('.lg-sug');
+        if (!b) return;
+        e.preventDefault();
+        noteEl.value = b.dataset.note || '';
+        const cat = b.dataset.cat || '';
+        if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
+        if (!(amtEl.value || '').trim() && b.dataset.amt) amtEl.value = b.dataset.amt;
+        if (b.dataset.type) state.form[book].type = b.dataset.type;
+        renderTypeButtons(book); renderCats(book); renderSuggest(book);
+    });
+}
+/* 自定义账本内容由 JS 生成,事件统一委托在 #tab-dyn 上 */
+function bindDyn() {
+    const box = $('tab-dyn');
+    if (!box) return;
+    let lpTimer = null, lpFired = false;
+    const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
+    box.addEventListener('pointerdown', (e) => {
+        const chip = e.target.closest('.lg-chip');
+        if (!chip || !chip.dataset.cat || chip.dataset.add) return;
+        lpFired = false;
+        lpTimer = setTimeout(() => { lpFired = true; removeCat(state.tab, chip.dataset.cat); }, 650);
+    });
+    box.addEventListener('pointerup', cancelLp);
+    box.addEventListener('pointerleave', cancelLp);
+    box.addEventListener('pointercancel', cancelLp);
+    box.addEventListener('input', (e) => { if (e.target.classList && e.target.classList.contains('lg-inp-note')) renderSuggest(state.tab); });
+    box.addEventListener('click', (e) => {
+        const book = state.tab;
+        const chip = e.target.closest('.lg-chip');
+        if (chip) {
+            if (lpFired) { lpFired = false; return; }
+            if (chip.dataset.add) { addCat(book); return; }
+            if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
+            return;
+        }
+        const typeBtn = e.target.closest('.lg-type');
+        if (typeBtn) { state.form[book].type = typeBtn.dataset.type; renderTypeButtons(book); return; }
+        const sug = e.target.closest('.lg-sug');
+        if (sug) {
+            e.preventDefault();
+            const noteEl = $(eid(book, 'note')), amtEl = $(eid(book, 'amt'));
+            if (noteEl) noteEl.value = sug.dataset.note || '';
+            const cat = sug.dataset.cat || '';
+            if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
+            if (amtEl && !(amtEl.value || '').trim() && sug.dataset.amt) amtEl.value = sug.dataset.amt;
+            if (sug.dataset.type) state.form[book].type = sug.dataset.type;
+            renderTypeButtons(book); renderCats(book); renderSuggest(book);
+            return;
+        }
+        const more = e.target.closest('[data-more]');
+        if (more) {
+            const acts = box.querySelector('.lg-acts[data-acts="' + more.dataset.more + '"]');
+            box.querySelectorAll('.lg-acts.show').forEach((a) => { if (a !== acts) a.classList.remove('show'); });
+            if (acts) acts.classList.toggle('show');
+            return;
+        }
+        const act = e.target.closest('[data-act]');
+        if (act) {
+            if (act.dataset.act === 'edit') openEdit(act.dataset.id);
+            else if (act.dataset.act === 'del') deleteEntry(act.dataset.id);
+            return;
+        }
+        if (e.target.closest('.lg-btn-main')) { saveEntry(book); return; }
+    });
+}
 function bind() {
     $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
     $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
     $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
-    document.querySelectorAll('.tabs .tab').forEach((tab) => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
-            document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + tab.dataset.tab));
-        });
+    $('lg-tabs').addEventListener('click', (e) => {
+        const tab = e.target.closest('.tab');
+        if (!tab) return;
+        const id = tab.dataset.tab;
+        if (id === 'manage') { openBooks(); return; }
+        switchTab(id);
     });
     const openEl = $('cash-open');
     const commitOpen = async () => {
@@ -672,40 +928,9 @@ function bind() {
         btn.addEventListener('click', () => { state.form[btn.dataset.book].type = btn.dataset.type; renderTypeButtons(btn.dataset.book); });
     });
     ['cash', 'transfer'].forEach((book) => {
-        const box = $(book === 'cash' ? 'cash-cats' : 'tr-cats');
-        let lpTimer = null, lpFired = false;
-        const startLp = (chip) => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; removeCat(book, chip.dataset.cat); }, 650); };
-        const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
-        box.addEventListener('pointerdown', (e) => { const chip = e.target.closest('.lg-chip'); if (chip && chip.dataset.cat) startLp(chip); });
-        box.addEventListener('pointerup', cancelLp);
-        box.addEventListener('pointerleave', cancelLp);
-        box.addEventListener('pointercancel', cancelLp);
-        box.addEventListener('click', (e) => {
-            const chip = e.target.closest('.lg-chip');
-            if (!chip) return;
-            if (lpFired) { lpFired = false; return; }
-            if (chip.dataset.add) { addCat(book); return; }
-            if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
-        });
-        const sugBox = $(book === 'cash' ? 'cash-sug' : 'tr-sug');
-        const noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note');
-        const amtEl = $(book === 'cash' ? 'cash-amt' : 'tr-amt');
-        noteEl.addEventListener('input', () => renderSuggest(book));
-        const guard = (e) => e.preventDefault();
-        sugBox.addEventListener('mousedown', guard);
-        sugBox.addEventListener('touchstart', guard, { passive: false });
-        sugBox.addEventListener('click', (e) => {
-            const b = e.target.closest('.lg-sug');
-            if (!b) return;
-            e.preventDefault();
-            noteEl.value = b.dataset.note || '';
-            const cat = b.dataset.cat || '';
-            if (cat && state.cats[book].indexOf(cat) !== -1) state.form[book].cat = cat;
-            if (!(amtEl.value || '').trim() && b.dataset.amt) amtEl.value = b.dataset.amt;
-            if (b.dataset.type) state.form[book].type = b.dataset.type;
-            renderTypeButtons(book); renderCats(book); renderSuggest(book);
-        });
+        bindCatBox(book, $(eid(book, 'cats')), $(eid(book, 'sug')), $(eid(book, 'note')), $(eid(book, 'amt')));
     });
+    bindDyn();
     $('cash-save').addEventListener('click', () => saveEntry('cash'));
     $('tr-save').addEventListener('click', () => saveEntry('transfer'));
     $('lg-push').addEventListener('click', pushTheoretical);
@@ -750,6 +975,14 @@ function bind() {
     $('pm-ok').addEventListener('click', () => { const cb = promptCb, val = $('pm-input').value; closePrompt(); if (cb) cb(val); });
     $('cf-cancel').addEventListener('click', closeConfirm);
     $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
+    $('bk-close').addEventListener('click', closeBooks);
+    $('bk-new').addEventListener('click', newBook);
+    $('bk-list').addEventListener('click', (e) => {
+        const ren = e.target.closest('[data-bkren]');
+        if (ren) { renameBook(ren.dataset.bkren); return; }
+        const del = e.target.closest('[data-bkdel]');
+        if (del) { deleteBook(del.dataset.bkdel); return; }
+    });
 }
 /* ================= 启动 ================= */
 document.addEventListener('DOMContentLoaded', async () => {
