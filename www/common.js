@@ -1,4 +1,4 @@
-/* ===== 公共脚本：inventory / monitor / finance / arrival 共用 ===== */
+/* ===== 公共脚本：inventory / ledger / finance / arrival 共用 ===== */
 /* 注意：payroll.html 因 data-vk-skip（文字编辑输入框）特性保留自己的内联键盘抑制版本与 SW 注册，未引用本文件 */
 (function () {
     'use strict';

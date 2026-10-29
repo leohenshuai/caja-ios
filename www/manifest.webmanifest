@@ -1,7 +1,7 @@
 {
   "name": "管理系统PWA套件",
   "short_name": "管理系统",
-  "description": "财务、拆分、库存、CAJA、薪资、到账六大系统整合门户",
+  "description": "财务、拆分、库存、记账、薪资、到账六大系统整合门户",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

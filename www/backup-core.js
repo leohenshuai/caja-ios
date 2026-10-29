@@ -2,8 +2,8 @@
    数据结构与首页「六系统总备份」完全一致（backupType: management-suite-full-backup），旧备份文件可直接导入。 */
 (function () {
   'use strict';
-  var DBS = ['financeDB', 'CashAllocationDB', 'CashBoxDB', 'CajaDB', 'SalaryDB'];
-  var SYSTEMS = { finance: ['financeDB', 'CashAllocationDB'], inventory: ['CashBoxDB'], monitor: ['CajaDB'], payroll: ['SalaryDB'] };
+  var DBS = ['financeDB', 'CashAllocationDB', 'CashBoxDB', 'LedgerDB', 'SalaryDB'];
+  var SYSTEMS = { finance: ['financeDB', 'CashAllocationDB'], inventory: ['CashBoxDB'], ledger: ['LedgerDB'], payroll: ['SalaryDB'] };
   var NB = function () { return window.NativeBridge; };
   var BK = window.Backup = {};
 
@@ -71,7 +71,7 @@
         finance: { databases: SYSTEMS.finance.map(function (n) { return dumps[n]; }) },
         splitter: { persistentData: null, note: '大数拆分器不保存持久数据' },
         inventory: { databases: SYSTEMS.inventory.map(function (n) { return dumps[n]; }) },
-        monitor: { databases: SYSTEMS.monitor.map(function (n) { return dumps[n]; }), localStorage: { caja_config: ls.caja_config == null ? null : ls.caja_config } },
+        ledger: { databases: SYSTEMS.ledger.map(function (n) { return dumps[n]; }) },
         payroll: { databases: SYSTEMS.payroll.map(function (n) { return dumps[n]; }) },
         arrival: { localStorage: { 'fund-arrival-manager-v1': ls['fund-arrival-manager-v1'] == null ? null : ls['fund-arrival-manager-v1'] } }
       },
@@ -89,7 +89,7 @@
   BK.validate = async function (text) {
     var b; try { b = JSON.parse(text); } catch (e) { throw new Error('文件不是有效的 JSON'); }
     if (!b || b.backupType !== 'management-suite-full-backup' || Number(b.version) !== 1) throw new Error('这不是本套件导出的总备份文件');
-    var need = ['finance', 'splitter', 'inventory', 'monitor', 'payroll', 'arrival'];
+    var need = ['finance', 'splitter', 'inventory', 'payroll', 'arrival'];
     if (!b.systems || !need.every(function (k) { return k in b.systems; })) throw new Error('备份缺少系统数据');
     if (b.integrity && b.integrity.sha256) {
       var copy = Object.assign({}, b); delete copy.integrity;
@@ -98,7 +98,7 @@
       if (h && h !== b.integrity.sha256) throw new Error('校验失败：文件内容已被改动或损坏');
     }
     var dbs = [];
-    ['finance', 'inventory', 'monitor', 'payroll'].forEach(function (s) { dbs = dbs.concat(b.systems[s].databases || []); });
+    ['finance', 'inventory', 'ledger', 'payroll'].forEach(function (s) { dbs = dbs.concat((b.systems[s] && b.systems[s].databases) || []); });
     dbs.forEach(function (d) {
       if (!d || typeof d.name !== 'string' || typeof d.stores !== 'object') throw new Error('备份中的数据库格式不正确');
       Object.keys(d.stores).forEach(function (n) { if (!Array.isArray(d.stores[n].records)) throw new Error('备份中的数据表格式不正确'); });

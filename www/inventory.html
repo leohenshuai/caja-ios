@@ -1023,13 +1023,16 @@ class CashBoxApp {
     /* 领取财务系统推送的理论库存(只处理一次;覆盖;为 0 不覆盖) */
     claimTheoretical() {
         try {
-            const o = JSON.parse(localStorage.getItem('caja-theoretical-push-v1') || 'null');
-            if (!o || !o.seq || !(Number(o.value) > 0)) return;
+            const rd = (k, src) => { try { const x = JSON.parse(localStorage.getItem(k) || 'null'); return (x && x.seq && Number(x.value) > 0) ? { o: x, src } : null; } catch (e) { return null; } };
+            const a = rd('caja-theoretical-push-v1', '财务系统'), b = rd('ledger-theoretical-push-v1', '记账系统');
+            const pick = (a && b) ? (Number(b.o.seq) > Number(a.o.seq) ? b : a) : (a || b);
+            if (!pick) return;
+            const o = pick.o;
             if (this.data.theo_push_seq === o.seq) return;
             this.data.theo_push_seq = o.seq;
             this.data.theoretical_inventory = Math.round(Number(o.value));
             this.updateAllMetrics(); this.saveData();
-            this.showToast(`理论库存已同步:${this.data.theoretical_inventory.toLocaleString()}(财务系统 ${o.at})`, 'success');
+            this.showToast(`理论库存已同步:${this.data.theoretical_inventory.toLocaleString()}(${pick.src} ${o.at})`, 'success');
         } catch (e) {}
     }
     editTheoretical() { this.showInputModal('修改理论库存', '请输入新的理论库存', this.data.theoretical_inventory, (val) => { if (val >= 0) { this.data.theoretical_inventory = val; this.updateAllMetrics(); this.saveData(); this.showToast('理论库存已更新', 'success'); } }); }

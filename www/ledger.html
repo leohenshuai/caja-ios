@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>记账系统</title>
+<link rel="stylesheet" href="./fx.css">
+<link rel="stylesheet" href="./common.css">
+<link rel="stylesheet" href="./ios26.css">
+<script src="./native-bridge.js"></script>
+<script src="./backup-core.js"></script>
+<style>
+/* ===== 本页特有样式 ===== */
+.tabs { display:flex; align-items:center; margin:12px 12px 0; overflow-x:auto; }
+.tab { white-space:nowrap; cursor:pointer; font-size:13px; font-weight:600; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.cgt-push { width:100%; margin-top:0; min-height:40px; padding:5px 12px; border-radius:9px; border:1px solid rgba(103,232,249,.35); background:rgba(6,182,212,.12); color:var(--text,#e5e7eb); font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:8px; -webkit-tap-highlight-color:transparent; }
+.cgt-push:active { transform:scale(.98); background:rgba(6,182,212,.28); }
+.cgt-push span { white-space:nowrap; }
+.cgt-push small { font-size:10px; font-weight:500; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.cgt-push small:empty { display:none; }
+
+.lg-wrap { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.lg-card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:14px; margin:10px 12px; backdrop-filter:none; }
+.lg-card-title { font-size:13px; font-weight:800; color:var(--text-muted); letter-spacing:.3px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+.lg-inp { width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(15,23,42,.5); color:var(--text,#e5e7eb); font-size:17px; font-weight:700; font-family:'Courier New', monospace; }
+.lg-inp:focus { outline:none; border-color:rgba(103,232,249,.55); }
+.lg-inp-note { font-family:inherit; font-weight:500; font-size:16px; }
+.lg-open-tip { font-size:12px; color:var(--text-muted); margin-top:8px; min-height:16px; }
+.lg-open-tip.hit { text-decoration:underline; }
+.lg-bal-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:14px; }
+.lg-bal-row .v { font-family:'Courier New', monospace; font-weight:700; }
+.lg-bal-main { margin-top:8px; padding-top:10px; border-top:1px solid rgba(255,255,255,.12); display:flex; align-items:baseline; justify-content:space-between; }
+.lg-bal-main .lab { font-size:14px; font-weight:800; }
+.lg-bal-main .big { font-family:'Courier New', monospace; font-size:28px; font-weight:800; letter-spacing:-.5px; }
+.lg-bal-main .big.warn { font-size:15px; letter-spacing:0; color:var(--text-muted); font-family:inherit; }
+.lg-pushwrap { margin-top:12px; }
+
+.lg-seg { display:flex; gap:8px; margin-bottom:12px; }
+.lg-type { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--text); font-size:15px; font-weight:800; }
+.lg-type.on.out { background:rgba(255,107,107,.22); border-color:rgba(255,107,107,.55); color:#ff8f8f; }
+.lg-type.on.in { background:rgba(52,211,153,.2); border-color:rgba(52,211,153,.5); color:#34d399; }
+.lg-field { margin-bottom:12px; }
+.lg-label { font-size:12px; color:var(--text-muted); font-weight:700; margin-bottom:6px; }
+.lg-chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+.lg-chips::-webkit-scrollbar { display:none; }
+.lg-chip { flex:none; min-height:36px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.05); color:var(--text); font-size:14px; font-weight:700; white-space:nowrap; }
+.lg-chip.on { background:linear-gradient(180deg, #38bdf8, #0ea5e9); border-color:transparent; color:#04202e; }
+.lg-chip.add { color:var(--text-muted); font-weight:800; }
+.lg-chip.del { color:#ff8f8f; border-style:dashed; }
+.lg-chip.on.delx { border-color:rgba(255,107,107,.6); }
+.lg-sugs { display:flex; gap:8px; overflow-x:auto; margin-top:8px; padding-bottom:2px; scrollbar-width:none; }
+.lg-sugs::-webkit-scrollbar { display:none; }
+.lg-sugs:empty { display:none; }
+.lg-sug { flex:none; min-height:40px; padding:6px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); text-align:left; }
+.lg-sug .n { display:block; font-size:14px; font-weight:700; }
+.lg-sug .m { display:block; font-size:11px; color:var(--text-muted); margin-top:2px; }
+.lg-sug mark { background:rgba(56,189,248,.35); color:#fff; border-radius:3px; padding:0 1px; }
+.lg-sug-head { font-size:11px; color:var(--text-muted); margin-top:8px; }
+.lg-btn-main { width:100%; min-height:46px; border-radius:14px; border:none; background:linear-gradient(180deg,#38bdf8,#0284c7); color:#03121c; font-size:16px; font-weight:800; }
+.lg-btn-main:active { transform:scale(.98); }
+
+.lg-stats { display:flex; gap:8px; margin:10px 12px 0; }
+.lg-stat { flex:1; text-align:center; padding:10px 6px; border-radius:16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+.lg-stat .k { font-size:11px; color:var(--text-muted); font-weight:700; }
+.lg-stat .v { font-family:'Courier New', monospace; font-size:17px; font-weight:800; margin-top:4px; }
+
+.lg-list { margin-top:4px; }
+.lg-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+.lg-row:last-child { border-bottom:none; }
+.lg-row .t { font-size:12px; color:var(--text-muted); font-family:'Courier New', monospace; width:42px; flex:none; }
+.lg-row .mid { flex:1; min-width:0; }
+.lg-row .c { font-size:14px; font-weight:700; }
+.lg-row .nt { font-size:12px; color:var(--text-muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lg-row .amt { font-family:'Courier New', monospace; font-weight:800; font-size:16px; flex:none; }
+.lg-out { color:#ff6b6b; }
+.lg-in { color:#34d399; }
+.lg-more { flex:none; min-width:44px; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:18px; }
+.lg-acts { display:none; gap:8px; padding:0 0 10px 52px; }
+.lg-acts.show { display:flex; }
+.lg-acts button { min-height:44px; padding:0 16px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:14px; font-weight:700; }
+.lg-acts .danger { color:#ff8f8f; border-color:rgba(255,107,107,.4); }
+.lg-empty { text-align:center; color:var(--text-muted); font-size:13px; padding:18px 0; }
+
+.lg-sum-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+.lg-sum-row:last-child { border-bottom:none; }
+.lg-sum-row .k { font-size:14px; }
+.lg-sum-row .k small { display:block; font-size:10px; color:var(--text-muted); font-family:'Courier New', monospace; margin-top:2px; }
+.lg-sum-row .v { font-family:'Courier New', monospace; font-size:17px; font-weight:800; }
+.lg-copy { min-height:44px; min-width:56px; padding:0 12px; border-radius:12px; border:1px solid rgba(103,232,249,.35); background:rgba(6,182,212,.12); color:var(--text); font-size:13px; font-weight:800; }
+.lg-copy:disabled { opacity:.4; }
+.lg-note { font-size:11px; color:var(--text-muted); margin-top:10px; line-height:1.5; }
+
+.modal { display:none; position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:18px; }
+.modal.show { display:flex; }
+.modal-content { width:100%; max-width:420px; background:#131c2b; border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:16px; }
+.modal-content h3 { font-size:16px; margin-bottom:12px; }
+.lg-modal-btns { display:flex; gap:10px; margin-top:6px; }
+.lg-modal-btns button { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
+.lg-modal-btns .primary { background:linear-gradient(180deg,#38bdf8,#0284c7); color:#03121c; border-color:transparent; }
+body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📒 记账系统</h1>
+  <div class="header-actions" style="display:flex;align-items:center;gap:6px">
+    <button id="lg-prev" style="min-width:44px;min-height:44px">‹</button>
+    <span id="lg-date" style="font-family:'Courier New',monospace;font-size:14px;font-weight:700;min-width:96px;text-align:center"></span>
+    <button id="lg-next" style="min-width:44px;min-height:44px">›</button>
+    <button id="lg-today" style="min-height:44px">今天</button>
+  </div>
+</div>
+<div class="tabs">
+  <div class="tab active" data-tab="cash">现金账</div>
+  <div class="tab" data-tab="transfer">转账账</div>
+  <div class="tab" data-tab="summary">汇总</div>
+</div>
+<div class="lg-wrap">
+<!-- ==================== 页签1: 现金账 ==================== -->
+<div id="tab-cash" class="tab-content active">
+  <div class="lg-card">
+    <div class="lg-card-title">今日初始库存</div>
+    <input class="lg-inp" id="cash-open" inputmode="decimal" placeholder="开门时的库存" autocomplete="off">
+    <div class="lg-open-tip" id="cash-yesterday"></div>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">余额</div>
+    <div class="lg-bal-row"><span>初始库存</span><span class="v" id="cash-open-v">—</span></div>
+    <div class="lg-bal-row"><span>支出合计</span><span class="v lg-out" id="cash-out-v">0</span></div>
+    <div class="lg-bal-row"><span>收入合计</span><span class="v lg-in" id="cash-in-v">0</span></div>
+    <div class="lg-bal-main"><span class="lab">今日余额</span><span class="big" id="cash-bal-v">—</span></div>
+    <div class="lg-pushwrap">
+      <button class="cgt-push" id="lg-push"><span>📤 设为现金箱理论库存</span><small id="lg-push-state"></small></button>
+    </div>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">记一笔</div>
+    <div class="lg-seg" data-book="cash">
+      <button class="lg-type on out" data-book="cash" data-type="out">支出</button>
+      <button class="lg-type" data-book="cash" data-type="in">收入</button>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">金额</div>
+      <input class="lg-inp" id="cash-amt" inputmode="decimal" placeholder="支持 100 200 求和" autocomplete="off">
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">分类</div>
+      <div class="lg-chips" id="cash-cats"></div>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">备注</div>
+      <input class="lg-inp lg-inp-note" id="cash-note" placeholder="选填,可自动匹配历史" autocomplete="off">
+      <div id="cash-sughead" class="lg-sug-head"></div>
+      <div class="lg-sugs" id="cash-sug"></div>
+    </div>
+    <button class="lg-btn-main" id="cash-save">记一笔</button>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">当日现金账</div>
+    <div class="lg-list" id="cash-list"></div>
+  </div>
+</div>
+<!-- ==================== 页签2: 转账账 ==================== -->
+<div id="tab-transfer" class="tab-content">
+  <div class="lg-stats">
+    <div class="lg-stat"><div class="k">橙色</div><div class="v lg-out" id="tr-stat-orange">0</div></div>
+    <div class="lg-stat"><div class="k">DNI</div><div class="v lg-out" id="tr-stat-dni">0</div></div>
+    <div class="lg-stat"><div class="k">Mercado</div><div class="v lg-out" id="tr-stat-merc">0</div></div>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">记一笔</div>
+    <div class="lg-seg" data-book="transfer">
+      <button class="lg-type on out" data-book="transfer" data-type="out">支出</button>
+      <button class="lg-type" data-book="transfer" data-type="in">收入</button>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">金额</div>
+      <input class="lg-inp" id="tr-amt" inputmode="decimal" placeholder="支持 100 200 求和" autocomplete="off">
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">分类</div>
+      <div class="lg-chips" id="tr-cats"></div>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">备注</div>
+      <input class="lg-inp lg-inp-note" id="tr-note" placeholder="选填,可自动匹配历史" autocomplete="off">
+      <div id="tr-sughead" class="lg-sug-head"></div>
+      <div class="lg-sugs" id="tr-sug"></div>
+    </div>
+    <button class="lg-btn-main" id="tr-save">记一笔</button>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">当日转账账</div>
+    <div class="lg-list" id="tr-list"></div>
+  </div>
+</div>
+<!-- ==================== 页签3: 汇总 ==================== -->
+<div id="tab-summary" class="tab-content">
+  <div class="lg-card">
+    <div class="lg-card-title">当日汇总</div>
+    <div class="lg-sum-row"><span class="k">现金账 支出合计</span><span class="v lg-out" id="sum-cash-out">0</span></div>
+    <div class="lg-sum-row"><span class="k">现金账 收入合计</span><span class="v lg-in" id="sum-cash-in">0</span></div>
+    <div class="lg-sum-row"><span class="k">今日余额</span><span class="v" id="sum-cash-bal">—</span></div>
+    <div class="lg-sum-row"><span class="k">转账账 橙色支出</span><span class="v lg-out" id="sum-orange">0</span></div>
+    <div class="lg-sum-row"><span class="k">转账账 DNI 支出</span><span class="v lg-out" id="sum-dni">0</span></div>
+    <div class="lg-sum-row"><span class="k">转账账 Mercado 支出</span><span class="v lg-out" id="sum-merc">0</span></div>
+  </div>
+  <div class="lg-card">
+    <div class="lg-card-title">同步到财务系统(手动)</div>
+    <div class="lg-sum-row"><span class="k">今日支出<small>f_exp</small></span> <span class="v lg-out" id="sv-f_exp">0</span> <button class="lg-copy" data-copy="f_exp">复制</button></div>
+    <div class="lg-sum-row"><span class="k">橙色支出<small>orange_c</small></span> <span class="v lg-out" id="sv-orange_c">0</span> <button class="lg-copy" data-copy="orange_c">复制</button></div>
+    <div class="lg-sum-row"><span class="k">DNI 支出<small>dni_c1</small></span> <span class="v lg-out" id="sv-dni_c1">0</span> <button class="lg-copy" data-copy="dni_c1">复制</button></div>
+    <div class="lg-sum-row"><span class="k">Mercado 支出<small>merc_c2</small></span> <span class="v lg-out" id="sv-merc_c2">0</span> <button class="lg-copy" data-copy="merc_c2">复制</button></div>
+    <div class="lg-sum-row"><span class="k">实际库余<small>actual_stock</small></span> <span class="v" id="sv-actual_stock">—</span> <button class="lg-copy" data-copy="actual_stock">复制</button></div>
+    <div class="lg-note">数字仅供复制,请到财务系统手动填写并确认。</div>
+  </div>
+</div>
+</div><!-- /lg-wrap -->
+<!-- ===== 新增分类弹窗 ===== -->
+<div class="modal" id="lg-prompt">
+  <div class="modal-content">
+    <h3 id="pm-title">输入</h3>
+    <div class="lg-field">
+      <input class="lg-inp lg-inp-note" id="pm-input" autocomplete="off">
+    </div>
+    <div class="lg-modal-btns">
+      <button id="pm-cancel">取消</button>
+      <button class="primary" id="pm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 二次确认弹窗 ===== -->
+<div class="modal" id="lg-confirm">
+  <div class="modal-content">
+    <h3>确认</h3>
+    <div id="cf-text" style="font-size:14px;color:var(--text-muted);margin-bottom:14px"></div>
+    <div class="lg-modal-btns">
+      <button id="cf-cancel">取消</button>
+      <button class="primary" id="cf-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 编辑弹窗 ===== -->
+<div class="modal" id="lg-modal">
+  <div class="modal-content">
+    <h3>编辑账目</h3>
+    <div class="lg-field">
+      <div class="lg-label">金额</div>
+      <input class="lg-inp" id="md-amt" inputmode="decimal" autocomplete="off">
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">分类</div>
+      <div class="lg-chips" id="md-cats"></div>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">备注</div>
+      <input class="lg-inp lg-inp-note" id="md-note" autocomplete="off">
+    </div>
+    <div class="lg-modal-btns">
+      <button id="md-cancel">取消</button>
+      <button class="primary" id="md-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 自制数字键盘(从 inventory.html 1106-1135 原样复制)===== -->
+<div id="vk-keypad">
+    <div class="vk-toolbar">
+        <button type="button" data-k="home" title="句首">|◀</button>
+        <button type="button" data-k="left" title="左移">◀</button>
+        <button type="button" data-k="right" title="右移">▶</button>
+        <button type="button" data-k="end" title="句末">▶|</button>
+        <button type="button" data-k="clear" class="vk-clear" title="清空">清空</button>
+        <button type="button" data-k="hide" class="vk-hide" title="收起键盘">收起</button>
+    </div>
+    <div class="vk-main">
+    <div class="vk-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="00">00</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+    <div class="vk-side">
+        <button type="button" data-k="back" class="vk-func">⌫</button>
+        <button type="button" data-k=" " class="vk-func">空格</button>
+        <button type="button" data-k="enter" class="vk-enter">回车</button>
+    </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+    const keypad = document.getElementById('vk-keypad');
+
+    // 0) 全局解析兼容千分位：所有 parseFloat/parseInt 自动剔除逗号，避免 "500,000" 被截断成 500
+    const _pf = window.parseFloat, _pi = window.parseInt;
+    window.parseFloat = (v) => _pf(typeof v === 'string' ? v.replace(/,/g, '') : v);
+    window.parseInt = (v, r) => _pi(typeof v === 'string' ? v.replace(/,/g, '') : v, r);
+    const isTargetInput = (el) => el && el.tagName === 'INPUT' &&
+        (el.type === 'text' || el.type === 'number') &&
+        el.id !== 'quickCmd' && !el.disabled;
+
+    // 1) 抑制系统键盘逻辑已提取到 common.js
+
+    // 1.5) 输入时自动加千分位（只处理纯整数；含空格求和/算式/小数点的内容原样保留）
+    const formatThousands = (el) => {
+        const raw = el.value;
+        if (!raw || !/^[\d,]+$/.test(raw)) return;
+        const caret = (el.selectionStart != null) ? el.selectionStart : raw.length;
+        const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digits = raw.replace(/\D/g, '');
+        if (!digits) { el.value = ''; return; }
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (formatted === raw) return;
+        el.value = formatted;
+        let pos = 0, seen = 0;
+        while (pos < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[pos])) seen++; pos++; }
+        el.setSelectionRange(pos, pos);
+    };
+    // 捕获阶段在原有 oninput 处理之前执行，保证后续逻辑拿到的是格式化后的值
+    document.addEventListener('input', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+    // 聚焦时把已有数值也补上千分位
+    document.addEventListener('focusin', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+
+    // 2) 聚焦时弹出自制键盘，失焦时收起
+    document.addEventListener('focusin', (e) => {
+        if (!isTargetInput(e.target)) return;
+        e.target.dataset.vkStart = e.target.value;
+        keypad.classList.add('vk-show');
+        document.body.classList.add('vk-open');
+        document.documentElement.style.setProperty('--vk-h', (keypad.offsetHeight || 460) + 'px');
+        // 等键盘弹出与 vk-open padding 布局稳定后，只把输入框被键盘遮住的部分补滚出来，
+        // 不做整屏居中，避免视图持续下移、输入框被居中到键盘背后
+        setTimeout(() => {
+            try {
+                const keypadH = keypad.offsetHeight || 460;
+                const visibleBottom = window.innerHeight - keypadH - 12;
+                const r = e.target.getBoundingClientRect();
+                if (r.bottom > visibleBottom) {
+                    window.scrollBy({ top: r.bottom - visibleBottom, behavior: 'smooth' });
+                } else if (r.top < 8) {
+                    window.scrollBy({ top: r.top - 8, behavior: 'smooth' });
+                }
+            } catch (_) {}
+        }, 250);
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!isTargetInput(a)) {
+                keypad.classList.remove('vk-show');
+                document.body.classList.remove('vk-open');
+            }
+        }, 60);
+    });
+
+    // 3) 按键逻辑（拦截触摸默认行为，防止焦点丢失和"幽灵点击"穿透到键盘下方界面）
+    let lastActivateAt = 0;
+    const activate = (btn) => {
+        lastActivateAt = Date.now();
+        const k = btn.dataset.k;
+        // 「收起」不依赖输入框状态：已结算后输入框被 disabled，isTargetInput 会失败导致键盘收不起来
+        if (k === 'hide') {
+            const el = document.activeElement;
+            if (isTargetInput(el)) {
+                // 值有变化先提交，再失焦收起键盘
+                if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                el.blur();
+            }
+            keypad.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+            return;
+        }
+
+        const el = document.activeElement;
+        if (!isTargetInput(el)) return;
+
+        if (k === 'enter') {
+            // 值有变化先提交 change，再走原有的 Enter 导航/确认逻辑
+            if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dataset.vkStart = el.value;
+            }
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            return;
+        }
+
+        const s = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+        const t = (el.selectionEnd != null) ? el.selectionEnd : s;
+        if (k === 'home') { el.setSelectionRange(0, 0); return; }
+        if (k === 'end') { el.setSelectionRange(el.value.length, el.value.length); return; }
+        if (k === 'left') { const p = s === t ? Math.max(0, s - 1) : s; el.setSelectionRange(p, p); return; }
+        if (k === 'right') { const p = s === t ? Math.min(el.value.length, s + 1) : t; el.setSelectionRange(p, p); return; }
+        if (k === 'clear') {
+            el.value = '';
+            el.setSelectionRange(0, 0);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+        if (k === 'back') {
+            if (s === t && s > 0) {
+                el.value = el.value.slice(0, s - 1) + el.value.slice(t);
+                el.setSelectionRange(s - 1, s - 1);
+            } else if (s !== t) {
+                el.value = el.value.slice(0, s) + el.value.slice(t);
+                el.setSelectionRange(s, s);
+            }
+        } else {
+            el.value = el.value.slice(0, s) + k + el.value.slice(t);
+            el.setSelectionRange(s + k.length, s + k.length);
+        }
+        // 触发 input 事件，让实时求和 / 分配逻辑照常工作
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const pick = (e) => { const btn = e.target.closest('button[data-k]'); if (btn) activate(btn); };
+
+    keypad.addEventListener('pointerdown', (e) => e.preventDefault());
+    keypad.addEventListener('pointerup', (e) => { e.preventDefault(); pick(e); });
+    keypad.addEventListener('pointercancel', (e) => e.preventDefault());
+    // 阻止移动端把这次触摸再合成为 click 落到键盘下方的元素上
+    keypad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    keypad.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+    // 桌面鼠标兜底（移动端 click 已被上面拦截，500ms 内去重避免重复触发）
+    keypad.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastActivateAt > 500) pick(e); });
+})();
+</script>
+
+<script>
+/* ================= 数据库(独立库 LedgerDB) ================= */
+const DB_NAME = 'LedgerDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'data';
+class LedgerDB {
+    static async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'key' }); };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    static async get(db, key) {
+        return new Promise((resolve) => {
+            try { const tx = db.transaction([STORE_NAME], 'readonly'); const store = tx.objectStore(STORE_NAME); const req = store.get(key); req.onsuccess = () => resolve(req.result ? req.result.value : null); req.onerror = () => resolve(null); } catch (e) { resolve(null); }
+        });
+    }
+    static async put(db, key, value) {
+        return new Promise((resolve) => {
+            try { const tx = db.transaction([STORE_NAME], 'readwrite'); const store = tx.objectStore(STORE_NAME); const req = store.put({ key, value }); req.onsuccess = () => resolve(true); req.onerror = () => resolve(false); } catch (e) { resolve(false); }
+        });
+    }
+}
+const TX_CATS = ['橙色', 'DNI', 'Mercado'];
+const state = {
+    db: null, entries: [], opening: {},
+    cats: { cash: ['白色机器', '其他'], transfer: TX_CATS.slice() },
+    ver: 1, curDate: localDateStr(),
+    form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '橙色' } },
+    editingId: null, editingCat: null
+};
+/* ================= 工具 ================= */
+function $(id) { return document.getElementById(id); }
+// 金额解析:按空白拆分逐段 parseFloat 求和,非法段忽略
+function parseSum(str) {
+    if (str === null || str === undefined) return 0;
+    const s = String(str).trim();
+    if (!s) return 0;
+    let total = 0;
+    const parts = s.split(/\s+/);
+    for (let i = 0; i < parts.length; i++) {
+        const seg = parts[i].replace(/,/g, '');
+        if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(seg)) return NaN;
+        total += parseFloat(seg);
+    }
+    return Math.round(total * 100) / 100;
+}
+function localDateStr(date = new Date()) {
+    const y = date.getFullYear(), m = String(date.getMonth() + 1).padStart(2, '0'), d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+function fmtNum(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function round2(n) { return Math.round(Number(n || 0) * 100) / 100; }
+function shiftDate(ds, delta) { const p = String(ds).split('-').map(Number); const dt = new Date(p[0], p[1] - 1, p[2]); dt.setDate(dt.getDate() + delta); return localDateStr(dt); }
+function escHtml(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function showToast(message, type = 'success', duration = 2000) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message; toast.className = 'toast show ' + type;
+    if (toast._timer) clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+function haptic(kind) { try { if (window.NativeBridge && window.NativeBridge.haptic) window.NativeBridge.haptic(kind); } catch (e) {} }
+/* ================= 读写 ================= */
+async function loadAll() {
+    state.db = await LedgerDB.init();
+    state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
+    if (!Array.isArray(state.entries)) state.entries = [];
+    state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
+    const cats = await LedgerDB.get(state.db, 'cats');
+    state.cats.cash = (cats && Array.isArray(cats.cash) && cats.cash.length) ? cats.cash.slice() : ['白色机器', '其他'];
+    state.cats.transfer = TX_CATS.slice();
+    if (state.cats.cash.indexOf(state.form.cash.cat) === -1) state.form.cash.cat = state.cats.cash[0];
+    state.ver = (await LedgerDB.get(state.db, 'ver')) || 1;
+}
+async function saveKey(key) {
+    const ok = await LedgerDB.put(state.db, key, state[key]);
+    if (!ok) showToast('保存失败', 'error');
+    return ok;
+}
+/* ================= 计算 ================= */
+function dayEntries(book, date) { return state.entries.filter((e) => e.book === book && e.date === date); }
+function sumBook(book, date, type) { return round2(dayEntries(book, date).filter((e) => e.type === type).reduce((a, e) => a + Number(e.amount || 0), 0)); }
+function sumTransferCat(date, cat, type = 'out') { return round2(dayEntries('transfer', date).filter((e) => e.type === type && e.cat === cat).reduce((a, e) => a + Number(e.amount || 0), 0)); }
+function openOf(date) { const v = state.opening[date]; if (v === undefined || v === null || v === '') return null; const n = Number(v); return isFinite(n) ? n : null; }
+function balanceOf(date) { const o = openOf(date); return o === null ? null : round2(o - sumBook('cash', date, 'out') + sumBook('cash', date, 'in')); }
+/* ================= 渲染 ================= */
+function renderDate() {
+    if ($('lg-date')) $('lg-date').textContent = state.curDate;
+    if ($('lg-today')) $('lg-today').style.opacity = (state.curDate === localDateStr()) ? '.45' : '1';
+}
+function renderTypeButtons(book) {
+    document.querySelectorAll('.lg-type[data-book="' + book + '"]').forEach((btn) => btn.classList.toggle('on', btn.dataset.type === state.form[book].type));
+}
+function renderCats(book) {
+    const box = $(book === 'cash' ? 'cash-cats' : 'tr-cats');
+    if (!box) return;
+    let html = '';
+    state.cats[book].forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    if (book === 'cash') html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
+    box.innerHTML = html;
+}
+function renderCash() {
+    const d = state.curDate, o = openOf(d), inp = $('cash-open');
+    if (inp && document.activeElement !== inp) inp.value = (o === null) ? '' : String(o);
+    const tip = $('cash-yesterday');
+    if (tip) {
+        const cands = {};
+        Object.keys(state.opening).forEach((k) => { if (k < d) cands[k] = 1; });
+        state.entries.forEach((e) => { if (e.book === 'cash' && e.date < d) cands[e.date] = 1; });
+        const keys = Object.keys(cands).sort();
+        let prevBal = null;
+        for (let i = keys.length - 1; i >= 0; i--) { const b = balanceOf(keys[i]); if (b !== null) { prevBal = b; break; } }
+        if (o === null && prevBal !== null) { tip.textContent = '昨日余额 ' + fmtNum(prevBal) + '(点此填入)'; tip.className = 'lg-open-tip hit'; tip.dataset.val = String(prevBal); }
+        else { tip.textContent = ''; tip.className = 'lg-open-tip'; delete tip.dataset.val; }
+    }
+    const bal = balanceOf(d);
+    if ($('cash-open-v')) $('cash-open-v').textContent = (o === null) ? '—' : fmtNum(o);
+    if ($('cash-out-v')) $('cash-out-v').textContent = fmtNum(sumBook('cash', d, 'out'));
+    if ($('cash-in-v')) $('cash-in-v').textContent = fmtNum(sumBook('cash', d, 'in'));
+    const bv = $('cash-bal-v');
+    if (bv) {
+        if (bal === null) { bv.textContent = '请先输入初始库存'; bv.className = 'big warn'; }
+        else { bv.textContent = fmtNum(bal); bv.className = 'big ' + (bal < 0 ? 'lg-out' : ''); }
+    }
+    renderPushState(); renderCats('cash'); renderTypeButtons('cash'); renderList('cash');
+}
+function renderTransfer() {
+    const d = state.curDate;
+    if ($('tr-stat-orange')) $('tr-stat-orange').textContent = fmtNum(sumTransferCat(d, '橙色'));
+    if ($('tr-stat-dni')) $('tr-stat-dni').textContent = fmtNum(sumTransferCat(d, 'DNI'));
+    if ($('tr-stat-merc')) $('tr-stat-merc').textContent = fmtNum(sumTransferCat(d, 'Mercado'));
+    renderCats('transfer'); renderTypeButtons('transfer'); renderList('transfer');
+}
+function renderSummary() {
+    const d = state.curDate, co = sumBook('cash', d, 'out'), ci = sumBook('cash', d, 'in'), bal = balanceOf(d);
+    const or = sumTransferCat(d, '橙色'), dn = sumTransferCat(d, 'DNI'), mc = sumTransferCat(d, 'Mercado');
+    if ($('sum-cash-out')) $('sum-cash-out').textContent = fmtNum(co);
+    if ($('sum-cash-in')) $('sum-cash-in').textContent = fmtNum(ci);
+    if ($('sum-cash-bal')) $('sum-cash-bal').textContent = (bal === null) ? '请先输入初始库存' : fmtNum(bal);
+    if ($('sum-orange')) $('sum-orange').textContent = fmtNum(or);
+    if ($('sum-dni')) $('sum-dni').textContent = fmtNum(dn);
+    if ($('sum-merc')) $('sum-merc').textContent = fmtNum(mc);
+    const vals = { f_exp: co, orange_c: or, dni_c1: dn, merc_c2: mc, actual_stock: bal };
+    Object.keys(vals).forEach((k) => {
+        const vEl = $('sv-' + k), btn = document.querySelector('.lg-copy[data-copy="' + k + '"]');
+        if (vEl) vEl.textContent = (vals[k] === null) ? '—' : fmtNum(vals[k]);
+        if (btn) btn.disabled = (vals[k] === null);
+    });
+}
+function renderPushState() {
+    const ps = $('lg-push-state');
+    if (!ps) return;
+    try { const o = JSON.parse(localStorage.getItem('ledger-theoretical-push-v1') || 'null'); ps.textContent = o ? ('上次 ' + o.at + ' · ' + Number(o.value).toLocaleString()) : ''; } catch (e) { ps.textContent = ''; }
+}
+function renderAll() {
+    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderSuggest('cash'); renderSuggest('transfer');
+}
+function renderList(book) {
+    const box = $(book === 'cash' ? 'cash-list' : 'tr-list');
+    if (!box) return;
+    const list = dayEntries(book, state.curDate).sort((a, b) => b.ts - a.ts);
+    if (!list.length) { box.innerHTML = '<div class="lg-empty">当日无记录</div>'; return; }
+    let html = '';
+    list.forEach((e) => {
+        const dt = new Date(e.ts);
+        const hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+        const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
+        html += '<div class="lg-row" data-id="' + e.id + '"><span class="t">' + hh + '</span>' +
+            '<div class="mid"><div class="c">' + escHtml(e.cat) + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
+            '<span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span>' +
+            '<button class="lg-more" data-more="' + e.id + '">⋯</button></div>' +
+            '<div class="lg-acts" data-acts="' + e.id + '"><button data-act="edit" data-id="' + e.id + '">编辑</button>' +
+            '<button class="danger" data-act="del" data-id="' + e.id + '">删除</button></div>';
+    });
+    box.innerHTML = html;
+}
+/* ================= 备注历史匹配 ================= */
+function buildNoteIndex(book) {
+    const map = new Map();
+    state.entries.forEach((e) => {
+        if (e.book !== book) return;
+        const raw = (e.note || '').trim();
+        if (!raw) return;
+        const k = raw.toLowerCase();
+        let it = map.get(k);
+        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastCat: '', lastAmount: 0, lastType: 'out' }; map.set(k, it); }
+        it.count += 1;
+        if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastCat = e.cat; it.lastAmount = e.amount; it.lastType = e.type; it.note = raw; }
+    });
+    return map;
+}
+function suggestFor(book, q) {
+    const items = Array.from(buildNoteIndex(book).values());
+    if (!q) return items.sort((a, b) => b.lastTs - a.lastTs).slice(0, 6);
+    const ql = q.toLowerCase(), out = [];
+    items.forEach((it) => {
+        const low = it.note.toLowerCase();
+        if (low.indexOf(ql) === -1) return;
+        const recency = 20 * (1 - Math.min(1, (Date.now() - it.lastTs) / (30 * 86400000)));
+        out.push({ it: it, score: (low.indexOf(ql) === 0 ? 100 : 0) + Math.min(it.count, 20) * 3 + recency });
+    });
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, 6).map((x) => x.it);
+}
+function hiNote(text, q) {
+    if (!q) return escHtml(text);
+    const lower = text.toLowerCase(), ql = q.toLowerCase();
+    let idx = lower.indexOf(ql);
+    if (idx === -1) return escHtml(text);
+    let out = '', i = 0;
+    while (idx !== -1) { out += escHtml(text.slice(i, idx)) + '<mark>' + escHtml(text.slice(idx, idx + ql.length)) + '</mark>'; i = idx + ql.length; idx = lower.indexOf(ql, i); }
+    return out + escHtml(text.slice(i));
+}
+function renderSuggest(book) {
+    const noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note'), box = $(book === 'cash' ? 'cash-sug' : 'tr-sug'), head = $(book === 'cash' ? 'cash-sughead' : 'tr-sughead');
+    if (!noteEl || !box) return;
+    const q = (noteEl.value || '').trim(), items = suggestFor(book, q);
+    if (!items.length) { box.innerHTML = ''; if (head) head.textContent = ''; return; }
+    if (head) head.textContent = q ? '匹配' : '最近';
+    let html = '';
+    items.forEach((it) => {
+        html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-cat="' + escHtml(it.lastCat) + '" data-amt="' + it.lastAmount + '" data-type="' + escHtml(it.lastType) + '">' +
+            '<span class="n">' + hiNote(it.note, q) + '</span><span class="m">' + escHtml(it.lastCat) + ' · ' + fmtNum(it.lastAmount) + '</span></button>';
+    });
+    box.innerHTML = html;
+}
+/* ================= 弹窗 ================= */
+let promptCb = null, confirmCb = null;
+function askPrompt(title, defVal, cb) {
+    $('pm-title').textContent = title; $('pm-input').value = defVal || ''; promptCb = cb;
+    $('lg-prompt').classList.add('show');
+    setTimeout(() => { try { $('pm-input').focus(); } catch (e) {} }, 50);
+}
+function closePrompt() { $('lg-prompt').classList.remove('show'); promptCb = null; }
+function askConfirm(msg, cb) { $('cf-text').textContent = msg; confirmCb = cb; $('lg-confirm').classList.add('show'); }
+function closeConfirm() { $('lg-confirm').classList.remove('show'); confirmCb = null; }
+/* ================= 记账 ================= */
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6).padEnd(4, '0').slice(0, 4); }
+async function saveEntry(book) {
+    const amtEl = $(book === 'cash' ? 'cash-amt' : 'tr-amt'), noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note');
+    const amt = parseSum(amtEl ? amtEl.value : '');
+    if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
+    const cat = state.form[book].cat;
+    if (!cat || state.cats[book].indexOf(cat) === -1) { showToast('请选择分类', 'error'); return; }
+    const entry = { id: newId(), ts: Date.now(), date: state.curDate, book: book, type: state.form[book].type, amount: Math.round(amt * 100) / 100, cat: cat, note: noteEl ? noteEl.value.trim() : '' };
+    state.entries.push(entry);
+    const ok = await saveKey('entries');
+    if (!ok) { state.entries.pop(); return; }
+    if (amtEl) amtEl.value = '';
+    if (noteEl) noteEl.value = '';
+    renderAll(); showToast('已记录'); haptic('success');
+}
+/* ================= 分类增删 ================= */
+function addCat(book) {
+    if (book !== 'cash') return;
+    askPrompt('新增现金账分类(最长 8 字)', '', (val) => {
+        const name = String(val || '').trim().slice(0, 8);
+        if (!name) return;
+        if (state.cats.cash.indexOf(name) !== -1) { showToast('分类已存在', 'warning'); return; }
+        state.cats.cash.push(name); saveKey('cats'); state.form.cash.cat = name; renderCash();
+    });
+}
+function removeCat(book, cat) {
+    if (book !== 'cash') return;
+    askConfirm('删除分类「' + cat + '」?已有账目不会被删除。', async () => {
+        state.cats.cash = state.cats.cash.filter((c) => c !== cat);
+        if (state.form.cash.cat === cat) state.form.cash.cat = state.cats.cash[0] || '';
+        await saveKey('cats'); renderCash(); showToast('分类已删除');
+    });
+}
+/* ================= 推送理论库存 ================= */
+function pushTheoretical() {
+    const bal = balanceOf(state.curDate);
+    if (bal === null) { showToast('请先输入初始库存', 'warning'); return; }
+    if (bal === 0) { showToast('今日余额为 0,不推送', 'warning'); return; }
+    const now = new Date();
+    const at = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    try { localStorage.setItem('ledger-theoretical-push-v1', JSON.stringify({ value: Math.round(bal), seq: Date.now(), at: at })); }
+    catch (e) { showToast('保存失败', 'error'); return; }
+    showToast('已设为现金箱理论库存:' + Math.round(bal).toLocaleString());
+    renderPushState();
+}
+/* ================= 复制 ================= */
+function copyText(text) {
+    const fallback = () => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; ta.style.top = '0'; ta.style.left = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast(ok ? '已复制' : '复制失败', ok ? 'success' : 'error');
+        } catch (e) { showToast('复制失败', 'error'); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(text)).then(() => showToast('已复制')).catch(fallback);
+    else fallback();
+}
+/* ================= 编辑/删除账目 ================= */
+function openEdit(id) {
+    const e = state.entries.find((x) => x.id === id);
+    if (!e) return;
+    state.editingId = id; state.editingCat = e.cat;
+    $('md-amt').value = String(e.amount); $('md-note').value = e.note || '';
+    const cats = state.cats[e.book].slice();
+    if (cats.indexOf(e.cat) === -1) cats.push(e.cat);
+    let html = '';
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === e.cat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    $('md-cats').innerHTML = html;
+    $('lg-modal').classList.add('show');
+}
+async function saveEdit() {
+    const e = state.entries.find((x) => x.id === state.editingId);
+    if (!e) { $('lg-modal').classList.remove('show'); return; }
+    const amt = parseSum($('md-amt').value);
+    if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
+    e.amount = Math.round(amt * 100) / 100;
+    if (state.editingCat) e.cat = state.editingCat;
+    e.note = $('md-note').value.trim();
+    await saveKey('entries');
+    $('lg-modal').classList.remove('show');
+    state.editingId = null; state.editingCat = null;
+    renderAll(); showToast('已保存');
+}
+function deleteEntry(id) {
+    if (!state.entries.find((x) => x.id === id)) return;
+    askConfirm('删除这笔记录?', async () => {
+        state.entries = state.entries.filter((x) => x.id !== id);
+        await saveKey('entries'); renderAll(); showToast('已删除');
+    });
+}
+/* ================= 事件绑定 ================= */
+function bind() {
+    $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
+    $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
+    $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
+    document.querySelectorAll('.tabs .tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+            document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('active', c.id === 'tab-' + tab.dataset.tab));
+        });
+    });
+    const openEl = $('cash-open');
+    const commitOpen = async () => {
+        const raw = (openEl.value || '').trim();
+        if (!raw) delete state.opening[state.curDate];
+        else { const v = parseSum(raw); if (!isFinite(v)) { showToast('请输入数字', 'error'); return; }
+            if (v < 0) { showToast('初始库存不能为负', 'error'); return; }
+            state.opening[state.curDate] = round2(v); }
+        await saveKey('opening'); renderAll(); showToast('已保存');
+    };
+    openEl.addEventListener('change', commitOpen);
+    openEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openEl.blur(); } });
+    $('cash-yesterday').addEventListener('click', () => {
+        const v = $('cash-yesterday').dataset.val;
+        if (v === undefined) return;
+        openEl.value = v;
+        try { openEl.focus(); } catch (e) {}
+    });
+    document.querySelectorAll('.lg-type').forEach((btn) => {
+        btn.addEventListener('click', () => { state.form[btn.dataset.book].type = btn.dataset.type; renderTypeButtons(btn.dataset.book); });
+    });
+    ['cash', 'transfer'].forEach((book) => {
+        const box = $(book === 'cash' ? 'cash-cats' : 'tr-cats');
+        let lpTimer = null, lpFired = false;
+        const startLp = (chip) => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; removeCat(book, chip.dataset.cat); }, 650); };
+        const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
+        box.addEventListener('pointerdown', (e) => { const chip = e.target.closest('.lg-chip'); if (chip && chip.dataset.cat) startLp(chip); });
+        box.addEventListener('pointerup', cancelLp);
+        box.addEventListener('pointerleave', cancelLp);
+        box.addEventListener('pointercancel', cancelLp);
+        box.addEventListener('click', (e) => {
+            const chip = e.target.closest('.lg-chip');
+            if (!chip) return;
+            if (lpFired) { lpFired = false; return; }
+            if (chip.dataset.add) { addCat(book); return; }
+            if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
+        });
+        const sugBox = $(book === 'cash' ? 'cash-sug' : 'tr-sug');
+        const noteEl = $(book === 'cash' ? 'cash-note' : 'tr-note');
+        const amtEl = $(book === 'cash' ? 'cash-amt' : 'tr-amt');
+        noteEl.addEventListener('input', () => renderSuggest(book));
+        const guard = (e) => e.preventDefault();
+        sugBox.addEventListener('mousedown', guard);
+        sugBox.addEventListener('touchstart', guard, { passive: false });
+        sugBox.addEventListener('click', (e) => {
+            const b = e.target.closest('.lg-sug');
+            if (!b) return;
+            e.preventDefault();
+            noteEl.value = b.dataset.note || '';
+            const cat = b.dataset.cat || '';
+            if (cat && state.cats[book].indexOf(cat) !== -1) state.form[book].cat = cat;
+            if (!(amtEl.value || '').trim() && b.dataset.amt) amtEl.value = b.dataset.amt;
+            if (b.dataset.type) state.form[book].type = b.dataset.type;
+            renderTypeButtons(book); renderCats(book); renderSuggest(book);
+        });
+    });
+    $('cash-save').addEventListener('click', () => saveEntry('cash'));
+    $('tr-save').addEventListener('click', () => saveEntry('transfer'));
+    $('lg-push').addEventListener('click', pushTheoretical);
+    ['cash-list', 'tr-list'].forEach((id) => {
+        const box = $(id);
+        box.addEventListener('click', (e) => {
+            const more = e.target.closest('[data-more]');
+            if (more) {
+                const acts = box.querySelector('.lg-acts[data-acts="' + more.dataset.more + '"]');
+                box.querySelectorAll('.lg-acts.show').forEach((a) => { if (a !== acts) a.classList.remove('show'); });
+                if (acts) acts.classList.toggle('show');
+                return;
+            }
+            const act = e.target.closest('[data-act]');
+            if (!act) return;
+            if (act.dataset.act === 'edit') openEdit(act.dataset.id);
+            else if (act.dataset.act === 'del') deleteEntry(act.dataset.id);
+        });
+    });
+    document.querySelectorAll('.lg-copy').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const k = btn.dataset.copy, d = state.curDate;
+            let v = null;
+            if (k === 'f_exp') v = sumBook('cash', d, 'out');
+            else if (k === 'orange_c') v = sumTransferCat(d, '橙色');
+            else if (k === 'dni_c1') v = sumTransferCat(d, 'DNI');
+            else if (k === 'merc_c2') v = sumTransferCat(d, 'Mercado');
+            else if (k === 'actual_stock') v = balanceOf(d);
+            if (v === null) return;
+            copyText(String(v));
+        });
+    });
+    $('md-cats').addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-mdcat]');
+        if (!chip) return;
+        state.editingCat = chip.dataset.mdcat;
+        $('md-cats').querySelectorAll('.lg-chip').forEach((c) => c.classList.toggle('on', c === chip));
+    });
+    $('md-cancel').addEventListener('click', () => { state.editingId = null; $('lg-modal').classList.remove('show'); });
+    $('md-save').addEventListener('click', saveEdit);
+    $('pm-cancel').addEventListener('click', closePrompt);
+    $('pm-ok').addEventListener('click', () => { const cb = promptCb, val = $('pm-input').value; closePrompt(); if (cb) cb(val); });
+    $('cf-cancel').addEventListener('click', closeConfirm);
+    $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
+}
+/* ================= 启动 ================= */
+document.addEventListener('DOMContentLoaded', async () => {
+    bind();
+    try { await loadAll(); } catch (err) { showToast('数据加载失败', 'error'); }
+    renderAll();
+});
+</script>
+<script src="./fx.js"></script>
+<script src="./common.js"></script>
+<script src="./keypad-extra.js"></script>
+<script src="./keyboard-avoid.js"></script>
+<script src="./tabs-glass.js"></script>
+</body>
+</html>

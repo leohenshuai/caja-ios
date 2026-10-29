@@ -683,11 +683,11 @@
             <div class="app-status uncached" id="status-inventory">待缓存</div>
         </a>
 
-        <a class="app-card" href="./monitor.html" onclick="return openApp(this.href)">
-            <div class="app-icon caja">C</div>
-            <div class="app-name">CAJA 监控</div>
-            <div class="app-desc">多Caja实时监控、结算、关闭管理</div>
-            <div class="app-status uncached" id="status-caja">待缓存</div>
+        <a class="app-card" href="./ledger.html" onclick="return openApp(this.href)">
+            <div class="app-icon caja">账</div>
+            <div class="app-name">记账系统</div>
+            <div class="app-desc">现金账、转账账分类记录、备注自动匹配、余额与财务联动</div>
+            <div class="app-status uncached" id="status-ledger">待缓存</div>
         </a>
 
         <a class="app-card" href="./payroll.html" onclick="return openApp(this.href)">
@@ -708,7 +708,7 @@
     <div class="suite-backup-panel">
         <div class="suite-backup-copy">
             <div class="suite-backup-title">六系统总备份</div>
-            <div class="suite-backup-desc">统一导出或恢复财务、拆分器、现金箱、CAJA、薪资和资金到账的全部本地数据</div>
+            <div class="suite-backup-desc">统一导出或恢复财务、拆分器、现金箱、记账、薪资和资金到账的全部本地数据</div>
         </div>
         <div class="suite-backup-actions">
             <button class="suite-backup-btn" id="suiteBackupBtn" type="button" onclick="exportAllSystemsBackup()">
@@ -747,7 +747,7 @@
 const SUITE_DATABASES = {
     finance: ['financeDB', 'CashAllocationDB'],
     inventory: ['CashBoxDB'],
-    monitor: ['CajaDB'],
+    ledger: ['LedgerDB'],
     payroll: ['SalaryDB']
 };
 
@@ -853,10 +853,7 @@ async function exportAllSystemsBackup() {
                 finance: { databases: SUITE_DATABASES.finance.map(name => dumps[name]) },
                 splitter: { persistentData: null, note: '大数拆分器不保存持久数据' },
                 inventory: { databases: SUITE_DATABASES.inventory.map(name => dumps[name]) },
-                monitor: {
-                    databases: SUITE_DATABASES.monitor.map(name => dumps[name]),
-                    localStorage: { caja_config: allLocalStorage.caja_config ?? null }
-                },
+                ledger: { databases: SUITE_DATABASES.ledger.map(name => dumps[name]) },
                 payroll: { databases: SUITE_DATABASES.payroll.map(name => dumps[name]) },
                 arrival: {
                     localStorage: { 'fund-arrival-manager-v1': allLocalStorage['fund-arrival-manager-v1'] ?? null }
@@ -930,7 +927,7 @@ function openDatabaseForRestore(databaseBackup, existingNames) {
 }
 
 function validateFullBackup(backup) {
-    const requiredSystems = ['finance', 'splitter', 'inventory', 'monitor', 'payroll', 'arrival'];
+    const requiredSystems = ['finance', 'splitter', 'inventory', 'payroll', 'arrival'];
     if (!backup || backup.backupType !== 'management-suite-full-backup' || Number(backup.version) !== 1) {
         throw new Error('这不是本套件导出的总备份文件');
     }
@@ -940,7 +937,7 @@ function validateFullBackup(backup) {
     const databases = [
         ...(backup.systems.finance.databases || []),
         ...(backup.systems.inventory.databases || []),
-        ...(backup.systems.monitor.databases || []),
+        ...((backup.systems.ledger && backup.systems.ledger.databases) || []),
         ...(backup.systems.payroll.databases || [])
     ];
     for (const database of databases) {
@@ -1071,7 +1068,7 @@ async function checkCacheStatus() {
             'finance': './finance.html',
             'splitter': './splitter.html',
             'inventory': './inventory.html',
-            'caja': './monitor.html',
+            'ledger': './ledger.html',
             'salary': './payroll.html',
             'arrival': './arrival.html'
         };
