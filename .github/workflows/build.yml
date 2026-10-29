@@ -3,6 +3,11 @@ permissions:
   contents: write
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: '编译成功后是否发布 Release(默认不发布)'
+        type: boolean
+        default: false
   push:
     branches: [main]
 jobs:
@@ -30,6 +35,7 @@ jobs:
           name: Caja-ipa
           path: build/Caja.ipa
       - name: Publish release
+        if: ${{ github.event_name == 'push' || inputs.release == true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
