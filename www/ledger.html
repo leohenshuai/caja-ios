@@ -1557,7 +1557,6 @@ function bindCatBox(book, box, sugBox, noteEl, amtEl) {
     noteEl.addEventListener('input', () => renderSuggest(book));
     const guard = (e) => e.preventDefault();
     sugBox.addEventListener('mousedown', guard);
-    sugBox.addEventListener('touchstart', guard, { passive: false });
     sugBox.addEventListener('click', (e) => {
         const b = e.target.closest('.lg-sug');
         if (!b) return;
