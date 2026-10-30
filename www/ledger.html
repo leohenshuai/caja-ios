@@ -736,6 +736,84 @@ body {
 .sr-row-r small { display:block; margin-top:3px; font-family:var(--mono); font-size:11px; color:var(--text-muted); opacity:.75; }
 .sr-more { text-align:center; font-size:12px; color:var(--text-muted); padding:14px 0; }
 #lg-search mark { background:rgba(250,204,21,.32); color:#fff; border-radius:4px; padding:0 2px; }
+
+/* ============ 全局底色:取自余额卡(靛蓝→紫) ============ */
+html { background:#12162b !important; }
+body {
+  background:
+    radial-gradient(110% 55% at 8% -8%, rgba(83,96,178,.55), transparent 62%),
+    radial-gradient(90% 50% at 102% 4%, rgba(118,86,158,.45), transparent 62%),
+    radial-gradient(100% 55% at 50% 108%, rgba(40,52,96,.55), transparent 60%),
+    linear-gradient(178deg,#1a1e3a 0%,#151933 38%,#11142a 68%,#0e1124 100%) !important;
+  background-attachment:fixed !important;
+}
+.lg-card {
+  background:linear-gradient(158deg,rgba(88,98,170,.24),rgba(45,52,102,.20) 55%,rgba(28,33,66,.30)) !important;
+  border:1px solid rgba(150,160,225,.20) !important;
+  box-shadow:inset 0 1px 0 rgba(198,208,255,.18), 0 12px 30px rgba(8,10,26,.42) !important;
+}
+.tabs { background:rgba(28,32,64,.55) !important; border:1px solid rgba(150,160,225,.16) !important; }
+.header { background:linear-gradient(180deg,rgba(26,30,58,.86),rgba(20,24,48,.66)) !important; border-bottom:1px solid rgba(150,160,225,.14) !important; }
+.tab-content.active > .lg-card { }
+
+/* ============ 收入选中:绿色(按 data-type 匹配) ============ */
+.lg-type.on[data-type="out"] { background:linear-gradient(135deg,#fb7185,#e11d48) !important; color:#fff !important; box-shadow:0 6px 16px rgba(244,63,94,.38) !important; }
+.lg-type.on[data-type="in"] { background:linear-gradient(135deg,#34d399,#059669) !important; color:#fff !important; box-shadow:0 6px 16px rgba(16,185,129,.42) !important; }
+.lg-type.on[data-type="in"] { border-color:transparent !important; }
+
+/* ============ 记一笔:备注 + 金额 一行 ============ */
+.lg-entry {
+  display:flex; align-items:center; gap:8px; min-height:58px; padding:0 14px;
+  border-radius:18px; background:rgba(14,17,38,.55); border:1px solid rgba(160,170,235,.20);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.34);
+  transition:border-color .2s, box-shadow .2s;
+}
+.lg-entry:focus-within { border-color:rgba(160,175,255,.5); box-shadow:inset 0 1px 2px rgba(0,0,0,.34), 0 0 0 3px rgba(120,140,255,.14); }
+.lg-e-note {
+  flex:1 1 auto; min-width:0; min-height:auto !important; height:56px;
+  border:none !important; background:transparent !important; box-shadow:none !important;
+  font-family:inherit !important; font-size:16px !important; font-weight:500 !important; padding:0 !important; text-align:left !important;
+  color:var(--text) !important;
+}
+.lg-e-note::placeholder { color:rgba(180,192,225,.5); font-size:16px; font-weight:500; }
+.lg-e-note:focus { box-shadow:none !important; border:none !important; }
+.lg-e-cur { flex:none; color:rgba(180,192,225,.55); font-size:17px; font-weight:700; font-family:var(--round); }
+.lg-e-amt {
+  flex:0 0 auto; width:auto; min-width:56px; max-width:56%; min-height:auto !important; height:56px;
+  border:none !important; background:transparent !important; box-shadow:none !important;
+  font-family:var(--round) !important; font-size:26px !important; font-weight:800 !important;
+  text-align:right !important; padding:0 !important; letter-spacing:-.3px !important; color:#fff !important;
+  caret-color:transparent;
+}
+.lg-e-amt::placeholder { color:rgba(180,192,225,.4); font-size:24px; font-weight:700; text-align:right; }
+.lg-e-amt.active { color:#9fd0ff !important; }
+
+/* ============ 自制数字键盘 ============ */
+#lg-numpad {
+  position:fixed; left:0; right:0; bottom:0; z-index:1500;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,#1a1f3d,#10132a);
+  border-top:1px solid rgba(150,160,225,.24);
+  -webkit-backdrop-filter:blur(18px) saturate(150%); backdrop-filter:blur(18px) saturate(150%);
+  display:none;
+  box-shadow:0 -10px 30px rgba(0,0,0,.45);
+}
+#lg-numpad.show { display:block; }
+body.np-on .lg-wrap { padding-bottom:330px !important; }
+.np-grid { display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:54px; gap:7px; }
+
+#lg-numpad button {
+  min-height:54px; border-radius:14px !important;
+  background:rgba(255,255,255,.10) !important; border:1px solid rgba(160,170,235,.18) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 2px 6px rgba(0,0,0,.25) !important;
+  color:#fff; font-family:var(--round); font-size:22px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .1s, background .15s;
+}
+#lg-numpad button:active { transform:scale(.95); background:rgba(255,255,255,.22) !important; }
+#lg-numpad .np-fn { background:rgba(255,255,255,.055) !important; font-size:18px; color:#c7d2fe; }
+#lg-numpad .np-ok { background:linear-gradient(160deg,#4ade80,#16a34a) !important; border-color:transparent !important; font-size:19px; font-weight:800; }
+#lg-numpad .np-sum { background:rgba(56,189,248,.20) !important; color:#bae6fd; font-size:19px; }
 </style>
 </head>
 <body>
@@ -771,18 +849,17 @@ body {
       <button class="lg-type" data-book="cash" data-type="in">收入</button>
     </div>
     <div class="lg-field">
-      <div class="lg-label">金额</div>
-      <input class="lg-inp" id="cash-amt" placeholder="支持 100 200 求和" autocomplete="off">
+      <div class="lg-entry">
+        <input class="lg-inp lg-inp-note lg-e-note" id="cash-note" placeholder="填写备注" autocomplete="off">
+        <span class="lg-e-cur">$</span>
+        <input class="lg-inp lg-e-amt" id="cash-amt" placeholder="0" autocomplete="off" inputmode="none" readonly>
+      </div>
+      <div id="cash-sughead" class="lg-sug-head"></div>
+      <div class="lg-sugs" id="cash-sug"></div>
     </div>
     <div class="lg-field">
       <div class="lg-label">分类</div>
       <div class="lg-chips" id="cash-cats"></div>
-    </div>
-    <div class="lg-field">
-      <div class="lg-label">备注</div>
-      <input class="lg-inp lg-inp-note" id="cash-note" placeholder="选填,可自动匹配历史" autocomplete="off">
-      <div id="cash-sughead" class="lg-sug-head"></div>
-      <div class="lg-sugs" id="cash-sug"></div>
     </div>
     <button class="lg-btn-main" id="cash-save">记一笔</button>
   </div>
@@ -801,18 +878,17 @@ body {
       <button class="lg-type" data-book="transfer" data-type="in">收入</button>
     </div>
     <div class="lg-field">
-      <div class="lg-label">金额</div>
-      <input class="lg-inp" id="tr-amt" placeholder="支持 100 200 求和" autocomplete="off">
+      <div class="lg-entry">
+        <input class="lg-inp lg-inp-note lg-e-note" id="tr-note" placeholder="填写备注" autocomplete="off">
+        <span class="lg-e-cur">$</span>
+        <input class="lg-inp lg-e-amt" id="tr-amt" placeholder="0" autocomplete="off" inputmode="none" readonly>
+      </div>
+      <div id="tr-sughead" class="lg-sug-head"></div>
+      <div class="lg-sugs" id="tr-sug"></div>
     </div>
     <div class="lg-field">
       <div class="lg-label">分类</div>
       <div class="lg-chips" id="tr-cats"></div>
-    </div>
-    <div class="lg-field">
-      <div class="lg-label">备注</div>
-      <input class="lg-inp lg-inp-note" id="tr-note" placeholder="选填,可自动匹配历史" autocomplete="off">
-      <div id="tr-sughead" class="lg-sug-head"></div>
-      <div class="lg-sugs" id="tr-sug"></div>
     </div>
     <button class="lg-btn-main" id="tr-save">记一笔</button>
   </div>
@@ -1255,13 +1331,13 @@ function plainHtml(bk) {
         '<button class="lg-type' + (f.type === 'out' ? ' on out' : '') + '" data-book="' + escHtml(bk.id) + '" data-type="out">支出</button>' +
         '<button class="lg-type' + (f.type === 'in' ? ' on in' : '') + '" data-book="' + escHtml(bk.id) + '" data-type="in">收入</button>' +
         '</div>' +
-        '<div class="lg-field"><div class="lg-label">金额</div>' +
-        '<input class="lg-inp" id="' + eid(bk.id, 'amt') + '" placeholder="支持 100 200 求和" autocomplete="off"></div>' +
-        '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
-        '<div class="lg-field"><div class="lg-label">备注</div>' +
-        '<input class="lg-inp lg-inp-note" id="' + eid(bk.id, 'note') + '" placeholder="选填,可自动匹配历史" autocomplete="off">' +
+        '<div class="lg-field"><div class="lg-entry">' +
+        '<input class="lg-inp lg-inp-note lg-e-note" id="' + eid(bk.id, 'note') + '" placeholder="填写备注" autocomplete="off">' +
+        '<span class="lg-e-cur">$</span>' +
+        '<input class="lg-inp lg-e-amt" id="' + eid(bk.id, 'amt') + '" placeholder="0" autocomplete="off" inputmode="none" readonly></div>' +
         '<div id="' + eid(bk.id, 'sughead') + '" class="lg-sug-head"></div>' +
         '<div class="lg-sugs" id="' + eid(bk.id, 'sug') + '"></div></div>' +
+        '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
         '<button class="lg-btn-main" id="' + eid(bk.id, 'save') + '">记一笔</button>' +
         '</div>' +
         '<div class="lg-card"><div class="lg-card-title">当日' + escHtml(bk.name) + '</div>' +
@@ -2064,8 +2140,84 @@ function bindSearch() {
     });
 }
 
+/* ================= 自制数字键盘(仅金额框)================= */
+const numpad = { el: null, open: false };
+function npEnsure() {
+    let pad = $('lg-numpad');
+    if (pad) return pad;
+    pad = document.createElement('div');
+    pad.id = 'lg-numpad';
+    pad.innerHTML = '<div class="np-grid">' +
+        '<button data-np="7">7</button><button data-np="8">8</button><button data-np="9">9</button><button class="np-fn" data-np="back">⌫</button>' +
+        '<button data-np="4">4</button><button data-np="5">5</button><button data-np="6">6</button><button class="np-fn" data-np="clear">C</button>' +
+        '<button data-np="1">1</button><button data-np="2">2</button><button data-np="3">3</button><button class="np-sum" data-np="+">+</button>' +
+        '<button data-np="00">00</button><button data-np="0">0</button><button data-np=".">.</button><button class="np-ok" data-np="ok">完成</button>' +
+        '</div>';
+    document.body.appendChild(pad);
+    pad.addEventListener('pointerdown', (e) => { const b = e.target.closest('button'); if (b) e.preventDefault(); });
+    pad.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) npPress(b.dataset.np); });
+    return pad;
+}
+function npShow(el) {
+    numpad.el = el; numpad.open = true;
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+    const pad = npEnsure();
+    pad.classList.add('show');
+    el.classList.add('active');
+    document.body.classList.add('np-on');
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+}
+function npHide() {
+    numpad.open = false;
+    const pad = $('lg-numpad');
+    if (pad) pad.classList.remove('show');
+    if (numpad.el) numpad.el.classList.remove('active');
+    document.body.classList.remove('np-on');
+    numpad.el = null;
+}
+function npSet(v) { const el = numpad.el; if (!el) return; el.value = v; }
+function npPress(k) {
+    const el = numpad.el; if (!el) return;
+    if (k === 'ok') { npHide(); return; }
+    let v = el.value || '';
+    if (k === 'back') { v = v.slice(0, -1); haptic('light'); }
+    else if (k === 'clear') { v = ''; haptic('medium'); }
+    else if (k === '.') { if (v.indexOf('.') === -1) { v += '.'; } haptic('light'); }
+    else if (k === '+') {                                   // 求和分隔符:总以空格分隔
+        if (v && !/\s$/.test(v)) v += ' '; haptic('light');
+    }
+    else {
+        // 输入到当前最后一段;一段里允许小数,整数位不超 9 位
+        const parts = v.split(/\s+/);
+        let seg = parts[parts.length - 1] || '';
+        if (seg.indexOf('.') > -1) { if (seg.split('.')[1].length >= 2) { haptic('error'); return; } }
+        else if (seg.replace(/[^\d]/g, '').length >= 9) { haptic('error'); return; }
+        if (seg === '0') seg = '';
+        parts[parts.length - 1] = seg + k;
+        v = parts.join(' ');
+        haptic('light');
+    }
+    npSet(v);
+}
+function bindNumpad() {
+    npEnsure();
+    // 真实点按与合成点击都走 focus:金额框 readonly,系统键盘不会弹出
+    document.addEventListener('focusin', (e) => {
+        const amt = e.target.closest && e.target.closest('.lg-e-amt');
+        if (amt) { npShow(amt); return; }
+        if (numpad.open && !(e.target.closest && e.target.closest('#lg-numpad'))) npHide();
+    }, true);
+    document.addEventListener('pointerdown', (e) => {
+        const amt = e.target.closest && e.target.closest('.lg-e-amt');
+        if (!amt) return;
+        e.preventDefault();                 // 避免 iOS 选中文字/滚动
+        if (!numpad.open) npShow(amt);
+        try { amt.focus({ preventScroll: true }); } catch (x) { try { amt.focus(); } catch (y) {} }
+    }, true);
+}
 function bind() {
     bindSearch();
+    bindNumpad();
     $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
     $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
     $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
