@@ -788,32 +788,7 @@ body {
 .lg-e-amt::placeholder { color:rgba(180,192,225,.4); font-size:24px; font-weight:700; text-align:right; }
 .lg-e-amt.active { color:#9fd0ff !important; }
 
-/* ============ 自制数字键盘 ============ */
-#lg-numpad {
-  position:fixed; left:0; right:0; bottom:0; z-index:1500;
-  padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));
-  background:linear-gradient(180deg,#1a1f3d,#10132a);
-  border-top:1px solid rgba(150,160,225,.24);
-  -webkit-backdrop-filter:blur(18px) saturate(150%); backdrop-filter:blur(18px) saturate(150%);
-  display:none;
-  box-shadow:0 -10px 30px rgba(0,0,0,.45);
-}
-#lg-numpad.show { display:block; }
 body.np-on .lg-wrap { padding-bottom:330px !important; }
-.np-grid { display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:54px; gap:7px; }
-
-#lg-numpad button {
-  min-height:54px; border-radius:14px !important;
-  background:rgba(255,255,255,.10) !important; border:1px solid rgba(160,170,235,.18) !important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 2px 6px rgba(0,0,0,.25) !important;
-  color:#fff; font-family:var(--round); font-size:22px; font-weight:700;
-  display:flex; align-items:center; justify-content:center;
-  transition:transform .1s, background .15s;
-}
-#lg-numpad button:active { transform:scale(.95); background:rgba(255,255,255,.22) !important; }
-#lg-numpad .np-fn { background:rgba(255,255,255,.055) !important; font-size:18px; color:#c7d2fe; }
-#lg-numpad .np-ok { background:linear-gradient(160deg,#4ade80,#16a34a) !important; border-color:transparent !important; font-size:19px; font-weight:800; }
-#lg-numpad .np-sum { background:rgba(56,189,248,.20) !important; color:#bae6fd; font-size:19px; }
 </style>
 </head>
 <body>
@@ -850,9 +825,9 @@ body.np-on .lg-wrap { padding-bottom:330px !important; }
     </div>
     <div class="lg-field">
       <div class="lg-entry">
-        <input class="lg-inp lg-inp-note lg-e-note" id="cash-note" placeholder="填写备注" autocomplete="off">
+        <input class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="cash-note" placeholder="填写备注" autocomplete="off">
         <span class="lg-e-cur">$</span>
-        <input class="lg-inp lg-e-amt" id="cash-amt" placeholder="0" autocomplete="off" inputmode="none" readonly>
+        <input class="lg-inp lg-e-amt" id="cash-amt" placeholder="0" autocomplete="off">
       </div>
       <div id="cash-sughead" class="lg-sug-head"></div>
       <div class="lg-sugs" id="cash-sug"></div>
@@ -879,9 +854,9 @@ body.np-on .lg-wrap { padding-bottom:330px !important; }
     </div>
     <div class="lg-field">
       <div class="lg-entry">
-        <input class="lg-inp lg-inp-note lg-e-note" id="tr-note" placeholder="填写备注" autocomplete="off">
+        <input class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="tr-note" placeholder="填写备注" autocomplete="off">
         <span class="lg-e-cur">$</span>
-        <input class="lg-inp lg-e-amt" id="tr-amt" placeholder="0" autocomplete="off" inputmode="none" readonly>
+        <input class="lg-inp lg-e-amt" id="tr-amt" placeholder="0" autocomplete="off">
       </div>
       <div id="tr-sughead" class="lg-sug-head"></div>
       <div class="lg-sugs" id="tr-sug"></div>
@@ -1332,9 +1307,9 @@ function plainHtml(bk) {
         '<button class="lg-type' + (f.type === 'in' ? ' on in' : '') + '" data-book="' + escHtml(bk.id) + '" data-type="in">收入</button>' +
         '</div>' +
         '<div class="lg-field"><div class="lg-entry">' +
-        '<input class="lg-inp lg-inp-note lg-e-note" id="' + eid(bk.id, 'note') + '" placeholder="填写备注" autocomplete="off">' +
+        '<input class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="' + eid(bk.id, 'note') + '" placeholder="填写备注" autocomplete="off">' +
         '<span class="lg-e-cur">$</span>' +
-        '<input class="lg-inp lg-e-amt" id="' + eid(bk.id, 'amt') + '" placeholder="0" autocomplete="off" inputmode="none" readonly></div>' +
+        '<input class="lg-inp lg-e-amt" id="' + eid(bk.id, 'amt') + '" placeholder="0" autocomplete="off"></div>' +
         '<div id="' + eid(bk.id, 'sughead') + '" class="lg-sug-head"></div>' +
         '<div class="lg-sugs" id="' + eid(bk.id, 'sug') + '"></div></div>' +
         '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
@@ -2140,84 +2115,20 @@ function bindSearch() {
     });
 }
 
-/* ================= 自制数字键盘(仅金额框)================= */
-const numpad = { el: null, open: false };
-function npEnsure() {
-    let pad = $('lg-numpad');
-    if (pad) return pad;
-    pad = document.createElement('div');
-    pad.id = 'lg-numpad';
-    pad.innerHTML = '<div class="np-grid">' +
-        '<button data-np="7">7</button><button data-np="8">8</button><button data-np="9">9</button><button class="np-fn" data-np="back">⌫</button>' +
-        '<button data-np="4">4</button><button data-np="5">5</button><button data-np="6">6</button><button class="np-fn" data-np="clear">C</button>' +
-        '<button data-np="1">1</button><button data-np="2">2</button><button data-np="3">3</button><button class="np-sum" data-np="+">+</button>' +
-        '<button data-np="00">00</button><button data-np="0">0</button><button data-np=".">.</button><button class="np-ok" data-np="ok">完成</button>' +
-        '</div>';
-    document.body.appendChild(pad);
-    pad.addEventListener('pointerdown', (e) => { const b = e.target.closest('button'); if (b) e.preventDefault(); });
-    pad.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) npPress(b.dataset.np); });
-    return pad;
-}
-function npShow(el) {
-    numpad.el = el; numpad.open = true;
-    document.activeElement && document.activeElement.blur && document.activeElement.blur();
-    const pad = npEnsure();
-    pad.classList.add('show');
-    el.classList.add('active');
-    document.body.classList.add('np-on');
-    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
-}
-function npHide() {
-    numpad.open = false;
-    const pad = $('lg-numpad');
-    if (pad) pad.classList.remove('show');
-    if (numpad.el) numpad.el.classList.remove('active');
-    document.body.classList.remove('np-on');
-    numpad.el = null;
-}
-function npSet(v) { const el = numpad.el; if (!el) return; el.value = v; }
-function npPress(k) {
-    const el = numpad.el; if (!el) return;
-    if (k === 'ok') { npHide(); return; }
-    let v = el.value || '';
-    if (k === 'back') { v = v.slice(0, -1); haptic('light'); }
-    else if (k === 'clear') { v = ''; haptic('medium'); }
-    else if (k === '.') { if (v.indexOf('.') === -1) { v += '.'; } haptic('light'); }
-    else if (k === '+') {                                   // 求和分隔符:总以空格分隔
-        if (v && !/\s$/.test(v)) v += ' '; haptic('light');
-    }
-    else {
-        // 输入到当前最后一段;一段里允许小数,整数位不超 9 位
-        const parts = v.split(/\s+/);
-        let seg = parts[parts.length - 1] || '';
-        if (seg.indexOf('.') > -1) { if (seg.split('.')[1].length >= 2) { haptic('error'); return; } }
-        else if (seg.replace(/[^\d]/g, '').length >= 9) { haptic('error'); return; }
-        if (seg === '0') seg = '';
-        parts[parts.length - 1] = seg + k;
-        v = parts.join(' ');
-        haptic('light');
-    }
-    npSet(v);
-}
-function bindNumpad() {
-    npEnsure();
-    // 真实点按与合成点击都走 focus:金额框 readonly,系统键盘不会弹出
-    document.addEventListener('focusin', (e) => {
-        const amt = e.target.closest && e.target.closest('.lg-e-amt');
-        if (amt) { npShow(amt); return; }
-        if (numpad.open && !(e.target.closest && e.target.closest('#lg-numpad'))) npHide();
-    }, true);
-    document.addEventListener('pointerdown', (e) => {
-        const amt = e.target.closest && e.target.closest('.lg-e-amt');
-        if (!amt) return;
-        e.preventDefault();                 // 避免 iOS 选中文字/滚动
-        if (!numpad.open) npShow(amt);
-        try { amt.focus({ preventScroll: true }); } catch (x) { try { amt.focus(); } catch (y) {} }
-    }, true);
-}
 function bind() {
     bindSearch();
-    bindNumpad();
+    // 数字键盘「回车」= 直接记一笔(本页无 enter 导航)
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const el = e.target;
+        if (!el || !el.classList || !el.classList.contains('lg-e-amt')) return;
+        e.preventDefault();
+        const box = el.closest('.lg-field');
+        const tab = el.closest('.tab-content');
+        const book = (tab && tab.id === 'tab-dyn') ? state.tab : (el.id.startsWith('tr-') ? 'transfer' : 'cash');
+        saveEntry(book);
+    }, true);
+
     $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
     $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
     $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
@@ -2338,6 +2249,193 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAll();
 });
 </script>
+<!-- ===== 自制数字键盘(与 payroll 同一套)===== -->
+<div id="vk-keypad">
+    <div class="vk-toolbar">
+        <button type="button" data-k="home" title="句首">|◀</button>
+        <button type="button" data-k="left" title="左移">◀</button>
+        <button type="button" data-k="right" title="右移">▶</button>
+        <button type="button" data-k="end" title="句末">▶|</button>
+        <button type="button" data-k="clear" class="vk-clear" title="清空">清空</button>
+        <button type="button" data-k="hide" class="vk-hide" title="收起键盘">收起</button>
+    </div>
+    <div class="vk-main">
+    <div class="vk-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" data-k="00">00</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+    <div class="vk-side">
+        <button type="button" data-k="back" class="vk-func">⌫</button>
+        <button type="button" data-k=" " class="vk-func">空格</button>
+        <button type="button" data-k="enter" class="vk-enter">回车</button>
+    </div>
+    </div>
+</div>
+<script>
+(function () {
+    const keypad = document.getElementById('vk-keypad');
+
+    // 0) 全局解析兼容千分位：所有 parseFloat/parseInt 自动剔除逗号，避免 "500,000" 被截断成 500
+    const _pf = window.parseFloat, _pi = window.parseInt;
+    window.parseFloat = (v) => _pf(typeof v === 'string' ? v.replace(/,/g, '') : v);
+    window.parseInt = (v, r) => _pi(typeof v === 'string' ? v.replace(/,/g, '') : v, r);
+    // 带 data-vk-skip 属性的输入框属于"文字编辑"（如员工姓名），不弹自制键盘、不抑制系统键盘
+    const isVkSkipped = (el) => el && el.hasAttribute && el.hasAttribute('data-vk-skip');
+    const isTargetInput = (el) => el && el.tagName === 'INPUT' &&
+        (el.type === 'text' || el.type === 'number') &&
+        el.id !== 'quickCmd' && !el.disabled && !isVkSkipped(el);
+
+    // 1) 抑制系统键盘：除文字编辑输入框外，其余文本/数字输入框统一改为 inputmode="none"
+    const suppressOne = (el) => {
+        if (isVkSkipped(el)) {
+            if (el.getAttribute('inputmode') === 'none') el.removeAttribute('inputmode');
+            return;
+        }
+        if (el.getAttribute('inputmode') !== 'none') el.setAttribute('inputmode', 'none');
+    };
+    const suppressSystemKeyboard = (root) => {
+        (root || document).querySelectorAll('input[type="text"], input[type="number"]').forEach(suppressOne);
+    };
+    suppressSystemKeyboard();
+    // 只扫新插进来的子树，不再每次 DOM 变化都把整页输入框过滤一遍
+    new MutationObserver((muts) => {
+        for (const m of muts) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                if (node.tagName === 'INPUT') suppressOne(node);
+                else suppressSystemKeyboard(node);
+            }
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+
+    // 1.5) 输入时自动加千分位（只处理纯整数；含空格求和/算式/小数点的内容原样保留）
+    const formatThousands = (el) => {
+        // 带 data-vk-raw 的输入框（如时间手动输入）不加千分位，但仍使用自制键盘
+        if (el.hasAttribute && el.hasAttribute('data-vk-raw')) return;
+        const raw = el.value;
+        if (!raw || !/^[\d,]+$/.test(raw)) return;
+        const caret = (el.selectionStart != null) ? el.selectionStart : raw.length;
+        const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digits = raw.replace(/\D/g, '');
+        if (!digits) { el.value = ''; return; }
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (formatted === raw) return;
+        el.value = formatted;
+        let pos = 0, seen = 0;
+        while (pos < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[pos])) seen++; pos++; }
+        el.setSelectionRange(pos, pos);
+    };
+    // 捕获阶段在原有 oninput 处理之前执行，保证后续逻辑拿到的是格式化后的值
+    document.addEventListener('input', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+    // 聚焦时把已有数值也补上千分位
+    document.addEventListener('focusin', (e) => {
+        if (isTargetInput(e.target)) formatThousands(e.target);
+    }, true);
+
+    // 2) 聚焦时弹出自制键盘，失焦时收起
+    document.addEventListener('focusin', (e) => {
+        if (!isTargetInput(e.target)) return;
+        e.target.dataset.vkStart = e.target.value;
+        keypad.classList.add('vk-show');
+        document.body.classList.add('vk-open');
+        document.documentElement.style.setProperty('--vk-h', (keypad.offsetHeight || 460) + 'px');
+        setTimeout(() => { try { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 60);
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!isTargetInput(a)) {
+                keypad.classList.remove('vk-show');
+                document.body.classList.remove('vk-open');
+            }
+        }, 60);
+    });
+
+    // 3) 按键逻辑（拦截触摸默认行为，防止焦点丢失和"幽灵点击"穿透到键盘下方界面）
+    let lastActivateAt = 0;
+    const activate = (btn) => {
+        lastActivateAt = Date.now();
+        const k = btn.dataset.k;
+        // 「收起」不依赖输入框状态：已结算后输入框被 disabled，isTargetInput 会失败导致键盘收不起来
+        if (k === 'hide') {
+            const el = document.activeElement;
+            if (isTargetInput(el)) {
+                // 值有变化先提交，再失焦收起键盘
+                if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                el.blur();
+            }
+            keypad.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+            return;
+        }
+
+        const el = document.activeElement;
+        if (!isTargetInput(el)) return;
+
+        if (k === 'enter') {
+            // 值有变化先提交 change，再走原有的 Enter 导航/确认逻辑
+            if (el.value !== (el.dataset.vkStart ?? el.value)) {
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dataset.vkStart = el.value;
+            }
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            return;
+        }
+
+        const s = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+        const t = (el.selectionEnd != null) ? el.selectionEnd : s;
+        if (k === 'home') { el.setSelectionRange(0, 0); return; }
+        if (k === 'end') { el.setSelectionRange(el.value.length, el.value.length); return; }
+        if (k === 'left') { const p = s === t ? Math.max(0, s - 1) : s; el.setSelectionRange(p, p); return; }
+        if (k === 'right') { const p = s === t ? Math.min(el.value.length, s + 1) : t; el.setSelectionRange(p, p); return; }
+        if (k === 'clear') {
+            el.value = '';
+            el.setSelectionRange(0, 0);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+        if (k === 'back') {
+            if (s === t && s > 0) {
+                el.value = el.value.slice(0, s - 1) + el.value.slice(t);
+                el.setSelectionRange(s - 1, s - 1);
+            } else if (s !== t) {
+                el.value = el.value.slice(0, s) + el.value.slice(t);
+                el.setSelectionRange(s, s);
+            }
+        } else {
+            el.value = el.value.slice(0, s) + k + el.value.slice(t);
+            el.setSelectionRange(s + k.length, s + k.length);
+        }
+        // 触发 input 事件，让实时求和 / 分配逻辑照常工作
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const pick = (e) => { const btn = e.target.closest('button[data-k]'); if (btn) activate(btn); };
+
+    keypad.addEventListener('pointerdown', (e) => e.preventDefault());
+    keypad.addEventListener('pointerup', (e) => { e.preventDefault(); pick(e); });
+    keypad.addEventListener('pointercancel', (e) => e.preventDefault());
+    // 阻止移动端把这次触摸再合成为 click 落到键盘下方的元素上
+    keypad.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    keypad.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+    // 桌面鼠标兜底（移动端 click 已被上面拦截，500ms 内去重避免重复触发）
+    keypad.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastActivateAt > 500) pick(e); });
+})();
+</script>
+
 <script src="./fx.js"></script>
 <script src="./common.js"></script>
 <script src="./keyboard-avoid.js"></script>

@@ -11,9 +11,12 @@
     }
 
     // 仅在页面提供自制数字键盘时抑制系统键盘；普通页面继续使用系统键盘。
+    // 带 data-vk-skip 的输入框(需要系统文字键盘,如备注)不受自制键盘影响
+    const isSkipped = (el) => el && el.hasAttribute && el.hasAttribute('data-vk-skip');
     const suppressSystemKeyboard = () => {
         if (!document.getElementById('vk-keypad')) return;
         document.querySelectorAll('input[type="text"], input[type="number"]').forEach(el => {
+            if (isSkipped(el)) { if (el.getAttribute('inputmode') === 'none') el.removeAttribute('inputmode'); return; }
             if (el.getAttribute('inputmode') !== 'none') el.setAttribute('inputmode', 'none');
         });
     };
