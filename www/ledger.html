@@ -92,17 +92,26 @@
 .lg-sum-row .v { font-family:'Courier New', monospace; font-size:17px; font-weight:800; }
 .lg-copy { min-height:44px; min-width:56px; padding:0 12px; border-radius:12px; border:1px solid rgba(103,232,249,.35); background:rgba(6,182,212,.12); color:var(--text); font-size:13px; font-weight:800; }
 .lg-copy:disabled { opacity:.4; }
-.lg-sum-row .k { flex:1; min-width:0; }
+.lg-sum-row .k { flex:1 1 auto; min-width:76px; }
 .lg-sum-row .v { flex:none; min-width:0; }
 .lg-sum-row .lg-copy { flex:none; }
 .lg-sum-row:has(.lg-copy) .v { margin-right:10px; }
-.lg-sync { margin-left:6px; }
+.lg-sum-row { flex-wrap:nowrap; }
+.lg-sum-row .v { cursor:pointer; border-bottom:1px dashed rgba(255,255,255,.35); padding:10px 6px; margin:-10px 0; white-space:nowrap; }
+.lg-sum-row .k { white-space:nowrap; overflow:visible; }
+.lg-sum-row .k small { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lg-manual { font-size:10px; color:var(--cyan); font-family:inherit; margin-left:2px; }
+.lg-sum-row .k small .lg-manual { font-size:10px; color:var(--cyan); }
+.lg-revert { min-width:44px; padding:0 6px; font-size:12px; }
+.lg-sum-row .lg-copy:not(.lg-revert) { min-width:52px; padding:0 8px; }
+.lg-sync { margin-left:4px; }
 .lg-sync-hint { font-size:11px; color:var(--text-muted); margin:0 0 6px; line-height:1.4; }
 .lg-sync-all { margin-top:10px; }
 .lg-note { font-size:11px; color:var(--text-muted); margin-top:10px; line-height:1.5; }
 
 .modal { display:none; position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:18px; }
 .modal.show { display:flex; }
+#lg-prompt, #lg-confirm { z-index:1300; }
 .modal-content { width:100%; max-width:420px; background:#131c2b; border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:16px; }
 .modal-content h3 { font-size:16px; margin-bottom:12px; }
 .lg-modal-btns { display:flex; gap:10px; margin-top:6px; }
@@ -441,11 +450,11 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
   <div class="lg-card">
     <div class="lg-card-title">同步到财务系统(手动)</div>
     <div class="lg-sync-hint">同步后到财务系统页面打开即自动填入(只接收当天数据)</div>
-    <div class="lg-sum-row"><span class="k">今日支出<small>f_exp</small></span> <span class="v lg-out" id="sv-f_exp">0</span> <button class="lg-copy" data-copy="f_exp">复制</button><button class="lg-copy lg-sync" data-sync="f_exp">同步</button></div>
-    <div class="lg-sum-row"><span class="k">橙色支出<small>orange_c</small></span> <span class="v lg-out" id="sv-orange_c">0</span> <button class="lg-copy" data-copy="orange_c">复制</button><button class="lg-copy lg-sync" data-sync="orange_c">同步</button></div>
-    <div class="lg-sum-row"><span class="k">DNI 支出<small>dni_c1</small></span> <span class="v lg-out" id="sv-dni_c1">0</span> <button class="lg-copy" data-copy="dni_c1">复制</button><button class="lg-copy lg-sync" data-sync="dni_c1">同步</button></div>
-    <div class="lg-sum-row"><span class="k">Mercado 支出<small>merc_c2</small></span> <span class="v lg-out" id="sv-merc_c2">0</span> <button class="lg-copy" data-copy="merc_c2">复制</button><button class="lg-copy lg-sync" data-sync="merc_c2">同步</button></div>
-    <div class="lg-sum-row"><span class="k">实际库余<small>actual_stock</small></span> <span class="v" id="sv-actual_stock">—</span> <button class="lg-copy" data-copy="actual_stock">复制</button><button class="lg-copy lg-sync" data-sync="actual_stock">同步</button></div>
+    <div class="lg-sum-row"><span class="k">今日支出<small>f_exp <span class="lg-manual" id="man-f_exp" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-f_exp">0</span><button class="lg-copy lg-revert" data-revert="f_exp" style="display:none">还原</button><button class="lg-copy" data-copy="f_exp">复制</button><button class="lg-copy lg-sync" data-sync="f_exp">同步</button></div>
+    <div class="lg-sum-row"><span class="k">橙色支出<small>orange_c <span class="lg-manual" id="man-orange_c" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-orange_c">0</span><button class="lg-copy lg-revert" data-revert="orange_c" style="display:none">还原</button><button class="lg-copy" data-copy="orange_c">复制</button><button class="lg-copy lg-sync" data-sync="orange_c">同步</button></div>
+    <div class="lg-sum-row"><span class="k">DNI 支出<small>dni_c1 <span class="lg-manual" id="man-dni_c1" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-dni_c1">0</span><button class="lg-copy lg-revert" data-revert="dni_c1" style="display:none">还原</button><button class="lg-copy" data-copy="dni_c1">复制</button><button class="lg-copy lg-sync" data-sync="dni_c1">同步</button></div>
+    <div class="lg-sum-row"><span class="k">Mercado 支出<small>merc_c2 <span class="lg-manual" id="man-merc_c2" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-merc_c2">0</span><button class="lg-copy lg-revert" data-revert="merc_c2" style="display:none">还原</button><button class="lg-copy" data-copy="merc_c2">复制</button><button class="lg-copy lg-sync" data-sync="merc_c2">同步</button></div>
+    <div class="lg-sum-row"><span class="k">实际库余<small>actual_stock <span class="lg-manual" id="man-actual_stock" style="display:none">· 手动</span></small></span> <span class="v" id="sv-actual_stock">—</span><button class="lg-copy lg-revert" data-revert="actual_stock" style="display:none">还原</button><button class="lg-copy" data-copy="actual_stock">复制</button><button class="lg-copy lg-sync" data-sync="actual_stock">同步</button></div>
     <button class="cgt-push lg-sync-all" id="lg-sync-all"><span>📲 全部同步到财务系统</span><small id="lg-sync-state"></small></button>
     <div class="lg-note">同步后财务系统会自动填入,请到财务系统核对数字。</div>
   </div>
@@ -588,7 +597,7 @@ class LedgerDB {
 const TX_CATS = ['橙色', 'DNI', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
-    db: null, entries: [], opening: {},
+    db: null, entries: [], opening: {}, sumover: {},
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
     cats: { cash: ['白色机器', '其他'], transfer: TX_CATS.slice() },
@@ -634,6 +643,8 @@ async function loadAll() {
     state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
     if (!Array.isArray(state.entries)) state.entries = [];
     state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
+    state.sumover = (await LedgerDB.get(state.db, 'sumover')) || {};
+    if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
     const books = await LedgerDB.get(state.db, 'books');
     if (Array.isArray(books) && books.length) state.books = books.filter((b) => b && b.id).map((b) => ({ id: b.id, name: b.name || b.id, type: b.type || 'plain' }));
@@ -773,9 +784,31 @@ function renderTransfer() {
     renderCats('transfer'); renderTypeButtons('transfer'); renderList('transfer');
 }
 const SYNC_KEYS = ['f_exp', 'orange_c', 'dni_c1', 'merc_c2', 'actual_stock'];
+const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI 支出', merc_c2: 'Mercado 支出', actual_stock: '实际库余' };
+// 当天已被手动覆盖的值,无则返回 {}
+function sumOverOf(date) { const m = state.sumover && state.sumover[date]; return (m && typeof m === 'object') ? m : {}; }
 function summaryVals() {
     const d = state.curDate;
-    return { f_exp: sumBook('cash', d, 'out'), orange_c: sumTransferCat(d, '橙色'), dni_c1: sumTransferCat(d, 'DNI'), merc_c2: sumTransferCat(d, 'Mercado'), actual_stock: balanceOf(d) };
+    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: sumTransferCat(d, '橙色'), dni_c1: sumTransferCat(d, 'DNI'), merc_c2: sumTransferCat(d, 'Mercado'), actual_stock: balanceOf(d) };
+    const ov = sumOverOf(d), out = {};
+    Object.keys(auto).forEach((k) => {
+        const v = ov[k];
+        out[k] = (v === undefined || v === null || !isFinite(Number(v))) ? auto[k] : Number(v);
+    });
+    return out;
+}
+function setSumOverride(k, val) {
+    const d = state.curDate;
+    if (!state.sumover[d] || typeof state.sumover[d] !== 'object') state.sumover[d] = {};
+    state.sumover[d][k] = round2(val);
+    saveKey('sumover'); showToast('已手动设置'); renderSummary();
+}
+function clearSumOverride(k) {
+    const d = state.curDate, m = state.sumover && state.sumover[d];
+    if (!m) return;
+    delete m[k];
+    if (!Object.keys(m).length) delete state.sumover[d];
+    saveKey('sumover'); showToast('已还原为自动值'); renderSummary();
 }
 function renderSummary() {
     const d = state.curDate, co = sumBook('cash', d, 'out'), ci = sumBook('cash', d, 'in'), bal = balanceOf(d);
@@ -787,13 +820,19 @@ function renderSummary() {
     if ($('sum-dni')) $('sum-dni').textContent = fmtNum(dn);
     if ($('sum-merc')) $('sum-merc').textContent = fmtNum(mc);
     const vals = summaryVals();
+    const ov = sumOverOf(d);
     Object.keys(vals).forEach((k) => {
         const vEl = $('sv-' + k), btn = document.querySelector('.lg-copy[data-copy="' + k + '"]');
         let sbtn = null;
         document.querySelectorAll('.lg-sync').forEach((b) => { if (b.dataset.sync === k) sbtn = b; });
-        if (vEl) vEl.textContent = (vals[k] === null) ? '—' : fmtNum(vals[k]);
-        if (btn) btn.disabled = (vals[k] === null);
-        if (sbtn) sbtn.disabled = (vals[k] === null);
+        const over = (ov[k] !== undefined && ov[k] !== null);
+        if (vEl) vEl.textContent = (vals[k] === null || vals[k] === undefined) ? '—' : fmtNum(vals[k]);
+        if (btn) btn.disabled = (vals[k] === null || vals[k] === undefined);
+        if (sbtn) sbtn.disabled = (vals[k] === null || vals[k] === undefined);
+        const manEl = $('man-' + k);
+        if (manEl) manEl.style.display = over ? '' : 'none';
+        const rv = document.querySelector('.lg-revert[data-revert="' + k + '"]');
+        if (rv) rv.style.display = over ? '' : 'none';
     });
     renderSyncState();
     renderCatStats();
@@ -1331,16 +1370,28 @@ function bind() {
     });
     document.querySelectorAll('.lg-copy').forEach((btn) => {
         btn.addEventListener('click', () => {
-            const k = btn.dataset.copy, d = state.curDate;
-            let v = null;
-            if (k === 'f_exp') v = sumBook('cash', d, 'out');
-            else if (k === 'orange_c') v = sumTransferCat(d, '橙色');
-            else if (k === 'dni_c1') v = sumTransferCat(d, 'DNI');
-            else if (k === 'merc_c2') v = sumTransferCat(d, 'Mercado');
-            else if (k === 'actual_stock') v = balanceOf(d);
-            if (v === null) return;
+            const k = btn.dataset.copy;
+            if (!k) return;
+            const vals = summaryVals(), v = vals[k];
+            if (v === null || v === undefined) return;
             copyText(String(v));
         });
+    });
+    SYNC_KEYS.forEach((k) => {
+        const vEl = $('sv-' + k);
+        if (!vEl) return;
+        vEl.addEventListener('click', () => {
+            const cur = summaryVals()[k];
+            askPrompt('手动输入:' + (SUM_NAMES[k] || k), (cur === null || cur === undefined) ? '' : String(cur), (val) => {
+                const raw = String(val === null || val === undefined ? '' : val).trim();
+                const n = raw ? parseSum(raw) : NaN;
+                if (!raw || !isFinite(n)) { showToast('请输入数字', 'error'); return; }
+                setSumOverride(k, n);
+            });
+        });
+    });
+    document.querySelectorAll('.lg-revert').forEach((btn) => {
+        btn.addEventListener('click', () => { if (btn.dataset.revert) clearSumOverride(btn.dataset.revert); });
     });
     document.querySelectorAll('.lg-sync').forEach((btn) => {
         btn.addEventListener('click', () => syncToFinance([btn.dataset.sync]));
@@ -1356,30 +1407,6 @@ function bind() {
     $('md-save').addEventListener('click', saveEdit);
     $('pm-cancel').addEventListener('click', closePrompt);
     $('pm-ok').addEventListener('click', () => { const cb = promptCb, val = $('pm-input').value; closePrompt(); if (cb) cb(val); });
-    $('cf-cancel').addEventListener('click', closeConfirm);
-    $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
-    $('bk-close').addEventListener('click', closeBooks);
-    $('bk-new').addEventListener('click', newBook);
-    $('bk-list').addEventListener('click', (e) => {
-        const ren = e.target.closest('[data-bkren]');
-        if (ren) { renameBook(ren.dataset.bkren); return; }
-        const del = e.target.closest('[data-bkdel]');
-        if (del) { deleteBook(del.dataset.bkdel); return; }
-    });
-}
-/* ================= 启动 ================= */
-document.addEventListener('DOMContentLoaded', async () => {
-    bind();
-    try { await loadAll(); } catch (err) { showToast('数据加载失败', 'error'); }
-    renderAll();
-});
-</script>
-<script src="./fx.js"></script>
-<script src="./common.js"></script>
-<script src="./keyboard-avoid.js"></script>
-<script src="./tabs-glass.js"></script>
-</body>
-</html>f (cb) cb(val); });
     $('cf-cancel').addEventListener('click', closeConfirm);
     $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
     $('bk-close').addEventListener('click', closeBooks);
