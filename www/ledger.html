@@ -338,6 +338,45 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 @media (prefers-reduced-motion: reduce) {
   * { animation:none !important; transition:none !important; }
 }
+/* ================= 选中态强化(覆盖旧规则) ================= */
+.lg-type:not(.on) {
+  opacity:.55;
+  border:1px solid rgba(255,255,255,.14);
+  color:var(--text-muted);
+}
+.lg-type.on.out {
+  background:linear-gradient(180deg,#ff6b6b,#e11d48);
+  color:#fff;
+  font-weight:800;
+  box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 8px 20px rgba(244,63,94,.5);
+  opacity:1;
+}
+.lg-type.on.in {
+  background:linear-gradient(180deg,#34d399,#059669);
+  color:#fff;
+  font-weight:800;
+  box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 8px 20px rgba(16,185,129,.5);
+  opacity:1;
+}
+.lg-type.on.out::before { content:'✓ '; }
+.lg-type.on.in::before { content:'✓ '; }
+.lg-chip:not(.add):not(.del):not(.on) { opacity:.7; }
+.lg-chip:not(.add):not(.del).on {
+  background:linear-gradient(180deg,#38bdf8,#0ea5e9);
+  color:#04202e;
+  font-weight:800;
+  box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 6px 16px rgba(14,165,233,.5);
+  opacity:1;
+}
+.lg-chip:not(.add):not(.del).on::before { content:'✓ '; }
+/* 负余额(红色纯色,不用渐变裁字) */
+.lg-bal-main .big.neg {
+  background:none;
+  -webkit-background-clip:border-box;
+  background-clip:border-box;
+  -webkit-text-fill-color:currentColor;
+  color:var(--red);
+}
 </style>
 </head>
 <body>
@@ -355,16 +394,10 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 <!-- ==================== 页签1: 现金账 ==================== -->
 <div id="tab-cash" class="tab-content active">
   <div class="lg-card">
-    <div class="lg-card-title">今日初始库存</div>
-    <input class="lg-inp" id="cash-open" placeholder="开门时的库存" autocomplete="off">
-    <div class="lg-open-tip" id="cash-yesterday"></div>
-  </div>
-  <div class="lg-card">
     <div class="lg-card-title">余额</div>
-    <div class="lg-bal-row"><span>初始库存</span><span class="v" id="cash-open-v">—</span></div>
     <div class="lg-bal-row"><span>支出合计</span><span class="v lg-out" id="cash-out-v">0</span></div>
     <div class="lg-bal-row"><span>收入合计</span><span class="v lg-in" id="cash-in-v">0</span></div>
-    <div class="lg-bal-main"><span class="lab">今日余额</span><span class="big" id="cash-bal-v">—</span></div>
+    <div class="lg-bal-main"><span class="lab">今日净额(收入−支出)</span><span class="big" id="cash-bal-v">—</span></div>
     <div class="lg-pushwrap">
       <button class="cgt-push" id="lg-push"><span>📤 设为现金箱理论库存</span><small id="lg-push-state"></small></button>
     </div>
@@ -438,7 +471,7 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <div class="lg-card-title">当日汇总</div>
     <div class="lg-sum-row"><span class="k">现金账 支出合计</span><span class="v lg-out" id="sum-cash-out">0</span></div>
     <div class="lg-sum-row"><span class="k">现金账 收入合计</span><span class="v lg-in" id="sum-cash-in">0</span></div>
-    <div class="lg-sum-row"><span class="k">今日余额</span><span class="v" id="sum-cash-bal">—</span></div>
+    <div class="lg-sum-row"><span class="k">今日净额</span><span class="v" id="sum-cash-bal">—</span></div>
     <div class="lg-sum-row"><span class="k">转账账 橙色支出</span><span class="v lg-out" id="sum-orange">0</span></div>
     <div class="lg-sum-row"><span class="k">转账账 DNI 支出</span><span class="v lg-out" id="sum-dni">0</span></div>
     <div class="lg-sum-row"><span class="k">转账账 Mercado 支出</span><span class="v lg-out" id="sum-merc">0</span></div>
@@ -670,7 +703,8 @@ function dayEntries(book, date) { return state.entries.filter((e) => e.book === 
 function sumBook(book, date, type) { return round2(dayEntries(book, date).filter((e) => e.type === type).reduce((a, e) => a + Number(e.amount || 0), 0)); }
 function sumTransferCat(date, cat, type = 'out') { return round2(dayEntries('transfer', date).filter((e) => e.type === type && e.cat === cat).reduce((a, e) => a + Number(e.amount || 0), 0)); }
 function openOf(date) { const v = state.opening[date]; if (v === undefined || v === null || v === '') return null; const n = Number(v); return isFinite(n) ? n : null; }
-function balanceOf(date) { const o = openOf(date); return o === null ? null : round2(o - sumBook('cash', date, 'out') + sumBook('cash', date, 'in')); }
+// 余额 = 当天净额(收入 − 支出),永远返回数字
+function balanceOf(date) { return round2(sumBook('cash', date, 'in') - sumBook('cash', date, 'out')); }
 /* ================= 渲染 ================= */
 function eid(book, field) {
     if (book === 'cash') return 'cash-' + field;
@@ -752,27 +786,14 @@ function renderCats(book) {
     box.innerHTML = html;
 }
 function renderCash() {
-    const d = state.curDate, o = openOf(d), inp = $('cash-open');
-    if (inp && document.activeElement !== inp) inp.value = (o === null) ? '' : String(o);
-    const tip = $('cash-yesterday');
-    if (tip) {
-        const cands = {};
-        Object.keys(state.opening).forEach((k) => { if (k < d) cands[k] = 1; });
-        state.entries.forEach((e) => { if (e.book === 'cash' && e.date < d) cands[e.date] = 1; });
-        const keys = Object.keys(cands).sort();
-        let prevBal = null;
-        for (let i = keys.length - 1; i >= 0; i--) { const b = balanceOf(keys[i]); if (b !== null) { prevBal = b; break; } }
-        if (o === null && prevBal !== null) { tip.textContent = '昨日余额 ' + fmtNum(prevBal) + '(点此填入)'; tip.className = 'lg-open-tip hit'; tip.dataset.val = String(prevBal); }
-        else { tip.textContent = ''; tip.className = 'lg-open-tip'; delete tip.dataset.val; }
-    }
+    const d = state.curDate;
     const bal = balanceOf(d);
-    if ($('cash-open-v')) $('cash-open-v').textContent = (o === null) ? '—' : fmtNum(o);
     if ($('cash-out-v')) $('cash-out-v').textContent = fmtNum(sumBook('cash', d, 'out'));
     if ($('cash-in-v')) $('cash-in-v').textContent = fmtNum(sumBook('cash', d, 'in'));
     const bv = $('cash-bal-v');
     if (bv) {
-        if (bal === null) { bv.textContent = '请先输入初始库存'; bv.className = 'big warn'; }
-        else { bv.textContent = fmtNum(bal); bv.className = 'big ' + (bal < 0 ? 'lg-out' : ''); }
+        bv.textContent = fmtNum(bal);
+        bv.className = 'big' + (bal < 0 ? ' neg' : '');
     }
     renderPushState(); renderCats('cash'); renderTypeButtons('cash'); renderList('cash');
 }
@@ -789,7 +810,7 @@ const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DN
 function sumOverOf(date) { const m = state.sumover && state.sumover[date]; return (m && typeof m === 'object') ? m : {}; }
 function summaryVals() {
     const d = state.curDate;
-    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: sumTransferCat(d, '橙色'), dni_c1: sumTransferCat(d, 'DNI'), merc_c2: sumTransferCat(d, 'Mercado'), actual_stock: balanceOf(d) };
+    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: sumTransferCat(d, '橙色'), dni_c1: sumTransferCat(d, 'DNI'), merc_c2: sumTransferCat(d, 'Mercado'), actual_stock: null };
     const ov = sumOverOf(d), out = {};
     Object.keys(auto).forEach((k) => {
         const v = ov[k];
@@ -815,7 +836,7 @@ function renderSummary() {
     const or = sumTransferCat(d, '橙色'), dn = sumTransferCat(d, 'DNI'), mc = sumTransferCat(d, 'Mercado');
     if ($('sum-cash-out')) $('sum-cash-out').textContent = fmtNum(co);
     if ($('sum-cash-in')) $('sum-cash-in').textContent = fmtNum(ci);
-    if ($('sum-cash-bal')) $('sum-cash-bal').textContent = (bal === null) ? '请先输入初始库存' : fmtNum(bal);
+    if ($('sum-cash-bal')) $('sum-cash-bal').textContent = fmtNum(bal);
     if ($('sum-orange')) $('sum-orange').textContent = fmtNum(or);
     if ($('sum-dni')) $('sum-dni').textContent = fmtNum(dn);
     if ($('sum-merc')) $('sum-merc').textContent = fmtNum(mc);
@@ -851,7 +872,7 @@ function catStatsGroup(book, ents, type) {
         const list = rows.filter((e) => String(e.cat === null || e.cat === undefined ? '' : e.cat) === cat);
         if (!list.length) return;
         const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
-        html += '<div class="lg-cs-row"><span class="lg-cs-name">' + escHtml(cat || '(未分类)') + '</span>' +
+        html += '<div class="lg-cs-row"><span class="lg-cs-name">' + escHtml(cat || '未分类') + '</span>' +
             '<span class="lg-cs-n">' + list.length + ' 笔</span>' +
             '<span class="lg-cs-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
     });
@@ -930,7 +951,7 @@ function renderList(book) {
         const hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
         html += '<div class="lg-row" data-id="' + e.id + '"><span class="t">' + hh + '</span>' +
-            '<div class="mid"><div class="c">' + escHtml(e.cat) + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
+            '<div class="mid"><div class="c">' + escHtml(e.cat || '未分类') + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
             '<span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span>' +
             '<button class="lg-more" data-more="' + e.id + '">⋯</button></div>' +
             '<div class="lg-acts" data-acts="' + e.id + '"><button data-act="edit" data-id="' + e.id + '">编辑</button>' +
@@ -1053,8 +1074,8 @@ async function saveEntry(book) {
     const amt = parseSum(amtEl ? amtEl.value : '');
     if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
     const cat = state.form[book].cat;
-    if (!cat || state.cats[book].indexOf(cat) === -1) { showToast('请选择分类', 'error'); return; }
-    const entry = { id: newId(), ts: Date.now(), date: state.curDate, book: book, type: state.form[book].type, amount: Math.round(amt * 100) / 100, cat: cat, note: noteEl ? noteEl.value.trim() : '' };
+    const catName = (cat && (state.cats[book] || []).indexOf(cat) !== -1) ? cat : '未分类';
+    const entry = { id: newId(), ts: Date.now(), date: state.curDate, book: book, type: state.form[book].type, amount: Math.round(amt * 100) / 100, cat: catName, note: noteEl ? noteEl.value.trim() : '' };
     state.entries.push(entry);
     const ok = await saveKey('entries');
     if (!ok) { state.entries.pop(); return; }
@@ -1088,8 +1109,10 @@ function removeCat(book, cat) {
 /* ================= 推送理论库存 ================= */
 function pushTheoretical() {
     const bal = balanceOf(state.curDate);
-    if (bal === null) { showToast('请先输入初始库存', 'warning'); return; }
     if (bal === 0) { showToast('今日余额为 0,不推送', 'warning'); return; }
+    askConfirm('当前余额是「当天净额」不是库存,仍要把 ' + fmtNum(bal) + ' 设为现金箱理论库存吗?', () => { pushTheoreticalNow(bal); });
+}
+function pushTheoreticalNow(bal) {
     const now = new Date();
     const at = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     try { localStorage.setItem('ledger-theoretical-push-v1', JSON.stringify({ value: Math.round(bal), seq: Date.now(), at: at })); }
@@ -1119,7 +1142,7 @@ function openEdit(id) {
     state.editingId = id; state.editingCat = e.cat;
     $('md-amt').value = String(e.amount); $('md-note').value = e.note || '';
     const cats = state.cats[e.book].slice();
-    if (cats.indexOf(e.cat) === -1) cats.push(e.cat);
+    if (e.cat && cats.indexOf(e.cat) === -1) cats.push(e.cat);
     let html = '';
     cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === e.cat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
     $('md-cats').innerHTML = html;
@@ -1131,7 +1154,7 @@ async function saveEdit() {
     const amt = parseSum($('md-amt').value);
     if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
     e.amount = Math.round(amt * 100) / 100;
-    if (state.editingCat) e.cat = state.editingCat;
+    e.cat = state.editingCat ? state.editingCat : '未分类';
     e.note = $('md-note').value.trim();
     await saveKey('entries');
     $('lg-modal').classList.remove('show');
@@ -1230,7 +1253,7 @@ function bindCatBox(book, box, sugBox, noteEl, amtEl) {
         if (!chip) return;
         if (lpFired) { lpFired = false; return; }
         if (chip.dataset.add) { addCat(book); return; }
-        if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
+        if (chip.dataset.cat) { state.form[book].cat = (state.form[book].cat === chip.dataset.cat) ? '' : chip.dataset.cat; renderCats(book); }
     });
     noteEl.addEventListener('input', () => renderSuggest(book));
     const guard = (e) => e.preventDefault();
@@ -1270,7 +1293,7 @@ function bindDyn() {
         if (chip) {
             if (lpFired) { lpFired = false; return; }
             if (chip.dataset.add) { addCat(book); return; }
-            if (chip.dataset.cat) { state.form[book].cat = chip.dataset.cat; renderCats(book); }
+            if (chip.dataset.cat) { state.form[book].cat = (state.form[book].cat === chip.dataset.cat) ? '' : chip.dataset.cat; renderCats(book); }
             return;
         }
         const typeBtn = e.target.closest('.lg-type');
@@ -1324,45 +1347,6 @@ function bind() {
         const id = tab.dataset.tab;
         if (id === 'manage') { openBooks(); return; }
         switchTab(id);
-    });
-    const openEl = $('cash-open');
-    let openTimer = null;
-    const commitOpen = async (silent) => {
-        const prev = state.opening[state.curDate];
-        const raw = (openEl.value || '').trim();
-        let next;
-        if (!raw) next = undefined;
-        else { const v = parseSum(raw); if (!isFinite(v)) { if (silent === true) return; showToast('请输入数字', 'error'); return; }
-            if (v < 0) { if (silent === true) return; showToast('初始库存不能为负', 'error'); return; }
-            next = round2(v); }
-        const same = next === undefined
-            ? (prev === undefined || prev === null || prev === '')
-            : round2(prev) === next;
-        if (next === undefined) delete state.opening[state.curDate];
-        else state.opening[state.curDate] = next;
-        await saveKey('opening'); renderAll();
-        if (silent === true || same) return;
-        showToast('已保存');
-    };
-    const commitOpenNow = () => {
-        if (openTimer) { clearTimeout(openTimer); openTimer = null; }
-        commitOpen(false);
-    };
-    openEl.addEventListener('input', () => {
-        if (openTimer) clearTimeout(openTimer);
-        openTimer = setTimeout(() => { openTimer = null; commitOpen(true); }, 600);
-    });
-    openEl.addEventListener('change', commitOpenNow);
-    openEl.addEventListener('blur', commitOpenNow);
-    openEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openEl.blur(); } });
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden' && openTimer) { clearTimeout(openTimer); openTimer = null; commitOpen(true); }
-    });
-    $('cash-yesterday').addEventListener('click', () => {
-        const v = $('cash-yesterday').dataset.val;
-        if (v === undefined) return;
-        openEl.value = v;
-        try { openEl.focus(); } catch (e) {}
     });
     document.querySelectorAll('.lg-type').forEach((btn) => {
         btn.addEventListener('click', () => { state.form[btn.dataset.book].type = btn.dataset.type; renderTypeButtons(btn.dataset.book); });
