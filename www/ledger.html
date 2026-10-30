@@ -911,7 +911,7 @@ body {
       <div class="lg-entry">
         <input type="text" class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="cash-note" placeholder="填写备注" autocomplete="off">
         <span class="lg-e-cur">$</span>
-        <input type="text" class="lg-inp lg-e-amt" id="cash-amt" placeholder="0" autocomplete="off">
+        <input type="text" class="lg-inp lg-e-amt" data-vk-raw id="cash-amt" placeholder="0" autocomplete="off">
       </div>
       <div id="cash-sughead" class="lg-sug-head"></div>
       <div class="lg-sugs" id="cash-sug"></div>
@@ -940,7 +940,7 @@ body {
       <div class="lg-entry">
         <input type="text" class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="tr-note" placeholder="填写备注" autocomplete="off">
         <span class="lg-e-cur">$</span>
-        <input type="text" class="lg-inp lg-e-amt" id="tr-amt" placeholder="0" autocomplete="off">
+        <input type="text" class="lg-inp lg-e-amt" data-vk-raw id="tr-amt" placeholder="0" autocomplete="off">
       </div>
       <div id="tr-sughead" class="lg-sug-head"></div>
       <div class="lg-sugs" id="tr-sug"></div>
@@ -1058,7 +1058,7 @@ body {
     <h3>编辑账目</h3>
     <div class="lg-field">
       <div class="lg-label">金额</div>
-      <input type="text" class="lg-inp lg-e-amt2" id="md-amt" autocomplete="off">
+      <input type="text" class="lg-inp lg-e-amt2" data-vk-raw id="md-amt" autocomplete="off">
     </div>
     <div class="lg-field">
       <div class="lg-label">分类</div>
@@ -1122,6 +1122,7 @@ body {
         (el.type === 'text' || el.type === 'number') && !el.disabled;
     // 输入时自动加千分位(只处理纯整数;含空格求和/算式/小数点的内容原样保留)
     const formatThousands = (el) => {
+        if (el.hasAttribute && el.hasAttribute('data-vk-raw')) return;
         const raw = el.value;
         if (!raw || !/^[\d,]+$/.test(raw)) return;
         const caret = (el.selectionStart != null) ? el.selectionStart : raw.length;
@@ -1393,7 +1394,7 @@ function plainHtml(bk) {
         '<div class="lg-field"><div class="lg-entry">' +
         '<input type="text" class="lg-inp lg-inp-note lg-e-note" data-vk-skip id="' + eid(bk.id, 'note') + '" placeholder="填写备注" autocomplete="off">' +
         '<span class="lg-e-cur">$</span>' +
-        '<input type="text" class="lg-inp lg-e-amt" id="' + eid(bk.id, 'amt') + '" placeholder="0" autocomplete="off"></div>' +
+        '<input type="text" class="lg-inp lg-e-amt" data-vk-raw id="' + eid(bk.id, 'amt') + '" placeholder="0" autocomplete="off"></div>' +
         '<div id="' + eid(bk.id, 'sughead') + '" class="lg-sug-head"></div>' +
         '<div class="lg-sugs" id="' + eid(bk.id, 'sug') + '"></div></div>' +
         '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
@@ -2184,17 +2185,26 @@ function openSearch() {
     setTimeout(() => { try { $('sr-q').focus(); } catch (e) {} }, 120);
 }
 function closeSearch() { $('lg-search').classList.remove('show'); try { $('sr-q').blur(); } catch (e) {} }
-/* 金额框宽度随内容自适应:把宽度压到最小读 scrollWidth(=内容宽度),再按内容撑开 */
+/* 金额框自适应:先按内容撑开宽度;撑不下(到上限)就缩小字号,直到放得下 */
+const AMT_MAX_FS = 26, AMT_MIN_FS = 10;
 function amtFit(el) {
     if (!el) return;
-    const parent = el.parentElement;
-    const cap = parent ? Math.max(60, Math.round(parent.clientWidth * 0.62)) : 200;
+    const entry = el.closest('.lg-entry');
+    // 上限:整行宽度 − 内边距 − 「$」− 备注至少 70px
+    const rowW = entry ? entry.clientWidth : 330;
+    const cap = Math.max(90, rowW - 28 - 30 - 70);
     el.style.flex = '0 0 auto';
-    el.style.padding = '0 2px 0 4px';
+    el.style.setProperty('padding', '0 2px 0 4px', 'important');   // 压过 CSS 里 padding:0 18px !important
     el.style.maxWidth = 'none';
-    el.style.width = '10px';
-    const need = Math.ceil(el.scrollWidth) + 4;
-    el.style.width = Math.max(52, Math.min(need, cap)) + 'px';   // 空值时也留够放占位「0」
+    let fs = AMT_MAX_FS, need = 0;
+    for (; fs >= AMT_MIN_FS; fs--) {
+        el.style.setProperty('font-size', fs + 'px', 'important');
+        el.style.width = '10px';
+        need = Math.ceil(el.scrollWidth) + 12;
+        if (need <= cap) break;
+    }
+    if (fs < AMT_MIN_FS) { fs = AMT_MIN_FS; el.style.setProperty('font-size', fs + 'px', 'important'); el.style.width = '10px'; need = Math.ceil(el.scrollWidth) + 12; }
+    el.style.width = Math.max(52 * fs / AMT_MAX_FS, Math.min(need, cap)) + 'px';
 }
 function amtFitAll() { document.querySelectorAll('.lg-e-amt').forEach(amtFit); }
 
