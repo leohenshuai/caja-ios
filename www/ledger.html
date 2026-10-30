@@ -634,6 +634,108 @@ body {
 .tab-content.active > .lg-card:nth-child(2) { animation-delay:.04s; }
 .tab-content.active > .lg-card:nth-child(3) { animation-delay:.08s; }
 @media (prefers-reduced-motion:reduce) { .tab-content.active > .lg-card { animation:none; } }
+
+/* ================= 重点优化:转账分类统计块 ================= */
+.lg-stats { display:grid !important; grid-template-columns:repeat(2,1fr); gap:10px !important; margin:12px 12px 0 !important; }
+.lg-stat {
+  position:relative; overflow:hidden; text-align:left !important; min-width:0 !important;
+  padding:12px 14px 13px !important; border-radius:20px !important;
+  background:linear-gradient(150deg,rgba(255,255,255,.09),rgba(255,255,255,.03)) !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 8px 20px rgba(0,0,0,.26) !important;
+}
+.lg-stat::before { display:none !important; }
+.lg-stat::after {
+  content:''; position:absolute; left:0; top:12px; bottom:12px; width:3px; border-radius:0 3px 3px 0;
+  background:var(--sc,linear-gradient(180deg,var(--ac1),var(--ac3)));
+}
+.lg-stat:nth-child(4n+1) { --sc:linear-gradient(180deg,#fb923c,#f97316); }
+.lg-stat:nth-child(4n+2) { --sc:linear-gradient(180deg,#38bdf8,#0ea5e9); }
+.lg-stat:nth-child(4n+3) { --sc:linear-gradient(180deg,#facc15,#eab308); }
+.lg-stat:nth-child(4n+4) { --sc:linear-gradient(180deg,#e5e7eb,#94a3b8); }
+.lg-stat .k { display:flex; align-items:center; gap:6px; font-size:12px !important; font-weight:700; color:var(--text-muted) !important; letter-spacing:.3px; }
+.lg-stat .k::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--sc,#38bdf8); flex:none; }
+.lg-stat .v { margin-top:6px !important; font-family:var(--round) !important; font-size:clamp(15px,4.6vw,20px) !important; font-weight:800 !important; font-variant-numeric:tabular-nums; letter-spacing:-.4px; white-space:nowrap; overflow:hidden; text-overflow:clip; }
+.lg-stat .v.lg-out:not(:empty)::before { content:'−'; opacity:.8; margin-right:1px; font-size:.8em; vertical-align:.06em; }
+.lg-stat .v[data-zero="1"] { opacity:.35; }
+.lg-stat:last-child:nth-child(odd) { grid-column:1 / -1; }
+.lg-stat:last-child:nth-child(odd) .v { font-size:clamp(20px,6.4vw,26px) !important; }
+
+/* ================= 重点优化:记一笔 ================= */
+#tab-cash .lg-card:nth-of-type(2), #tab-transfer .lg-card:nth-of-type(1) { padding:18px 16px 18px !important; }
+.lg-seg { padding:5px !important; border-radius:20px !important; gap:5px !important; background:rgba(0,0,0,.3) !important; }
+.lg-type { min-height:46px !important; border-radius:16px !important; font-size:16px !important; letter-spacing:1px; }
+.lg-type.on::before { content:none !important; }
+.lg-type.on.out { background:linear-gradient(135deg,#fb7185,#e11d48) !important; }
+.lg-type.on.in { background:linear-gradient(135deg,#34d399,#059669) !important; }
+.lg-field { margin-bottom:16px !important; }
+.lg-label { display:flex; align-items:center; gap:6px; font-size:12px !important; font-weight:700 !important; color:var(--text-muted) !important; margin-bottom:8px !important; }
+.lg-inp:not(.lg-inp-note) { min-height:58px !important; font-size:26px !important; border-radius:18px !important; text-align:right; padding:0 18px !important; letter-spacing:-.3px !important; }
+.lg-inp:not(.lg-inp-note)::placeholder { font-size:15px; text-align:right; }
+.lg-inp-note { min-height:48px !important; }
+.lg-chips { padding:4px 2px 4px !important; margin-bottom:0 !important; mask-image:linear-gradient(90deg,#000 88%,transparent); -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent); }
+.lg-chip { min-height:40px !important; padding:0 18px !important; font-size:14px !important; }
+.lg-sug-head { margin-top:10px !important; font-size:11px; letter-spacing:.4px; }
+.lg-sugs { margin-top:8px !important; padding:2px 2px 4px; }
+.lg-sug { border-radius:14px !important; min-height:40px !important; background:rgba(255,255,255,.06) !important; border:1px solid rgba(255,255,255,.08) !important; box-shadow:none !important; }
+.lg-btn-main { margin-top:4px; min-height:56px !important; font-size:18px !important; border-radius:20px !important; }
+
+/* ================= 顶栏搜索按钮 ================= */
+#lg-search-btn { border-radius:14px !important; color:#7dd3fc; padding:0 !important; background:rgba(255,255,255,.08) !important; justify-content:center !important; }
+.header-actions { gap:5px !important; }
+.header h1 { font-size:16px !important; }
+#lg-date { min-width:0 !important; font-size:12px !important; }
+#lg-prev,#lg-next { min-width:38px !important; }
+#lg-today { padding:0 11px !important; }
+
+/* ================= 搜索页 ================= */
+#lg-search { align-items:stretch; justify-content:stretch; padding:0 !important; background:rgba(4,8,20,.88) !important; z-index:1400; }
+.sr-panel { width:100%; height:100%; display:flex; flex-direction:column; padding:calc(10px + env(safe-area-inset-top,0px)) 14px calc(10px + env(safe-area-inset-bottom,0px)); background:
+  radial-gradient(120% 40% at 10% 0%, rgba(56,189,248,.18), transparent 60%),
+  radial-gradient(90% 40% at 100% 5%, rgba(168,85,247,.16), transparent 60%), #070b16; }
+.sr-top { display:flex; align-items:center; gap:10px; }
+.sr-inwrap { flex:1; display:flex; align-items:center; gap:8px; height:48px; padding:0 8px 0 14px; border-radius:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); min-width:0; }
+.sr-ico { display:flex; opacity:.7; color:var(--text-muted); }
+.sr-inp { flex:1; min-width:0; height:100%; border:none !important; background:transparent !important; box-shadow:none !important; outline:none; color:var(--text); font-size:17px !important; padding:0 !important; font-weight:600; }
+.sr-clear { display:none; align-items:center; justify-content:center; width:30px; min-width:30px !important; height:30px; padding:0 !important; border-radius:50% !important; border:none !important; background:rgba(255,255,255,.14) !important; font-size:12px; color:var(--text); }
+.sr-close { flex:none; min-height:44px; padding:0 4px !important; border:none !important; background:transparent !important; box-shadow:none !important; color:#7dd3fc; font-size:16px; font-weight:700; }
+.sr-scope { display:flex; gap:4px; padding:4px; margin-top:12px; border-radius:16px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.07); }
+.sr-scope button { flex:1; min-height:38px; border-radius:12px !important; border:none !important; background:transparent !important; box-shadow:none !important; color:var(--text-muted); font-size:14px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+.sr-scope button.on { background:linear-gradient(135deg,rgba(56,189,248,.4),rgba(124,140,255,.42)) !important; color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.25) !important; }
+.sr-scope button:disabled { opacity:.35; }
+.sr-filters { display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding:2px 0 4px; scrollbar-width:none; }
+.sr-filters::-webkit-scrollbar { display:none; }
+.sr-filters button { flex:none; min-height:34px; padding:0 14px; border-radius:999px !important; background:rgba(255,255,255,.06) !important; border:1px solid rgba(255,255,255,.12) !important; box-shadow:none !important; color:var(--text); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+.sr-filters button.on { background:linear-gradient(135deg,#38bdf8,#6366f1) !important; border-color:transparent !important; color:#fff; box-shadow:0 4px 12px rgba(99,102,241,.35) !important; }
+.sr-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; margin-top:8px; padding-bottom:20px; }
+.sr-hint { text-align:center; color:var(--text-muted); padding:56px 20px; font-size:15px; }
+.sr-hint-ico { font-size:38px; margin-bottom:10px; opacity:.8; }
+.sr-hint small { display:block; margin-top:10px; font-size:12px; line-height:1.6; opacity:.8; }
+.sr-sum { padding:14px; border-radius:20px; background:linear-gradient(135deg,rgba(56,189,248,.2),rgba(168,85,247,.18)); border:1px solid rgba(165,180,252,.25); }
+.sr-sum-n { font-size:13px; color:rgba(224,231,255,.75); }
+.sr-sum-n b { color:#fff; font-size:15px; }
+.sr-sum-net { font-family:var(--round); font-size:clamp(28px,9vw,36px); font-weight:800; margin:4px 0 10px; letter-spacing:-.5px; font-variant-numeric:tabular-nums; line-height:1.1; color:var(--text-muted); }
+.sr-sum-pills { display:flex; gap:8px; }
+.sr-sec { margin:16px 4px 8px; font-size:13px; font-weight:800; color:var(--text); font-family:var(--round); display:flex; align-items:center; gap:8px; }
+.sr-sec::before { content:''; width:4px; height:14px; border-radius:2px; background:linear-gradient(180deg,var(--ac1),var(--ac3)); }
+.sr-agg { padding:4px 14px; border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); }
+.sr-agg-row { display:grid; grid-template-columns:1fr auto; column-gap:10px; row-gap:6px; align-items:center; padding:10px 0; border-top:1px solid rgba(255,255,255,.05); }
+.sr-agg-row:first-child { border-top:none; }
+.sr-agg-name { font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sr-agg-amt { font-family:var(--mono); font-size:14px; font-weight:700; white-space:nowrap; }
+.sr-day { display:flex; align-items:baseline; gap:8px; margin:14px 4px 4px; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--text-muted); }
+.sr-day small { font-family:var(--round); font-weight:600; opacity:.8; }
+.sr-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; margin-top:6px; border-radius:16px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); }
+.sr-row:active { background:rgba(255,255,255,.09); }
+.sr-row-main { min-width:0; flex:1; }
+.sr-row-c { font-size:15px; font-weight:700; font-family:var(--round); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sr-bk { font-size:11px; font-weight:600; color:#a5b4fc; padding:2px 8px; border-radius:8px; background:rgba(124,140,255,.16); }
+.sr-row-n { font-size:12.5px; color:var(--text-muted); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sr-row-r { text-align:right; flex:none; }
+.sr-amt { display:block; font-family:var(--mono); font-size:15px; font-weight:800; white-space:nowrap; }
+.sr-row-r small { display:block; margin-top:3px; font-family:var(--mono); font-size:11px; color:var(--text-muted); opacity:.75; }
+.sr-more { text-align:center; font-size:12px; color:var(--text-muted); padding:14px 0; }
+#lg-search mark { background:rgba(250,204,21,.32); color:#fff; border-radius:4px; padding:0 2px; }
 </style>
 </head>
 <body>
@@ -644,6 +746,7 @@ body {
     <span id="lg-date" style="font-family:'Courier New',monospace;font-size:14px;font-weight:700;min-width:96px;text-align:center"></span>
     <button id="lg-next" style="min-width:44px;min-height:44px">›</button>
     <button id="lg-today" style="min-height:44px">今天</button>
+    <button id="lg-search-btn" aria-label="搜索" style="min-width:44px;min-height:44px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg></button>
   </div>
 </div>
 <div class="tabs" id="lg-tabs"></div>
@@ -794,6 +897,27 @@ body {
 </div>
 
 <!-- ===== 编辑弹窗 ===== -->
+<div class="modal" id="lg-search">
+  <div class="sr-panel">
+    <div class="sr-top">
+      <div class="sr-inwrap"><span class="sr-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg></span><input class="sr-inp" id="sr-q" placeholder="搜索备注、分类、金额" autocomplete="off" enterkeyhint="search"><button class="sr-clear" id="sr-clear" aria-label="清空">✕</button></div>
+      <button class="sr-close" id="sr-close">取消</button>
+    </div>
+    <div class="sr-scope" id="sr-scope">
+      <button class="on" data-scope="all">全部聚合</button>
+      <button data-scope="cur" id="sr-scope-cur">当前账本</button>
+    </div>
+    <div class="sr-filters" id="sr-filters">
+      <button class="on" data-f="all">不限</button>
+      <button data-f="out">支出</button>
+      <button data-f="in">收入</button>
+      <button data-f="today">今天</button>
+      <button data-f="week">近7天</button>
+      <button data-f="month">本月</button>
+    </div>
+    <div class="sr-body" id="sr-body"></div>
+  </div>
+</div>
 <div class="modal" id="lg-modal">
   <div class="modal-content">
     <h3>编辑账目</h3>
@@ -1187,7 +1311,7 @@ function renderTransfer() {
     if (box) {
         const cats = state.cats.transfer || [];
         let html = '';
-        cats.forEach((c) => { html += '<div class="lg-stat"><div class="k">' + escHtml(c) + '</div><div class="v lg-out">' + fmtNum(sumTransferCat(d, c)) + '</div></div>'; });
+        cats.forEach((c) => { const sv = sumTransferCat(d, c); html += '<div class="lg-stat"><div class="k">' + escHtml(c) + '</div><div class="v lg-out"' + (sv ? '' : ' data-zero="1"') + '>' + fmtNum(sv) + '</div></div>'; });
         if (!cats.length) html = '<div class="lg-stat"><div class="k">暂无分类</div><div class="v">—</div></div>';
         box.innerHTML = html;
     }
@@ -1815,7 +1939,133 @@ function bindDyn() {
         if (e.target.closest('.lg-btn-main')) { saveEntry(book); return; }
     });
 }
+/* ================= 搜索:单账本 / 全部聚合 ================= */
+const search = { scope: 'all', f: 'all', q: '' };
+function srRange(f) {
+    const t = localDateStr();
+    if (f === 'today') return [t, t];
+    if (f === 'week') return [shiftDate(t, -6), t];
+    if (f === 'month') return [t.slice(0, 8) + '01', t];
+    return null;
+}
+function srNorm(s) { return String(s === null || s === undefined ? '' : s).toLowerCase(); }
+function runSearch() {
+    const terms = srNorm(search.q).split(/\s+/).filter(Boolean);
+    const range = srRange(search.f);
+    const bookScope = search.scope === 'cur' ? state.tab : null;
+    const res = state.entries.filter((e) => {
+        if (bookScope && e.book !== bookScope) return false;
+        if (search.f === 'out' && e.type !== 'out') return false;
+        if (search.f === 'in' && e.type !== 'in') return false;
+        if (range && (e.date < range[0] || e.date > range[1])) return false;
+        if (!terms.length) return true;
+        const amt = srNorm(e.amount) + ' ' + srNorm(fmtNum(e.amount));
+        const hay = srNorm(e.cat) + ' ' + srNorm(e.note) + ' ' + srNorm(bookName(e.book)) + ' ' + amt + ' ' + srNorm(e.date);
+        return terms.every((t) => hay.indexOf(t.replace(/,/g, '')) > -1 || hay.indexOf(t) > -1);
+    });
+    res.sort((a, b) => (a.date === b.date ? b.ts - a.ts : (a.date < b.date ? 1 : -1)));
+    return res;
+}
+function srHi(text) {
+    const terms = srNorm(search.q).split(/\s+/).filter(Boolean);
+    let out = escHtml(text);
+    terms.forEach((t) => {
+        const safe = escHtml(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (!safe) return;
+        try { out = out.replace(new RegExp('(' + safe + ')(?![^<]*>)', 'gi'), '<mark>$1</mark>'); } catch (e) {}
+    });
+    return out;
+}
+function srWeekday(ds) { const p = ds.split('-').map(Number); return '日一二三四五六'.charAt(new Date(p[0], p[1] - 1, p[2]).getDay()); }
+function renderSearch() {
+    const box = $('sr-body');
+    if (!box) return;
+    const hasQ = !!search.q.trim() || search.f !== 'all';
+    $('sr-clear').style.display = search.q ? 'flex' : 'none';
+    const cur = bookOf(state.tab);
+    const curBtn = $('sr-scope-cur');
+    if (curBtn) {
+        curBtn.textContent = cur ? ('仅' + cur.name) : '当前账本';
+        curBtn.disabled = !cur;
+        if (!cur && search.scope === 'cur') search.scope = 'all';
+    }
+    document.querySelectorAll('#sr-scope button').forEach((b) => b.classList.toggle('on', b.dataset.scope === search.scope));
+    document.querySelectorAll('#sr-filters button').forEach((b) => b.classList.toggle('on', b.dataset.f === search.f));
+    if (!hasQ) {
+        box.innerHTML = '<div class="sr-hint"><div class="sr-hint-ico">🔎</div><div>输入关键词,或选一个筛选条件</div><small>可搜 备注 / 分类 / 金额 / 账本名 / 日期(如 10-29)。多个词用空格隔开,必须同时命中。</small></div>';
+        return;
+    }
+    const res = runSearch();
+    if (!res.length) { box.innerHTML = '<div class="sr-hint"><div class="sr-hint-ico">🫥</div><div>没有找到匹配的记录</div></div>'; return; }
+    let sOut = 0, sIn = 0;
+    const byCat = {};
+    res.forEach((e) => {
+        const a = Number(e.amount || 0);
+        if (e.type === 'out') sOut += a; else sIn += a;
+        const key = (search.scope === 'all' ? bookName(e.book) + ' · ' : '') + (e.cat || '未分类');
+        const o = byCat[key] || (byCat[key] = { out: 0, in: 0, n: 0 });
+        o[e.type] += a; o.n++;
+    });
+    sOut = round2(sOut); sIn = round2(sIn);
+    const net = round2(sIn - sOut);
+    let html = '<div class="sr-sum"><div class="sr-sum-n">共 <b>' + res.length + '</b> 笔' + (search.scope === 'all' ? ' · 聚合 ' + new Set(res.map((e) => e.book)).size + ' 个账本' : '') + '</div>' +
+        '<div class="sr-sum-net ' + (net < 0 ? 'lg-out' : (net > 0 ? 'lg-in' : '')) + '">' + (net > 0 ? '+' : (net < 0 ? '−' : '')) + fmtNum(Math.abs(net)) + '</div>' +
+        '<div class="sr-sum-pills"><span class="sd-pill out">支出 <b>' + fmtNum(sOut) + '</b></span><span class="sd-pill in">收入 <b>' + fmtNum(sIn) + '</b></span></div></div>';
+    const keys = Object.keys(byCat).sort((a, b) => (byCat[b].out + byCat[b].in) - (byCat[a].out + byCat[a].in));
+    if (keys.length > 1) {
+        html += '<div class="sr-sec">按分类聚合</div><div class="sr-agg">';
+        const max = Math.max.apply(null, keys.map((k) => byCat[k].out + byCat[k].in)) || 1;
+        keys.forEach((k) => {
+            const o = byCat[k], tot = o.out + o.in, pct = Math.max(4, Math.round(tot / max * 100));
+            const val = o.out && o.in ? (fmtNum(round2(o.in - o.out))) : (o.out ? '−' + fmtNum(round2(o.out)) : '+' + fmtNum(round2(o.in)));
+            const cls = o.out && !o.in ? 'lg-out' : (o.in && !o.out ? 'lg-in' : '');
+            html += '<div class="sr-agg-row"><span class="sr-agg-name">' + srHi(k) + '<small class="sd-x">×' + o.n + '</small></span><span class="sr-agg-amt ' + cls + '">' + val + '</span>' +
+                '<i class="sd-bar ' + (o.out >= o.in ? 'out' : 'in') + '"><b style="width:' + pct + '%"></b></i></div>';
+        });
+        html += '</div>';
+    }
+    html += '<div class="sr-sec">明细</div>';
+    const LIMIT = 200;
+    let lastDate = '';
+    res.slice(0, LIMIT).forEach((e) => {
+        if (e.date !== lastDate) { lastDate = e.date; html += '<div class="sr-day"><span>' + e.date + '</span><small>周' + srWeekday(e.date) + '</small></div>'; }
+        const dt = new Date(e.ts), hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+        const sign = e.type === 'out' ? '−' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
+        html += '<div class="sr-row" data-date="' + e.date + '" data-book="' + escHtml(e.book) + '"><div class="sr-row-main">' +
+            '<div class="sr-row-c">' + srHi(e.cat || '未分类') + (search.scope === 'all' ? '<span class="sr-bk">' + escHtml(bookName(e.book)) + '</span>' : '') + '</div>' +
+            (e.note ? '<div class="sr-row-n">' + srHi(e.note) + '</div>' : '') + '</div>' +
+            '<div class="sr-row-r"><span class="sr-amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span><small>' + hh + '</small></div></div>';
+    });
+    if (res.length > LIMIT) html += '<div class="sr-more">只显示最近 ' + LIMIT + ' 笔,请缩小范围</div>';
+    box.innerHTML = html;
+}
+function openSearch() {
+    $('lg-search').classList.add('show');
+    $('sr-q').value = search.q;
+    renderSearch();
+    setTimeout(() => { try { $('sr-q').focus(); } catch (e) {} }, 120);
+}
+function closeSearch() { $('lg-search').classList.remove('show'); try { $('sr-q').blur(); } catch (e) {} }
+function bindSearch() {
+    $('lg-search-btn').addEventListener('click', openSearch);
+    $('sr-close').addEventListener('click', closeSearch);
+    let timer = null;
+    $('sr-q').addEventListener('input', () => { search.q = $('sr-q').value; clearTimeout(timer); timer = setTimeout(renderSearch, 160); });
+    $('sr-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { try { $('sr-q').blur(); } catch (x) {} } });
+    $('sr-clear').addEventListener('click', () => { $('sr-q').value = ''; search.q = ''; renderSearch(); $('sr-q').focus(); });
+    $('sr-scope').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; search.scope = b.dataset.scope; renderSearch(); });
+    $('sr-filters').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; search.f = b.dataset.f; renderSearch(); });
+    $('sr-body').addEventListener('click', (e) => {
+        const row = e.target.closest('.sr-row'); if (!row) return;
+        state.curDate = row.dataset.date;
+        if (bookOf(row.dataset.book)) state.tab = row.dataset.book;
+        closeSearch(); renderTabs(); renderAll();
+        showToast('已跳到 ' + row.dataset.date);
+    });
+}
+
 function bind() {
+    bindSearch();
     $('lg-prev').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, -1); renderAll(); });
     $('lg-next').addEventListener('click', () => { state.curDate = shiftDate(state.curDate, 1); renderAll(); });
     $('lg-today').addEventListener('click', () => { state.curDate = localDateStr(); renderAll(); });
