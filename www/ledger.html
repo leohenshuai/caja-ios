@@ -369,7 +369,6 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
   box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 6px 16px rgba(14,165,233,.5);
   opacity:1;
 }
-.lg-chip:not(.add):not(.del).on::before { content:'✓ '; }
 /* 负余额(红色纯色,不用渐变裁字) */
 .lg-bal-main .big.neg {
   background:none;
@@ -430,7 +429,46 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
   opacity:1;
   box-shadow:none;
 }
-.lg-chip:not(.add):not(.del).on::before { content:'✓ '; color:#38bdf8; }
+/* ===== 执行单L:分类胶囊去勾 / 按钮文字居中 / 记一笔加底色 ===== */
+.lg-chip.on::before { content:none !important; }
+button.cgt-push {
+  min-height:44px;
+  height:auto;
+  padding:8px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  flex-wrap:wrap;
+  row-gap:2px;
+  gap:8px;
+}
+button.cgt-push span { white-space:normal; text-align:center; }
+button.cgt-push small {
+  flex-basis:100%;
+  width:100%;
+  text-align:center;
+  white-space:normal;
+}
+button.cgt-push small:empty { display:none; }
+button.lg-btn-main {
+  background:linear-gradient(180deg,#0ea5e9,#0369a1);
+  color:#fff;
+  font-weight:800;
+  font-size:16px;
+  text-align:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 6px 16px rgba(2,132,199,.4);
+  border:none;
+  min-height:48px;
+  text-shadow:0 1px 1px rgba(0,0,0,.25);
+}
+button.lg-btn-main:active {
+  transform:scale(.97);
+  filter:brightness(.92);
+}
 </style>
 </head>
 <body>
