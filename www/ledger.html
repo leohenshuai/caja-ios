@@ -62,7 +62,7 @@
 .lg-sugs { display:flex; gap:8px; overflow-x:auto; margin-top:8px; padding-bottom:2px; scrollbar-width:none; }
 .lg-sugs::-webkit-scrollbar { display:none; }
 .lg-sugs:empty { display:none; }
-.lg-sug { flex:none; min-height:40px; padding:6px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); text-align:left; }
+.lg-sug { flex:none; min-height:40px; padding:6px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); text-align:left; display:inline-flex; align-items:center; }
 .lg-sug .n { display:block; font-size:14px; font-weight:700; }
 .lg-sug .m { display:block; font-size:11px; color:var(--text-muted); margin-top:2px; }
 .lg-sug mark { background:rgba(56,189,248,.35); color:#fff; border-radius:3px; padding:0 1px; }
@@ -1313,9 +1313,9 @@ function buildNoteIndex(book) {
         if (!raw) return;
         const k = raw.toLowerCase();
         let it = map.get(k);
-        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastCat: '', lastType: 'out' }; map.set(k, it); }
+        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastType: 'out' }; map.set(k, it); }
         it.count += 1;
-        if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastCat = e.cat; it.lastType = e.type; it.note = raw; }
+        if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastType = e.type; it.note = raw; }
     });
     return map;
 }
@@ -1349,17 +1349,15 @@ function renderSuggest(book) {
     if (head) head.textContent = q ? '匹配' : '最近';
     let html = '';
     items.forEach((it) => {
-        html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-cat="' + escHtml(it.lastCat) + '" data-type="' + escHtml(it.lastType) + '">' +
-            '<span class="n">' + hiNote(it.note, q) + '</span><span class="m">' + escHtml(it.lastCat || '未分类') + '</span></button>';
+        html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-type="' + escHtml(it.lastType) + '">' +
+            '<span class="n">' + hiNote(it.note, q) + '</span></button>';
     });
     box.innerHTML = html;
 }
-/* 应用一条备注历史芯片:只填备注/分类/收支方向,不含金额 */
+/* 应用一条备注历史芯片:只填备注/收支方向,不含金额与分类 */
 function applySuggest(book, chip) {
     const noteEl = $(eid(book, 'note'));
     if (noteEl) noteEl.value = chip.dataset.note || '';
-    const cat = chip.dataset.cat || '';
-    if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
     if (chip.dataset.type) state.form[book].type = chip.dataset.type;
     renderTypeButtons(book); renderCats(book); renderSuggest(book);
 }
