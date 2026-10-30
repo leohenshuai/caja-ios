@@ -106,6 +106,19 @@
     return { backup: b, databases: dbs.filter(function (d) { return d.exists !== false; }) };
   };
 
+  /** 选择性恢复:按系统名(如 ['ledger'])筛选 validate 返回的 databases 列表。
+      systems 为空/未传 → 原样返回全部。'all' 表示全部系统。 */
+  BK.restoreFilter = function (databases, systems) {
+    if (!systems || !systems.length) return databases;
+    var set = new Set();
+    systems.forEach(function (s) {
+      if (s === 'all') { Object.keys(SYSTEMS).forEach(function (k) { SYSTEMS[k].forEach(function (n) { set.add(n); }); }); }
+      else (SYSTEMS[s] || []).forEach(function (n) { set.add(n); });
+    });
+    return databases.filter(function (d) { return set.has(d.name); });
+  };
+  var filterDatabases = BK.restoreFilter;
+
   function openForRestore(d, existing) {
     return new Promise(function (res, rej) {
       var has = existing ? existing.has(d.name) : true;
@@ -139,19 +152,21 @@
       pre = await BK.serialize(await BK.snapshot('pre-restore'));
       if (NB() && NB().available) await NB().call('backupWrite', { kind: 'snapshot', text: pre });
     }
-    async function apply(parsed) {
+    async function apply(parsed, systems) {
       var existing = await listDbNames();
-      for (var d of parsed.databases) {
+      for (var d of BK.restoreFilter(parsed.databases, systems)) {
         var db = await openForRestore(d, existing);
         try { for (var sn of Object.keys(d.stores)) { if (!db.objectStoreNames.contains(sn)) throw new Error(d.name + ' 缺少数据表 ' + sn); await restoreStore(db, sn, d.stores[sn]); } }
         finally { db.close(); }
       }
+      // localStorage 属于 arrival 与其它页面的杂项:选择 systems 时只有选了 arrival/all 才写回
+      var wantLs = !systems || !systems.length || systems.indexOf('all') >= 0 || systems.indexOf('arrival') >= 0;
       var ls = parsed.backup.localStorageSnapshot;
-      if (ls && typeof ls === 'object') Object.keys(ls).forEach(function (k) { if (typeof ls[k] === 'string') localStorage.setItem(k, ls[k]); });
+      if (wantLs && ls && typeof ls === 'object') Object.keys(ls).forEach(function (k) { if (typeof ls[k] === 'string') localStorage.setItem(k, ls[k]); });
     }
-    try { await apply(v); }
+    try { await apply(v, opts.systems); }
     catch (err) {
-      if (pre) { try { await apply(await BK.validate(pre)); } catch (e2) { throw new Error('恢复失败且回滚也失败：' + err.message); } throw new Error('恢复失败，已自动回滚到恢复前状态：' + err.message); }
+      if (pre) { try { await apply(await BK.validate(pre), null); } catch (e2) { throw new Error('恢复失败且回滚也失败：' + err.message); } throw new Error('恢复失败，已自动回滚到恢复前状态：' + err.message); }
       throw err;
     }
     return v.backup.stats || stats(v.backup);
@@ -179,6 +194,44 @@
   BK.read = function (n) { return NB().call('backupRead', { name: n }, 60000); };
   BK.remove = function (n) { return NB().call('backupDelete', { name: n }); };
   BK.shareFile = function (n) { return NB().call('backupShare', { name: n }); };
+
+  /* ---------- 持久存储申请与状态 ----------
+     所有页面加载本文件即自动申请一次,iOS 上可降低系统回收 IndexedDB 的概率。 */
+  BK.persistStatus = async function () {
+    try {
+      if (!(navigator.storage && navigator.storage.persisted)) return { supported: false, persisted: false, requested: false };
+      var persisted = await navigator.storage.persisted(), requested = false;
+      if (!persisted && navigator.storage.persist) {
+        requested = true;
+        persisted = await navigator.storage.persist();
+      }
+      return { supported: true, persisted: !!persisted, requested: requested };
+    } catch (e) {
+      return { supported: true, persisted: false, requested: false, error: String(e && e.message || e) };
+    }
+  };
+
+  /* ---------- 导出到「可外存」:写入 App 备份目录后弹分享面板 ---------- */
+  BK.exportExternal = async function () {
+    if (!(NB() && NB().available)) return { ok: false, error: 'no-native' };
+    try {
+      var b = await BK.snapshot('external');
+      var text = await BK.serialize(b);
+      var r = await NB().call('backupWrite', { kind: 'manual', text: text }, 60000);
+      if (!r || !r.ok) return { ok: false, error: String((r && r.error) || 'write-failed') };
+      var name = r.name;
+      if (!name) {
+        var l = await BK.list(), files = (l && l.ok && l.files) || [];
+        var newest = files.slice().sort(function (x, y) { return (y.mtime || 0) - (x.mtime || 0); })[0];
+        name = newest && newest.name;
+      }
+      if (!name) return { ok: false, error: 'no-name' };
+      await BK.shareFile(name);
+      localStorage.setItem('lastExternalAt', String(Date.now()));
+      return { ok: true, name: name };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  };
+  BK.lastExternalAt = function () { var v = Number(localStorage.getItem('lastExternalAt') || 0); return v > 0 ? v : 0; };
 
   /* ---------- 定时备份 ----------
      iOS 不允许 App 在后台/关闭后运行,所以"定时"= App 开着或回到前台时,距上次备份超过设定间隔就补做一次。
@@ -223,4 +276,7 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(BK.checkHealth, 1500); });
   else setTimeout(BK.checkHealth, 1500);
+
+  /* 所有页面加载本文件即申请一次持久存储 */
+  setTimeout(function () { BK.persistStatus(); }, 1500);
 })();

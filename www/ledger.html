@@ -78,6 +78,9 @@
 .lg-row .amt { font-family:'Courier New', monospace; font-weight:800; font-size:16px; flex:none; }
 .lg-out { color:#ff6b6b; }
 .lg-in { color:#34d399; }
+#sum-safe .v { cursor:default; border-bottom:none; white-space:normal; text-align:right; }
+#sum-safe .v small { display:block; font-size:10px; font-weight:500; color:var(--text-muted); }
+#sum-safe .cgt-push { margin-top:10px; }
 .lg-more { flex:none; min-width:44px; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:18px; }
 .lg-acts { display:none; gap:8px; padding:0 0 10px 52px; }
 .lg-acts.show { display:flex; }
@@ -491,6 +494,14 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     <button class="cgt-push lg-sync-all" id="lg-sync-all"><span>📲 全部同步到财务系统</span><small id="lg-sync-state"></small></button>
     <div class="lg-note">同步后财务系统会自动填入,请到财务系统核对数字。</div>
   </div>
+  <div class="lg-card" id="sum-safe">
+    <div class="lg-card-title">数据保护</div>
+    <div class="lg-sum-row"><span class="k">持久存储</span><span class="v" id="safe-persist">—</span></div>
+    <div class="lg-sum-row"><span class="k">上次自动备份</span><span class="v" id="safe-auto">—</span></div>
+    <div class="lg-sum-row"><span class="k">上次导出到外部</span><span class="v" id="safe-ext">—</span></div>
+    <button class="cgt-push" id="lg-export-ext"><span>📤 导出备份到文件/iCloud</span></button>
+    <div class="lg-note">记账数据保存在本机。导出到「文件」或 iCloud 可防止手机丢失或 App 被删。</div>
+  </div>
 </div>
 </div><!-- /lg-wrap -->
 <!-- ===== 新增分类弹窗 ===== -->
@@ -696,8 +707,94 @@ async function loadAll() {
 async function saveKey(key) {
     const ok = await LedgerDB.put(state.db, key, state[key]);
     if (!ok) showToast('保存失败', 'error');
+    if (ok) scheduleAutoBackup();
     return ok;
 }
+/* ================= 写入即备份 / 数据保护 ================= */
+let autoBackupTimer = null, lastAutoBackupAt = 0;
+function scheduleAutoBackup() {
+    if (!(window.Backup && typeof window.Backup.auto === 'function')) return;
+    if (autoBackupTimer) return;                       // 已排队,合并
+    const wait = Math.max(5000, 3600000 - (Date.now() - lastAutoBackupAt)); // 距上次不足 1 小时则推迟到满 1 小时
+    autoBackupTimer = setTimeout(async () => {
+        autoBackupTimer = null;
+        try { await window.Backup.auto('ledger-write'); lastAutoBackupAt = Date.now(); } catch (e) {}
+    }, lastAutoBackupAt ? wait : 5000);                // 本次打开后第一次写入:5 秒后备份一次
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    if (autoBackupTimer) { clearTimeout(autoBackupTimer); autoBackupTimer = null; }
+    if (!(window.Backup && typeof window.Backup.auto === 'function')) return;
+    try {
+        Promise.resolve(window.Backup.auto('ledger-hide')).then(() => { lastAutoBackupAt = Date.now(); }, () => {});
+    } catch (e) {}
+});
+function fmtSafeAt(ms) {
+    const n = Number(ms || 0);
+    if (!n) return '';
+    const d = new Date(n), p = (x) => String(x).padStart(2, '0');
+    return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+async function renderSafe() {
+    const pv = $('safe-persist'), av = $('safe-auto'), ev = $('safe-ext');
+    if (!pv) return;
+    const B = window.Backup;
+    if (!(B && typeof B.persistStatus === 'function')) {
+        pv.className = 'v'; pv.style.color = ''; pv.textContent = '—';
+    } else {
+        let st = null;
+        try { st = await B.persistStatus(); } catch (e) { st = null; }
+        if (!st) {
+            pv.className = 'v'; pv.style.color = ''; pv.textContent = '—';
+        } else if (st.persisted) {
+            pv.className = 'v lg-in'; pv.style.color = ''; pv.textContent = '已开启';
+        } else if (st.supported === false) {
+            pv.className = 'v'; pv.style.color = 'var(--text-muted)'; pv.textContent = '不支持';
+        } else {
+            pv.className = 'v lg-out'; pv.style.color = '';
+            pv.innerHTML = '未开启<small>系统可能在空间不足时清理</small>';
+        }
+    }
+    if (av) {
+        const at = Number(localStorage.getItem('lastAutoBackupAt') || 0);
+        av.className = 'v'; av.style.color = '';
+        if (at) av.textContent = fmtSafeAt(at);
+        else { av.textContent = '从未'; av.style.color = 'var(--text-muted)'; }
+    }
+    if (ev) {
+        ev.className = 'v'; ev.style.color = '';
+        if (!(B && typeof B.lastExternalAt === 'function')) {
+            ev.textContent = '—';
+        } else {
+            let at = 0;
+            try { at = Number(B.lastExternalAt() || 0); } catch (e) { at = 0; }
+            const old = !at || (Date.now() - at > 7 * 86400000);
+            ev.textContent = (at ? fmtSafeAt(at) : '从未') + (old ? ' · 建议导出' : '');
+            if (old) ev.className = 'v lg-out';
+            else if (!at) ev.style.color = 'var(--text-muted)';
+        }
+    }
+}
+async function onExportExternal() {
+    const B = window.Backup;
+    if (!(B && typeof B.exportExternal === 'function')) return;
+    const btn = $('lg-export-ext');
+    const label = btn ? btn.querySelector('span') : null;
+    const old = label ? label.textContent : '';
+    if (btn) btn.disabled = true;
+    if (label) label.textContent = '导出中…';
+    let r = null;
+    try { r = await B.exportExternal(); } catch (e) { r = { ok: false, error: 'error' }; }
+    if (btn) btn.disabled = false;
+    if (label) label.textContent = old;
+    if (r && r.ok) { showToast('已生成备份,请在分享面板选择存储位置'); renderSafe(); }
+    else if (r && r.error === 'no-native') { showToast('当前环境不支持导出', 'warning'); }
+    else { showToast('导出失败', 'error'); }
+}
+(function () {
+    const btn = document.getElementById('lg-export-ext');
+    if (btn) btn.addEventListener('click', onExportExternal);
+})();
 /* ================= 计算 ================= */
 function dayEntries(book, date) { return state.entries.filter((e) => e.book === book && e.date === date); }
 function sumBook(book, date, type) { return round2(dayEntries(book, date).filter((e) => e.type === type).reduce((a, e) => a + Number(e.amount || 0), 0)); }
@@ -938,7 +1035,7 @@ function renderPushState() {
     try { const o = JSON.parse(localStorage.getItem('ledger-theoretical-push-v1') || 'null'); ps.textContent = o ? ('上次 ' + o.at + ' · ' + Number(o.value).toLocaleString()) : ''; } catch (e) { ps.textContent = ''; }
 }
 function renderAll() {
-    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer');
+    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer'); renderSafe();
 }
 function renderList(book) {
     const box = $(eid(book, 'list'));

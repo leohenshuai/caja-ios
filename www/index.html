@@ -865,7 +865,15 @@ async function exportAllSystemsBackup() {
         const date = new Date();
         const pad = value => String(value).padStart(2, '0');
         const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
-        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        // 用 Backup.serialize 生成带 integrity(sha256 校验码)的文本;缺少 Backup 时回退原写法
+        let backupText;
+        if (window.Backup && window.Backup.serialize) {
+            try { backupText = await Backup.serialize(backup); }
+            catch (error) { backupText = JSON.stringify(backup, null, 2); }
+        } else {
+            backupText = JSON.stringify(backup, null, 2);
+        }
+        const blob = new Blob([backupText], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -959,15 +967,32 @@ async function restoreAllSystemsBackup(event) {
     const buttonText = document.getElementById('suiteRestoreBtnText');
 
     try {
-        const backup = JSON.parse(await file.text());
+        const fileText = await file.text();
+        // 先按文件原文校验 integrity 校验码(不校验 parse 后重新序列化的内容)
+        if (window.Backup && window.Backup.validate) await Backup.validate(fileText);
+        const backup = JSON.parse(fileText);
         const databases = validateFullBackup(backup);
         const exportedTime = backup.exportedAt ? new Date(backup.exportedAt).toLocaleString() : '未知时间';
-        if (!window.confirm(`将使用 ${exportedTime} 的总备份覆盖六个系统当前数据。此操作不可撤销，是否继续？`)) return;
+
+        // 选择恢复范围:restoreSystems 非空时只恢复记账系统
+        let restoreSystems = null;
+        const modeTag = 'only-ledger';
+        if (window.confirm('要恢复哪些数据?\n\n【确定】只恢复「记账系统」，其它系统保持不变\n【取消】继续选择其它方式')) {
+            if (!window.confirm(`将只用 ${exportedTime} 的备份覆盖记账系统当前数据，其它系统不动。此操作不可撤销，是否继续？`)) return;
+            restoreSystems = ['ledger'];
+        } else {
+            if (!window.confirm(`将使用 ${exportedTime} 的总备份覆盖六个系统当前数据。此操作不可撤销，是否继续？`)) return;
+            restoreSystems = null;
+        }
+        const onlyLedger = modeTag === 'only-ledger' && Array.isArray(restoreSystems) && restoreSystems.length > 0;
 
         button.disabled = true;
         buttonText.textContent = '正在恢复…';
         const existingNames = await getExistingDatabaseNames();
-        for (const databaseBackup of databases) {
+        const targetDatabases = onlyLedger && window.Backup && window.Backup.restoreFilter
+            ? Backup.restoreFilter(databases, restoreSystems)
+            : databases;
+        for (const databaseBackup of targetDatabases) {
             const db = await openDatabaseForRestore(databaseBackup, existingNames);
             try {
                 for (const [storeName, storeBackup] of Object.entries(databaseBackup.stores)) {
@@ -979,13 +1004,14 @@ async function restoreAllSystemsBackup(event) {
             }
         }
 
-        if (backup.localStorageSnapshot && typeof backup.localStorageSnapshot === 'object') {
+        // 只恢复记账时跳过 localStorage 写回(它属于 arrival 与其它页面的杂项)
+        if (!onlyLedger && backup.localStorageSnapshot && typeof backup.localStorageSnapshot === 'object') {
             for (const [key, value] of Object.entries(backup.localStorageSnapshot)) {
                 if (typeof value === 'string') localStorage.setItem(key, value);
             }
         }
         buttonText.textContent = '恢复完成';
-        window.alert('六个系统的数据已恢复完成，页面将自动刷新。');
+        window.alert(onlyLedger ? '记账系统的数据已恢复完成，页面将自动刷新。' : '六个系统的数据已恢复完成，页面将自动刷新。');
         window.location.reload();
     } catch (error) {
         console.error('[Backup] Restore failed:', error);
