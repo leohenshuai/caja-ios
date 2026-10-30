@@ -456,47 +456,12 @@ button.lg-btn-main:active {
   white-space:nowrap;
 }
 .sd-hero-num.neg { color:var(--red); }
-.sd-hero-sub {
-  display:grid;
-  grid-template-columns:1fr;
-  gap:8px;
-  margin-top:10px;
-}
-.sd-chip {
-  min-width:0;
-  display:flex;
-  align-items:baseline;
-  gap:8px;
-  border-radius:14px;
-  padding:10px 12px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.1);
-}
-.sd-chip .t {
-  flex:1 1 auto;
-  font-size:12px;
-  color:var(--text-muted);
-}
-.sd-chip .n {
-  flex:none;
-  margin-top:0;
-  font-size:11px;
-  font-weight:700;
-  color:var(--text-muted);
-}
-.sd-chip .m {
-  flex:none;
-  margin-top:0;
+.sd-hero-line { margin-top:10px; font-size:12px; color:var(--text-muted); display:flex; gap:12px; flex-wrap:wrap; align-items:baseline; }
+.sd-hero-line .lg-out, .sd-hero-line .lg-in {
   font-family:'Courier New', monospace;
-  font-size:17px;
-  font-weight:800;
+  font-weight:700;
   font-variant-numeric:tabular-nums;
-  overflow:visible;
-  text-overflow:clip;
-  white-space:nowrap;
 }
-.sd-chip.out .m { color:var(--red); }
-.sd-chip.in .m { color:var(--green); }
 .sd-book {
   margin-top:14px;
   padding-top:12px;
@@ -535,22 +500,9 @@ button.lg-btn-main:active {
   border-radius:2px;
   background:var(--cyan);
 }
-.sd-book-tot {
-  display:flex;
-  gap:8px;
-  flex:none;
-  font-family:'Courier New', monospace;
-  font-size:11px;
-  font-weight:700;
-  white-space:nowrap;
-}
-.sd-group { margin-top:8px; }
-.sd-group-lab {
-  font-size:10.5px;
-  font-weight:800;
-  letter-spacing:.4px;
-  margin-bottom:3px;
-}
+.sd-book-net { font-family:'Courier New', monospace; font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; flex:none; white-space:nowrap; }
+.sd-book-net:not(.lg-out):not(.lg-in){ color:var(--text-muted); }
+.sd-x { font-size:11px; color:var(--text-muted); font-weight:500; }
 .sd-row {
   display:grid;
   grid-template-columns:1fr auto;
@@ -1144,7 +1096,7 @@ const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DN
 function sumOverOf(date) { const m = state.sumover && state.sumover[date]; return (m && typeof m === 'object') ? m : {}; }
 function summaryVals() {
     const d = state.curDate;
-    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: syncSumFor(d, 'orange_c'), dni_c1: syncSumFor(d, 'dni_c1'), merc_c2: syncSumFor(d, 'merc_c2'), actual_stock: null };
+    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: syncSumFor(d, 'orange_c'), dni_c1: syncSumFor(d, 'dni_c1'), merc_c2: syncSumFor(d, 'merc_c2'), actual_stock: balanceOf(d) };
     const ov = sumOverOf(d), out = {};
     Object.keys(auto).forEach((k) => {
         const v = ov[k];
@@ -1196,31 +1148,27 @@ function renderDaySummary() {
     const d = state.curDate;
     const hero = $('sd-hero'), box = $('sd-books');
     if (!hero || !box) return;
-    // 全部账本合计笔数与金额(用于总览)
-    let nOut = 0, nIn = 0, sOut = 0, sIn = 0;
+    let sOut = 0, sIn = 0, nAll = 0;
     state.books.forEach((b) => dayEntries(b.id, d).forEach((e) => {
-        const a = Number(e.amount || 0);
-        if (e.type === 'out') { nOut++; sOut += a; } else { nIn++; sIn += a; }
+        const a = Number(e.amount || 0); nAll++;
+        if (e.type === 'out') sOut += a; else sIn += a;
     }));
     sOut = round2(sOut); sIn = round2(sIn);
-    const bal = balanceOf(d);    // 仅现金账:收入−支出
+    const bal = balanceOf(d);
     hero.innerHTML =
         '<div class="sd-hero-main"><div class="sd-hero-lab">今日余额<small>现金账 · 收入−支出</small></div>' +
         '<div class="sd-hero-num' + (bal < 0 ? ' neg' : '') + '">' + fmtNum(bal) + '</div></div>' +
-        '<div class="sd-hero-sub">' +
-          '<div class="sd-chip out"><span class="t">全部账本 支出</span><span class="n">' + nOut + ' 笔</span><span class="m">' + fmtNum(sOut) + '</span></div>' +
-          '<div class="sd-chip in"><span class="t">全部账本 收入</span><span class="n">' + nIn + ' 笔</span><span class="m">' + fmtNum(sIn) + '</span></div>' +
-        '</div>';
-    // 每个账本一块
+        '<div class="sd-hero-line">' + (nAll ? '全部账本 <span class="lg-out">支出 ' + fmtNum(sOut) + '</span> <span class="lg-in">收入 ' + fmtNum(sIn) + '</span>' : '今日暂无记录') + '</div>';
     let html = '';
     state.books.forEach((b) => {
         const ents = dayEntries(b.id, d);
+        if (!ents.length) return;                                   // 没账的账本整块隐藏
         const outs = ents.filter((e) => e.type === 'out'), ins = ents.filter((e) => e.type === 'in');
         const so = round2(outs.reduce((a, e) => a + Number(e.amount || 0), 0));
         const si = round2(ins.reduce((a, e) => a + Number(e.amount || 0), 0));
+        const net = round2(si - so);
         html += '<div class="sd-book"><div class="sd-book-head"><span class="sd-book-name">' + escHtml(b.name) + '</span>' +
-            '<span class="sd-book-tot"><span class="lg-out">支出 ' + fmtNum(so) + '</span><span class="lg-in">收入 ' + fmtNum(si) + '</span></span></div>';
-        if (!ents.length) { html += '<div class="sd-empty">当日无记录</div></div>'; return; }
+            '<span class="sd-book-net ' + (net < 0 ? 'lg-out' : (net > 0 ? 'lg-in' : '')) + '">' + (net > 0 ? '+' : (net < 0 ? '−' : '')) + fmtNum(Math.abs(net)) + '</span></div>';
         html += sdGroup(b, outs, 'out');
         html += sdGroup(b, ins, 'in');
         html += '</div>';
@@ -1229,18 +1177,19 @@ function renderDaySummary() {
 }
 function sdGroup(book, rows, type) {
     if (!rows.length) return '';
-    const cls = (type === 'out') ? 'lg-out' : 'lg-in', label = (type === 'out') ? '支出' : '收入';
+    const cls = (type === 'out') ? 'lg-out' : 'lg-in', sign = (type === 'out') ? '−' : '+';
     const base = Array.isArray(state.cats[book.id]) ? state.cats[book.id].slice() : [];
     const order = base.slice();
     rows.forEach((e) => { const c = String(e.cat === null || e.cat === undefined ? '' : e.cat); if (order.indexOf(c) === -1) order.push(c); });
-    let html = '<div class="sd-group"><div class="sd-group-lab ' + cls + '">' + label + ' · ' + rows.length + ' 笔</div>';
+    let html = '';
     order.forEach((cat) => {
         const list = rows.filter((e) => String(e.cat === null || e.cat === undefined ? '' : e.cat) === cat);
         if (!list.length) return;
         const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
-        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + '</span><span class="sd-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
+        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + (list.length > 1 ? '<small class="sd-x"> ×' + list.length + '</small>' : '') + '</span>' +
+            '<span class="sd-amt ' + cls + '">' + sign + fmtNum(csum) + '</span></div>';
     });
-    return html + '</div>';
+    return html;
 }
 function renderSyncState() {
     const el = $('lg-sync-state');
