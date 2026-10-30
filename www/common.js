@@ -15,7 +15,7 @@
     const isSkipped = (el) => el && el.hasAttribute && el.hasAttribute('data-vk-skip');
     const suppressSystemKeyboard = () => {
         if (!document.getElementById('vk-keypad')) return;
-        document.querySelectorAll('input[type="text"], input[type="number"]').forEach(el => {
+        document.querySelectorAll('input[type="text"], input[type="number"], input:not([type])').forEach(el => {
             if (isSkipped(el)) { if (el.getAttribute('inputmode') === 'none') el.removeAttribute('inputmode'); return; }
             if (el.getAttribute('inputmode') !== 'none') el.setAttribute('inputmode', 'none');
         });
