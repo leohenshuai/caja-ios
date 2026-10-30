@@ -52,7 +52,6 @@
 .lg-chip.add { color:var(--text-muted); font-weight:800; }
 .lg-chip.del { color:#ff8f8f; border-style:dashed; }
 .lg-chip.on.delx { border-color:rgba(255,107,107,.6); }
-.lg-chip.fixed::after { content:''; display:inline-block; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:.45; margin-left:5px; vertical-align:middle; }
 #lg-catmenu .cm-acts { display:flex; gap:10px; margin-bottom:12px; }
 #lg-catmenu .cm-acts button { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
 #lg-catmenu .cm-acts button.danger { color:#f87171; }
@@ -71,9 +70,9 @@
 .lg-btn-main { width:100%; min-height:46px; border-radius:14px; border:none; background:linear-gradient(180deg,#38bdf8,#0284c7); color:#03121c; font-size:16px; font-weight:800; }
 .lg-btn-main:active { transform:scale(.98); }
 
-.lg-stats { display:flex; gap:8px; margin:10px 12px 0; }
-.lg-stat { flex:1; text-align:center; padding:10px 6px; border-radius:16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
-.lg-stat .k { font-size:11px; color:var(--text-muted); font-weight:700; }
+.lg-stats { display:flex; flex-wrap:wrap; gap:8px; margin:10px 12px 0; }
+.lg-stat { flex:1; min-width:96px; text-align:center; padding:10px 6px; border-radius:16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+.lg-stat .k { font-size:11px; color:var(--text-muted); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lg-stat .v { font-family:'Courier New', monospace; font-size:17px; font-weight:800; margin-top:4px; }
 
 .lg-list { margin-top:4px; }
@@ -531,11 +530,7 @@ button.lg-btn-main:active {
 </div>
 <!-- ==================== 页签2: 转账账 ==================== -->
 <div id="tab-transfer" class="tab-content">
-  <div class="lg-stats">
-    <div class="lg-stat"><div class="k">橙色</div><div class="v lg-out" id="tr-stat-orange">0</div></div>
-    <div class="lg-stat"><div class="k">DNI</div><div class="v lg-out" id="tr-stat-dni">0</div></div>
-    <div class="lg-stat"><div class="k">Mercado</div><div class="v lg-out" id="tr-stat-merc">0</div></div>
-  </div>
+  <div class="lg-stats" id="tr-stats"></div>
   <div class="lg-card">
     <div class="lg-card-title">记一笔</div>
     <div class="lg-seg" data-book="transfer">
@@ -572,9 +567,7 @@ button.lg-btn-main:active {
     <div class="lg-sum-row"><span class="k">现金账 支出合计</span><span class="v lg-out" id="sum-cash-out">0</span></div>
     <div class="lg-sum-row"><span class="k">现金账 收入合计</span><span class="v lg-in" id="sum-cash-in">0</span></div>
     <div class="lg-sum-row"><span class="k">今日净额</span><span class="v" id="sum-cash-bal">—</span></div>
-    <div class="lg-sum-row"><span class="k">转账账 橙色支出</span><span class="v lg-out" id="sum-orange">0</span></div>
-    <div class="lg-sum-row"><span class="k">转账账 DNI 支出</span><span class="v lg-out" id="sum-dni">0</span></div>
-    <div class="lg-sum-row"><span class="k">转账账 Mercado 支出</span><span class="v lg-out" id="sum-merc">0</span></div>
+    <div id="sum-transfer-rows"></div>
   </div>
   <div class="lg-card" id="sum-cats">
     <div class="lg-card-title">分类统计(笔数)</div>
@@ -759,6 +752,7 @@ class LedgerDB {
         });
     }
 }
+// 全新安装时转账账的起始分类(用户可删可改,不再强制存在)
 const TX_CATS = ['橙色', 'DNI', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
@@ -767,7 +761,7 @@ const state = {
     tab: 'cash',
     cats: { cash: ['白色机器', '其他'], transfer: TX_CATS.slice() },
     ver: 1, curDate: localDateStr(),
-    form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '橙色' } },
+    form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '' } },
     editingId: null, editingCat: null
 };
 /* ================= 工具 ================= */
@@ -792,7 +786,6 @@ function localDateStr(date = new Date()) {
 }
 function fmtNum(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 function round2(n) { return Math.round(Number(n || 0) * 100) / 100; }
-function isFixedCat(book, cat) { return book === 'transfer' && TX_CATS.indexOf(cat) !== -1; }
 function shiftDate(ds, delta) { const p = String(ds).split('-').map(Number); const dt = new Date(p[0], p[1] - 1, p[2]); dt.setDate(dt.getDate() + delta); return localDateStr(dt); }
 function escHtml(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function showToast(message, type = 'success', duration = 2000) {
@@ -813,8 +806,8 @@ async function loadAll() {
     if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
     const rawSync = await LedgerDB.get(state.db, 'catsync');
-    if (rawSync && typeof rawSync === 'object') state.catsync = Object.assign({}, rawSync);
-    else { state.catsync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Mercado': 'merc_c2' }; await saveKey('catsync'); }
+    const hasSync = !!(rawSync && typeof rawSync === 'object');
+    if (hasSync) state.catsync = Object.assign({}, rawSync);
     const books = await LedgerDB.get(state.db, 'books');
     if (Array.isArray(books) && books.length) state.books = books.filter((b) => b && b.id).map((b) => ({ id: b.id, name: b.name || b.id, type: b.type || 'plain' }));
     else state.books = DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type }));
@@ -822,15 +815,19 @@ async function loadAll() {
     state.books.forEach((b) => {
         if (b.id === 'cash') state.cats.cash = (rawCats && Array.isArray(rawCats.cash) && rawCats.cash.length) ? rawCats.cash.slice() : ['白色机器', '其他'];
         else if (b.id === 'transfer') {
-            const rc = (rawCats && Array.isArray(rawCats.transfer)) ? rawCats.transfer.slice() : [];
-            const merged = TX_CATS.slice();
-            rc.forEach((c) => { if (typeof c === 'string' && c && merged.indexOf(c) === -1) merged.push(c); });
-            state.cats.transfer = merged;
+            state.cats.transfer = (rawCats && Array.isArray(rawCats.transfer)) ? rawCats.transfer.filter((c) => typeof c === 'string' && c) : TX_CATS.slice();
         }
         else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
         if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
-        if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0];
+        if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0] || '';
     });
+    if (!hasSync) {
+        // 迁移默认值:沿用升级用户旧数据里的三个分类名,但只写当前确实存在的分类
+        const seedSync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Mercado': 'merc_c2' };
+        state.catsync = {};
+        Object.keys(seedSync).filter((k) => (state.cats.transfer || []).indexOf(k) !== -1).forEach((k) => { state.catsync[k] = seedSync[k]; });
+        await saveKey('catsync');
+    }
     if (!state.books.some((b) => b.id === state.tab)) state.tab = 'cash';
     state.ver = (await LedgerDB.get(state.db, 'ver')) || 1;
 }
@@ -1014,7 +1011,7 @@ function renderCats(book) {
     if (!box) return;
     const cats = state.cats[book] || [];
     let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (isFixedCat(book, c) ? ' fixed' : '') + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
     html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
     box.innerHTML = html;
 }
@@ -1032,9 +1029,14 @@ function renderCash() {
 }
 function renderTransfer() {
     const d = state.curDate;
-    if ($('tr-stat-orange')) $('tr-stat-orange').textContent = fmtNum(sumTransferCat(d, '橙色'));
-    if ($('tr-stat-dni')) $('tr-stat-dni').textContent = fmtNum(sumTransferCat(d, 'DNI'));
-    if ($('tr-stat-merc')) $('tr-stat-merc').textContent = fmtNum(sumTransferCat(d, 'Mercado'));
+    const box = $('tr-stats');
+    if (box) {
+        const cats = state.cats.transfer || [];
+        let html = '';
+        cats.forEach((c) => { html += '<div class="lg-stat"><div class="k">' + escHtml(c) + '</div><div class="v lg-out">' + fmtNum(sumTransferCat(d, c)) + '</div></div>'; });
+        if (!cats.length) html = '<div class="lg-stat"><div class="k">暂无分类</div><div class="v">—</div></div>';
+        box.innerHTML = html;
+    }
     renderCats('transfer'); renderTypeButtons('transfer'); renderList('transfer');
 }
 const SYNC_KEYS = ['f_exp', 'orange_c', 'dni_c1', 'merc_c2', 'actual_stock'];
@@ -1066,13 +1068,17 @@ function clearSumOverride(k) {
 }
 function renderSummary() {
     const d = state.curDate, co = sumBook('cash', d, 'out'), ci = sumBook('cash', d, 'in'), bal = balanceOf(d);
-    const or = sumTransferCat(d, '橙色'), dn = sumTransferCat(d, 'DNI'), mc = sumTransferCat(d, 'Mercado');
     if ($('sum-cash-out')) $('sum-cash-out').textContent = fmtNum(co);
     if ($('sum-cash-in')) $('sum-cash-in').textContent = fmtNum(ci);
     if ($('sum-cash-bal')) $('sum-cash-bal').textContent = fmtNum(bal);
-    if ($('sum-orange')) $('sum-orange').textContent = fmtNum(or);
-    if ($('sum-dni')) $('sum-dni').textContent = fmtNum(dn);
-    if ($('sum-merc')) $('sum-merc').textContent = fmtNum(mc);
+    const trBox = $('sum-transfer-rows');
+    if (trBox) {
+        const tcats = state.cats.transfer || [];
+        let thtml = '';
+        tcats.forEach((c) => { thtml += '<div class="lg-sum-row"><span class="k">转账账 ' + escHtml(c) + ' 支出</span><span class="v lg-out">' + fmtNum(sumTransferCat(d, c)) + '</span></div>'; });
+        if (!tcats.length) thtml = '<div class="lg-sum-row"><span class="k">转账账 暂无分类</span><span class="v">—</span></div>';
+        trBox.innerHTML = thtml;
+    }
     const vals = summaryVals();
     const ov = sumOverOf(d);
     Object.keys(vals).forEach((k) => {
@@ -1328,13 +1334,12 @@ function addCat(book) {
         const name = String(val || '').trim().slice(0, 8);
         if (!name) return;
         if (!state.cats[book]) state.cats[book] = ['其他'];
-        if (state.cats[book].indexOf(name) !== -1 || isFixedCat(book, name)) { showToast('分类已存在', 'warning'); return; }
+        if (state.cats[book].indexOf(name) !== -1) { showToast('分类已存在', 'warning'); return; }
         state.cats[book].push(name); saveKey('cats'); state.form[book].cat = name;
         if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
     });
 }
 function removeCat(book, cat) {
-    if (isFixedCat(book, cat)) { showToast('固定分类不能删除', 'warning'); return; }
     askConfirm('删除分类「' + cat + '」?已有账目不会被删除。', async () => {
         if (!state.cats[book]) state.cats[book] = [];
         state.cats[book] = state.cats[book].filter((c) => c !== cat);
@@ -1347,12 +1352,11 @@ function removeCat(book, cat) {
     });
 }
 function renameCat(book, oldName) {
-    if (isFixedCat(book, oldName)) { showToast('固定分类不能改名', 'warning'); return; }
     askPrompt('分类改名(最长 8 字)', oldName, async (val) => {
         const newName = String(val || '').trim().slice(0, 8);
         if (!newName || newName === oldName) return;
         const list = state.cats[book] || [];
-        if (list.indexOf(newName) !== -1 || isFixedCat(book, newName)) { showToast('分类已存在', 'warning'); return; }
+        if (list.indexOf(newName) !== -1) { showToast('分类已存在', 'warning'); return; }
         const idx = list.indexOf(oldName);
         if (idx === -1) return;
         list[idx] = newName;
@@ -1502,13 +1506,17 @@ function newBook() {
 }
 /* ================= 分类菜单 ================= */
 let cmBook = null, cmCat = null;
+// 该分类当前没有目标时,取下一个尚未被任何分类占用的格;三个都占用则回到第一个
+function defaultTargetFor() {
+    const targets = ['orange_c', 'dni_c1', 'merc_c2'];
+    const used = Object.keys(state.catsync || {}).map((k) => state.catsync[k]);
+    for (let i = 0; i < targets.length; i++) { if (used.indexOf(targets[i]) === -1) return targets[i]; }
+    return targets[0];
+}
 function openCatMenu(book, cat) {
     if (!book || !cat) return;
     cmBook = book; cmCat = cat;
-    const fixed = isFixedCat(book, cat);
     if ($('cm-title')) $('cm-title').textContent = '分类:' + cat;
-    if ($('cm-rename')) $('cm-rename').disabled = fixed;
-    if ($('cm-delete')) $('cm-delete').disabled = fixed;
     const wrap = $('cm-sync-wrap');
     if (wrap) wrap.style.display = (book === 'transfer') ? '' : 'none';
     if (book === 'transfer') {
@@ -1716,8 +1724,7 @@ function bind() {
         const c = cmCat;
         if (!c) return;
         if ($('cm-sync').checked) {
-            const def = (c === '橙色') ? 'orange_c' : (c === 'DNI') ? 'dni_c1' : (c === 'Mercado') ? 'merc_c2' : 'orange_c';
-            setCatSync(c, state.catsync[c] || def);
+            setCatSync(c, state.catsync[c] || defaultTargetFor());
         } else setCatSync(c, null);
     });
     if ($('cm-target')) $('cm-target').addEventListener('click', (e) => {
