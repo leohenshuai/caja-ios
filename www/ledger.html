@@ -582,7 +582,7 @@ body {
 .lg-list .lg-row:last-child { border-bottom:none !important; }
 .lg-list .lg-row .t { width:auto !important; font-size:11px !important; opacity:.75; flex:none; padding:3px 7px; border-radius:8px; background:rgba(255,255,255,.06); }
 .lg-list .lg-row .mid { padding-left:0; }
-.lg-list .lg-row .lg-more { min-width:36px !important; min-height:36px !important; width:36px; height:36px; padding:0 !important; border-radius:50% !important; font-size:15px !important; letter-spacing:1px; background:rgba(255,255,255,.05) !important; border:none !important; box-shadow:none !important; }
+.lg-list .lg-row .lg-more { display:flex !important; align-items:center !important; justify-content:center !important; line-height:1 !important; min-width:36px !important; min-height:36px !important; width:36px; height:36px; padding:0 !important; border-radius:50% !important; font-size:16px !important; letter-spacing:1px; background:rgba(255,255,255,.05) !important; border:none !important; box-shadow:none !important; }
 .lg-acts { padding-left:0 !important; }
 /* ---- 转账分类统计块 ---- */
 .lg-stats { gap:10px !important; margin:12px 12px 0 !important; }
@@ -2190,11 +2190,11 @@ function amtFit(el) {
     const parent = el.parentElement;
     const cap = parent ? Math.max(60, Math.round(parent.clientWidth * 0.62)) : 200;
     el.style.flex = '0 0 auto';
-    el.style.padding = '0';
+    el.style.padding = '0 2px 0 4px';
     el.style.maxWidth = 'none';
     el.style.width = '10px';
-    const need = Math.ceil(el.scrollWidth) + 2;
-    el.style.width = Math.max(18, Math.min(need, cap)) + 'px';
+    const need = Math.ceil(el.scrollWidth) + 4;
+    el.style.width = Math.max(52, Math.min(need, cap)) + 'px';   // 空值时也留够放占位「0」
 }
 function amtFitAll() { document.querySelectorAll('.lg-e-amt').forEach(amtFit); }
 
