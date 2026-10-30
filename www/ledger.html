@@ -52,6 +52,14 @@
 .lg-chip.add { color:var(--text-muted); font-weight:800; }
 .lg-chip.del { color:#ff8f8f; border-style:dashed; }
 .lg-chip.on.delx { border-color:rgba(255,107,107,.6); }
+.lg-chip.fixed::after { content:''; display:inline-block; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:.45; margin-left:5px; vertical-align:middle; }
+#lg-catmenu .cm-acts { display:flex; gap:10px; margin-bottom:12px; }
+#lg-catmenu .cm-acts button { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
+#lg-catmenu .cm-acts button.danger { color:#f87171; }
+#lg-catmenu .cm-acts button:disabled { opacity:.35; }
+#lg-catmenu .cm-sync-row { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:700; margin-bottom:10px; }
+#lg-catmenu .cm-sync-row input { width:20px; height:20px; }
+#lg-catmenu .lg-chip[disabled] { opacity:.35; }
 .lg-sugs { display:flex; gap:8px; overflow-x:auto; margin-top:8px; padding-bottom:2px; scrollbar-width:none; }
 .lg-sugs::-webkit-scrollbar { display:none; }
 .lg-sugs:empty { display:none; }
@@ -575,6 +583,7 @@ button.lg-btn-main:active {
   <div class="lg-card">
     <div class="lg-card-title">同步到财务系统(手动)</div>
     <div class="lg-sync-hint">同步后到财务系统页面打开即自动填入(只接收当天数据)</div>
+    <div class="lg-note" id="sync-rule-note"></div>
     <div class="lg-sum-row"><span class="k">今日支出<small>f_exp <span class="lg-manual" id="man-f_exp" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-f_exp">0</span><button class="lg-copy lg-revert" data-revert="f_exp" style="display:none">还原</button><button class="lg-copy" data-copy="f_exp">复制</button><button class="lg-copy lg-sync" data-sync="f_exp">同步</button></div>
     <div class="lg-sum-row"><span class="k">橙色支出<small>orange_c <span class="lg-manual" id="man-orange_c" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-orange_c">0</span><button class="lg-copy lg-revert" data-revert="orange_c" style="display:none">还原</button><button class="lg-copy" data-copy="orange_c">复制</button><button class="lg-copy lg-sync" data-sync="orange_c">同步</button></div>
     <div class="lg-sum-row"><span class="k">DNI 支出<small>dni_c1 <span class="lg-manual" id="man-dni_c1" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-dni_c1">0</span><button class="lg-copy lg-revert" data-revert="dni_c1" style="display:none">还原</button><button class="lg-copy" data-copy="dni_c1">复制</button><button class="lg-copy lg-sync" data-sync="dni_c1">同步</button></div>
@@ -672,6 +681,29 @@ button.lg-btn-main:active {
   </div>
 </div>
 
+<!-- ===== 分类菜单弹窗 ===== -->
+<div class="modal" id="lg-catmenu">
+  <div class="modal-content">
+    <h3 id="cm-title">分类</h3>
+    <div class="cm-acts">
+      <button type="button" id="cm-rename">改名</button>
+      <button type="button" class="danger" id="cm-delete">删除</button>
+    </div>
+    <div id="cm-sync-wrap" style="display:none">
+      <div class="cm-sync-row"><span>同步到财务系统</span><input type="checkbox" id="cm-sync"></div>
+      <div class="lg-chips" id="cm-target">
+        <button type="button" class="lg-chip" data-target="orange_c">橙色格</button>
+        <button type="button" class="lg-chip" data-target="dni_c1">DNI格</button>
+        <button type="button" class="lg-chip" data-target="merc_c2">Mercado格</button>
+      </div>
+      <div class="lg-note">开启后选汇入财务页哪一格;汇总页该格数值 = 所有汇入该格的转账分类当日支出之和。</div>
+    </div>
+    <div class="lg-modal-btns">
+      <button type="button" class="primary" id="cm-close">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -760,6 +792,7 @@ function localDateStr(date = new Date()) {
 }
 function fmtNum(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 function round2(n) { return Math.round(Number(n || 0) * 100) / 100; }
+function isFixedCat(book, cat) { return book === 'transfer' && TX_CATS.indexOf(cat) !== -1; }
 function shiftDate(ds, delta) { const p = String(ds).split('-').map(Number); const dt = new Date(p[0], p[1] - 1, p[2]); dt.setDate(dt.getDate() + delta); return localDateStr(dt); }
 function escHtml(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function showToast(message, type = 'success', duration = 2000) {
@@ -779,13 +812,21 @@ async function loadAll() {
     state.sumover = (await LedgerDB.get(state.db, 'sumover')) || {};
     if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
+    const rawSync = await LedgerDB.get(state.db, 'catsync');
+    if (rawSync && typeof rawSync === 'object') state.catsync = Object.assign({}, rawSync);
+    else { state.catsync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Mercado': 'merc_c2' }; await saveKey('catsync'); }
     const books = await LedgerDB.get(state.db, 'books');
     if (Array.isArray(books) && books.length) state.books = books.filter((b) => b && b.id).map((b) => ({ id: b.id, name: b.name || b.id, type: b.type || 'plain' }));
     else state.books = DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type }));
     DEFAULT_BOOKS.forEach((d) => { if (!state.books.some((b) => b.id === d.id)) state.books.unshift({ id: d.id, name: d.name, type: d.type }); });
     state.books.forEach((b) => {
         if (b.id === 'cash') state.cats.cash = (rawCats && Array.isArray(rawCats.cash) && rawCats.cash.length) ? rawCats.cash.slice() : ['白色机器', '其他'];
-        else if (b.id === 'transfer') state.cats.transfer = TX_CATS.slice();
+        else if (b.id === 'transfer') {
+            const rc = (rawCats && Array.isArray(rawCats.transfer)) ? rawCats.transfer.slice() : [];
+            const merged = TX_CATS.slice();
+            rc.forEach((c) => { if (typeof c === 'string' && c && merged.indexOf(c) === -1) merged.push(c); });
+            state.cats.transfer = merged;
+        }
         else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
         if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
         if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0];
@@ -888,6 +929,12 @@ async function onExportExternal() {
 function dayEntries(book, date) { return state.entries.filter((e) => e.book === book && e.date === date); }
 function sumBook(book, date, type) { return round2(dayEntries(book, date).filter((e) => e.type === type).reduce((a, e) => a + Number(e.amount || 0), 0)); }
 function sumTransferCat(date, cat, type = 'out') { return round2(dayEntries('transfer', date).filter((e) => e.type === type && e.cat === cat).reduce((a, e) => a + Number(e.amount || 0), 0)); }
+// 按「同步到财务系统」开关汇总:所有汇入 target 格的转账分类、当日支出之和
+function syncSumFor(date, target) {
+    let total = 0;
+    Object.keys(state.catsync || {}).forEach((name) => { if (state.catsync[name] === target) total += sumTransferCat(date, name); });
+    return round2(total);
+}
 function openOf(date) { const v = state.opening[date]; if (v === undefined || v === null || v === '') return null; const n = Number(v); return isFinite(n) ? n : null; }
 // 余额 = 当天净额(收入 − 支出),永远返回数字
 function balanceOf(date) { return round2(sumBook('cash', date, 'in') - sumBook('cash', date, 'out')); }
@@ -967,8 +1014,8 @@ function renderCats(book) {
     if (!box) return;
     const cats = state.cats[book] || [];
     let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
-    if (book !== 'transfer') html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (isFixedCat(book, c) ? ' fixed' : '') + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
     box.innerHTML = html;
 }
 function renderCash() {
@@ -996,7 +1043,7 @@ const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DN
 function sumOverOf(date) { const m = state.sumover && state.sumover[date]; return (m && typeof m === 'object') ? m : {}; }
 function summaryVals() {
     const d = state.curDate;
-    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: sumTransferCat(d, '橙色'), dni_c1: sumTransferCat(d, 'DNI'), merc_c2: sumTransferCat(d, 'Mercado'), actual_stock: null };
+    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: syncSumFor(d, 'orange_c'), dni_c1: syncSumFor(d, 'dni_c1'), merc_c2: syncSumFor(d, 'merc_c2'), actual_stock: null };
     const ov = sumOverOf(d), out = {};
     Object.keys(auto).forEach((k) => {
         const v = ov[k];
@@ -1041,6 +1088,12 @@ function renderSummary() {
         const rv = document.querySelector('.lg-revert[data-revert="' + k + '"]');
         if (rv) rv.style.display = over ? '' : 'none';
     });
+    const noteEl = $('sync-rule-note');
+    if (noteEl) {
+        const namesOf = (t) => Object.keys(state.catsync || {}).filter((c) => state.catsync[c] === t);
+        const showNames = (t) => { const a = namesOf(t); return a.length ? a.join('、') : '无'; };
+        noteEl.textContent = '转账分类同步设置:橙色格 = ' + showNames('orange_c') + ';DNI 格 = ' + showNames('dni_c1') + ';Mercado 格 = ' + showNames('merc_c2') + '(长按分类可修改)';
+    }
     renderSyncState();
     renderCatStats();
 }
@@ -1271,25 +1324,48 @@ async function saveEntry(book) {
 }
 /* ================= 分类增删 ================= */
 function addCat(book) {
-    if (book === 'transfer') return;
     askPrompt('新增' + bookName(book) + '分类(最长 8 字)', '', (val) => {
         const name = String(val || '').trim().slice(0, 8);
         if (!name) return;
         if (!state.cats[book]) state.cats[book] = ['其他'];
-        if (state.cats[book].indexOf(name) !== -1) { showToast('分类已存在', 'warning'); return; }
+        if (state.cats[book].indexOf(name) !== -1 || isFixedCat(book, name)) { showToast('分类已存在', 'warning'); return; }
         state.cats[book].push(name); saveKey('cats'); state.form[book].cat = name;
         if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
     });
 }
 function removeCat(book, cat) {
-    if (book === 'transfer') return;
+    if (isFixedCat(book, cat)) { showToast('固定分类不能删除', 'warning'); return; }
     askConfirm('删除分类「' + cat + '」?已有账目不会被删除。', async () => {
         if (!state.cats[book]) state.cats[book] = [];
         state.cats[book] = state.cats[book].filter((c) => c !== cat);
         if (state.form[book].cat === cat) state.form[book].cat = state.cats[book][0] || '';
         await saveKey('cats');
+        if (book === 'transfer' && state.catsync && Object.prototype.hasOwnProperty.call(state.catsync, cat)) { delete state.catsync[cat]; await saveKey('catsync'); }
         if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
+        if (book === 'transfer') { renderTransfer(); renderSummary(); }
         showToast('分类已删除');
+    });
+}
+function renameCat(book, oldName) {
+    if (isFixedCat(book, oldName)) { showToast('固定分类不能改名', 'warning'); return; }
+    askPrompt('分类改名(最长 8 字)', oldName, async (val) => {
+        const newName = String(val || '').trim().slice(0, 8);
+        if (!newName || newName === oldName) return;
+        const list = state.cats[book] || [];
+        if (list.indexOf(newName) !== -1 || isFixedCat(book, newName)) { showToast('分类已存在', 'warning'); return; }
+        const idx = list.indexOf(oldName);
+        if (idx === -1) return;
+        list[idx] = newName;
+        state.entries.forEach((e) => { if (e.book === book && e.cat === oldName) e.cat = newName; });
+        if (state.form[book].cat === oldName) state.form[book].cat = newName;
+        if (book === 'transfer' && state.catsync && Object.prototype.hasOwnProperty.call(state.catsync, oldName)) {
+            state.catsync[newName] = state.catsync[oldName];
+            delete state.catsync[oldName];
+        }
+        await saveKey('cats'); await saveKey('entries');
+        if (book === 'transfer') await saveKey('catsync');
+        renderAll();
+        showToast('已改名');
     });
 }
 /* ================= 推送理论库存 ================= */
@@ -1424,11 +1500,40 @@ function newBook() {
         renderBooks(); renderAll(); showToast('账本已创建');
     });
 }
+/* ================= 分类菜单 ================= */
+let cmBook = null, cmCat = null;
+function openCatMenu(book, cat) {
+    if (!book || !cat) return;
+    cmBook = book; cmCat = cat;
+    const fixed = isFixedCat(book, cat);
+    if ($('cm-title')) $('cm-title').textContent = '分类:' + cat;
+    if ($('cm-rename')) $('cm-rename').disabled = fixed;
+    if ($('cm-delete')) $('cm-delete').disabled = fixed;
+    const wrap = $('cm-sync-wrap');
+    if (wrap) wrap.style.display = (book === 'transfer') ? '' : 'none';
+    if (book === 'transfer') {
+        const t = state.catsync ? state.catsync[cat] : null;
+        if ($('cm-sync')) $('cm-sync').checked = !!t;
+        const tbox = $('cm-target');
+        if (tbox) tbox.querySelectorAll('.lg-chip').forEach((b) => { b.classList.toggle('on', !!t && b.dataset.target === t); b.disabled = !t; });
+    }
+    $('lg-catmenu').classList.add('show');
+}
+function closeCatMenu() { $('lg-catmenu').classList.remove('show'); cmBook = null; cmCat = null; }
+async function setCatSync(name, target) {
+    if (!name) return;
+    if (!state.catsync) state.catsync = {};
+    if (target) state.catsync[name] = target; else delete state.catsync[name];
+    await saveKey('catsync');
+    renderSummary(); renderTransfer();
+    if (cmCat === name && $('lg-catmenu') && $('lg-catmenu').classList.contains('show')) openCatMenu(cmBook, cmCat);
+    showToast('已更新同步设置');
+}
 /* ================= 事件绑定 ================= */
 function bindCatBox(book, box, sugBox, noteEl, amtEl) {
     if (!box || !sugBox || !noteEl || !amtEl) return;
     let lpTimer = null, lpFired = false;
-    const startLp = (chip) => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; removeCat(book, chip.dataset.cat); }, 650); };
+    const startLp = (chip) => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; openCatMenu(book, chip.dataset.cat); }, 650); };
     const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
     box.addEventListener('pointerdown', (e) => { const chip = e.target.closest('.lg-chip'); if (chip && chip.dataset.cat) startLp(chip); });
     box.addEventListener('pointerup', cancelLp);
@@ -1467,7 +1572,7 @@ function bindDyn() {
         const chip = e.target.closest('.lg-chip');
         if (!chip || !chip.dataset.cat || chip.dataset.add) return;
         lpFired = false;
-        lpTimer = setTimeout(() => { lpFired = true; removeCat(state.tab, chip.dataset.cat); }, 650);
+        lpTimer = setTimeout(() => { lpFired = true; openCatMenu(state.tab, chip.dataset.cat); }, 650);
     });
     box.addEventListener('pointerup', cancelLp);
     box.addEventListener('pointerleave', cancelLp);
@@ -1603,6 +1708,23 @@ function bind() {
     $('cf-ok').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
     $('bk-close').addEventListener('click', closeBooks);
     $('bk-new').addEventListener('click', newBook);
+    if ($('cm-close')) $('cm-close').addEventListener('click', closeCatMenu);
+    if ($('lg-catmenu')) $('lg-catmenu').addEventListener('click', (e) => { if (e.target === $('lg-catmenu')) closeCatMenu(); });
+    if ($('cm-rename')) $('cm-rename').addEventListener('click', () => { const b = cmBook, c = cmCat; if (!b || !c) return; closeCatMenu(); renameCat(b, c); });
+    if ($('cm-delete')) $('cm-delete').addEventListener('click', () => { const b = cmBook, c = cmCat; if (!b || !c) return; closeCatMenu(); removeCat(b, c); });
+    if ($('cm-sync')) $('cm-sync').addEventListener('change', () => {
+        const c = cmCat;
+        if (!c) return;
+        if ($('cm-sync').checked) {
+            const def = (c === '橙色') ? 'orange_c' : (c === 'DNI') ? 'dni_c1' : (c === 'Mercado') ? 'merc_c2' : 'orange_c';
+            setCatSync(c, state.catsync[c] || def);
+        } else setCatSync(c, null);
+    });
+    if ($('cm-target')) $('cm-target').addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-target]');
+        if (!chip || chip.disabled || !cmCat) return;
+        setCatSync(cmCat, chip.dataset.target);
+    });
     $('bk-list').addEventListener('click', (e) => {
         const ren = e.target.closest('[data-bkren]');
         if (ren) { renameBook(ren.dataset.bkren); return; }
