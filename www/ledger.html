@@ -1213,9 +1213,9 @@ function buildNoteIndex(book) {
         if (!raw) return;
         const k = raw.toLowerCase();
         let it = map.get(k);
-        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastCat: '', lastAmount: 0, lastType: 'out' }; map.set(k, it); }
+        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastCat: '', lastType: 'out' }; map.set(k, it); }
         it.count += 1;
-        if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastCat = e.cat; it.lastAmount = e.amount; it.lastType = e.type; it.note = raw; }
+        if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastCat = e.cat; it.lastType = e.type; it.note = raw; }
     });
     return map;
 }
@@ -1249,10 +1249,19 @@ function renderSuggest(book) {
     if (head) head.textContent = q ? '匹配' : '最近';
     let html = '';
     items.forEach((it) => {
-        html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-cat="' + escHtml(it.lastCat) + '" data-amt="' + it.lastAmount + '" data-type="' + escHtml(it.lastType) + '">' +
-            '<span class="n">' + hiNote(it.note, q) + '</span><span class="m">' + escHtml(it.lastCat) + ' · ' + fmtNum(it.lastAmount) + '</span></button>';
+        html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-cat="' + escHtml(it.lastCat) + '" data-type="' + escHtml(it.lastType) + '">' +
+            '<span class="n">' + hiNote(it.note, q) + '</span><span class="m">' + escHtml(it.lastCat || '未分类') + '</span></button>';
     });
     box.innerHTML = html;
+}
+/* 应用一条备注历史芯片:只填备注/分类/收支方向,不含金额 */
+function applySuggest(book, chip) {
+    const noteEl = $(eid(book, 'note'));
+    if (noteEl) noteEl.value = chip.dataset.note || '';
+    const cat = chip.dataset.cat || '';
+    if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
+    if (chip.dataset.type) state.form[book].type = chip.dataset.type;
+    renderTypeButtons(book); renderCats(book); renderSuggest(book);
 }
 /* ================= 弹窗 ================= */
 let promptCb = null, confirmCb = null;
@@ -1557,16 +1566,31 @@ function bindCatBox(book, box, sugBox, noteEl, amtEl) {
     noteEl.addEventListener('input', () => renderSuggest(book));
     const guard = (e) => e.preventDefault();
     sugBox.addEventListener('mousedown', guard);
+    let sugHandledAt = 0, sugDownChip = null, sugDownX = 0, sugDownY = 0;
+    sugBox.addEventListener('pointerdown', (e) => {
+        const b = e.target.closest('.lg-sug');
+        if (!b) return;
+        e.preventDefault();
+        sugDownChip = b; sugDownX = e.clientX; sugDownY = e.clientY;
+    });
+    sugBox.addEventListener('pointerup', (e) => {
+        const down = sugDownChip;
+        sugDownChip = null;
+        if (!down) return;
+        if (e.target.closest('.lg-sug') !== down) return;
+        if (Math.hypot(e.clientX - sugDownX, e.clientY - sugDownY) >= 10) return;
+        e.preventDefault();
+        sugHandledAt = Date.now();
+        applySuggest(book, down);
+    });
+    sugBox.addEventListener('pointercancel', () => { sugDownChip = null; });
     sugBox.addEventListener('click', (e) => {
         const b = e.target.closest('.lg-sug');
         if (!b) return;
         e.preventDefault();
-        noteEl.value = b.dataset.note || '';
-        const cat = b.dataset.cat || '';
-        if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
-        if (!(amtEl.value || '').trim() && b.dataset.amt) amtEl.value = b.dataset.amt;
-        if (b.dataset.type) state.form[book].type = b.dataset.type;
-        renderTypeButtons(book); renderCats(book); renderSuggest(book);
+        if (sugHandledAt && Date.now() - sugHandledAt < 600) { sugHandledAt = 0; return; }
+        sugHandledAt = 0;
+        applySuggest(book, b);
     });
 }
 /* 自定义账本内容由 JS 生成,事件统一委托在 #tab-dyn 上 */
@@ -1574,6 +1598,7 @@ function bindDyn() {
     const box = $('tab-dyn');
     if (!box) return;
     let lpTimer = null, lpFired = false;
+    let sugHandledAt = 0, sugDownChip = null, sugDownX = 0, sugDownY = 0;
     const cancelLp = () => { if (lpTimer) clearTimeout(lpTimer); lpTimer = null; };
     box.addEventListener('pointerdown', (e) => {
         const chip = e.target.closest('.lg-chip');
@@ -1584,6 +1609,23 @@ function bindDyn() {
     box.addEventListener('pointerup', cancelLp);
     box.addEventListener('pointerleave', cancelLp);
     box.addEventListener('pointercancel', cancelLp);
+    box.addEventListener('pointerdown', (e) => {
+        const b = e.target.closest('.lg-sug');
+        if (!b) return;
+        e.preventDefault();
+        sugDownChip = b; sugDownX = e.clientX; sugDownY = e.clientY;
+    });
+    box.addEventListener('pointerup', (e) => {
+        const down = sugDownChip;
+        sugDownChip = null;
+        if (!down) return;
+        if (e.target.closest('.lg-sug') !== down) return;
+        if (Math.hypot(e.clientX - sugDownX, e.clientY - sugDownY) >= 10) return;
+        e.preventDefault();
+        sugHandledAt = Date.now();
+        applySuggest(state.tab, down);
+    });
+    box.addEventListener('pointercancel', () => { sugDownChip = null; });
     box.addEventListener('input', (e) => { if (e.target.classList && e.target.classList.contains('lg-inp-note')) renderSuggest(state.tab); });
     box.addEventListener('click', (e) => {
         const book = state.tab;
@@ -1599,13 +1641,9 @@ function bindDyn() {
         const sug = e.target.closest('.lg-sug');
         if (sug) {
             e.preventDefault();
-            const noteEl = $(eid(book, 'note')), amtEl = $(eid(book, 'amt'));
-            if (noteEl) noteEl.value = sug.dataset.note || '';
-            const cat = sug.dataset.cat || '';
-            if (cat && (state.cats[book] || []).indexOf(cat) !== -1) state.form[book].cat = cat;
-            if (amtEl && !(amtEl.value || '').trim() && sug.dataset.amt) amtEl.value = sug.dataset.amt;
-            if (sug.dataset.type) state.form[book].type = sug.dataset.type;
-            renderTypeButtons(book); renderCats(book); renderSuggest(book);
+            if (sugHandledAt && Date.now() - sugHandledAt < 600) { sugHandledAt = 0; return; }
+            sugHandledAt = 0;
+            applySuggest(book, sug);
             return;
         }
         const more = e.target.closest('[data-more]');
