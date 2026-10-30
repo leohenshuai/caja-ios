@@ -156,90 +156,6 @@ body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 .bk-row button { min-height:36px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; font-weight:700; }
 .bk-row button.danger { color:#f87171; }
 .tabs .tab[data-tab="manage"] { min-width:44px; font-weight:700; }
-/* ===== 统计卡 .lg-cs-* 补齐 ===== */
-.lg-cs-overview {
-  display:inline-block;
-  margin:0 0 12px;
-  padding:7px 12px;
-  border-radius:999px;
-  background:var(--g-fill);
-  border:1px solid var(--g-stroke);
-  font-size:13px;
-  font-weight:800;
-  color:var(--text);
-}
-.lg-cs-book {
-  margin:0 0 14px;
-  padding-bottom:14px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
-.lg-cs-book:last-child {
-  margin-bottom:0;
-  padding-bottom:0;
-  border-bottom:none;
-}
-.lg-cs-bookname {
-  position:relative;
-  margin:0 0 2px;
-  padding-left:11px;
-  font-size:15px;
-  font-weight:800;
-  line-height:1.3;
-  color:var(--text);
-}
-.lg-cs-bookname::before {
-  content:'';
-  position:absolute;
-  left:0;
-  top:50%;
-  width:3px;
-  height:14px;
-  margin-top:-7px;
-  border-radius:2px;
-  background:var(--cyan);
-}
-.lg-cs-head {
-  margin:8px 0 4px;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.3px;
-  color:var(--text-muted);
-}
-.lg-cs-row {
-  display:grid;
-  grid-template-columns:1fr auto auto;
-  column-gap:12px;
-  align-items:center;
-  padding:8px 0;
-  border-bottom:1px solid rgba(255,255,255,.06);
-}
-.lg-cs-row:last-child { border-bottom:none; }
-.lg-cs-name {
-  font-size:14px;
-  color:var(--text);
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.lg-cs-n {
-  font-size:12px;
-  color:var(--text-muted);
-  white-space:nowrap;
-}
-.lg-cs-amt {
-  font-family:'Courier New', monospace;
-  font-size:16px;
-  font-weight:800;
-  text-align:right;
-  min-width:64px;
-}
-.lg-cs-empty {
-  padding:6px 0;
-  font-size:13px;
-  color:var(--text-muted);
-}
-
 /* ===== iOS 26 液态玻璃视觉层 ===== */
 .lg-card {
   background:var(--g-fill);
@@ -476,6 +392,195 @@ button.lg-btn-main:active {
   transform:scale(.97);
   filter:brightness(.92);
 }
+
+/* ================= 执行单Q:当日汇总卡 .sd-* 与汇总页视觉统一 ================= */
+#tab-summary .lg-card-title {
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.4px;
+  margin-bottom:12px;
+  color:var(--text-muted);
+}
+#tab-summary .lg-sum-row,
+#sum-safe .lg-sum-row {
+  padding:11px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#tab-summary .lg-sum-row:last-child { border-bottom:none; }
+#tab-summary .lg-sync-hint {
+  font-size:11px;
+  line-height:1.55;
+  color:var(--text-muted);
+  margin:0 0 6px;
+}
+#tab-summary .lg-note {
+  font-size:11px;
+  line-height:1.55;
+  color:var(--text-muted);
+  margin-top:12px;
+}
+.sd-hero { margin:2px 0 14px; }
+.sd-hero-main {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:10px;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.sd-hero-lab {
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+  min-width:0;
+}
+.sd-hero-lab small {
+  display:block;
+  font-size:11px;
+  color:var(--text-muted);
+  margin-top:3px;
+  font-weight:500;
+}
+.sd-hero-num {
+  font-family:'Courier New', monospace;
+  font-size:34px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.5px;
+  color:var(--text);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sd-hero-num.neg { color:var(--red); }
+.sd-hero-sub {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.sd-chip {
+  min-width:0;
+  border-radius:14px;
+  padding:10px 12px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+}
+.sd-chip .t {
+  display:block;
+  font-size:11px;
+  color:var(--text-muted);
+}
+.sd-chip .n {
+  display:block;
+  margin-top:2px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--text-muted);
+}
+.sd-chip .m {
+  display:block;
+  margin-top:4px;
+  font-family:'Courier New', monospace;
+  font-size:18px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sd-chip.out .m { color:var(--red); }
+.sd-chip.in .m { color:var(--green); }
+.sd-book {
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.sd-book:first-child {
+  margin-top:0;
+  padding-top:0;
+  border-top:none;
+}
+.sd-book-head {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+}
+.sd-book-name {
+  position:relative;
+  padding-left:11px;
+  font-size:15px;
+  font-weight:800;
+  color:var(--text);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sd-book-name::before {
+  content:'';
+  position:absolute;
+  left:0;
+  top:50%;
+  width:3px;
+  height:14px;
+  margin-top:-7px;
+  border-radius:2px;
+  background:var(--cyan);
+}
+.sd-book-tot {
+  display:flex;
+  gap:10px;
+  flex:none;
+  font-family:'Courier New', monospace;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.sd-group { margin-top:10px; }
+.sd-group-lab {
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.4px;
+  margin-bottom:4px;
+}
+.sd-row {
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  column-gap:12px;
+  align-items:center;
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.sd-row:last-child { border-bottom:none; }
+.sd-name {
+  font-size:14px;
+  color:var(--text);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sd-n {
+  font-size:12px;
+  color:var(--text-muted);
+  white-space:nowrap;
+}
+.sd-amt {
+  font-family:'Courier New', monospace;
+  font-size:16px;
+  font-weight:800;
+  text-align:right;
+  min-width:72px;
+  font-variant-numeric:tabular-nums;
+}
+.sd-empty {
+  font-size:13px;
+  color:var(--text-muted);
+  padding:8px 0;
+}
 </style>
 </head>
 <body>
@@ -496,7 +601,7 @@ button.lg-btn-main:active {
     <div class="lg-card-title">余额</div>
     <div class="lg-bal-row"><span>支出合计</span><span class="v lg-out" id="cash-out-v">0</span></div>
     <div class="lg-bal-row"><span>收入合计</span><span class="v lg-in" id="cash-in-v">0</span></div>
-    <div class="lg-bal-main"><span class="lab">今日净额(收入−支出)</span><span class="big" id="cash-bal-v">—</span></div>
+    <div class="lg-bal-main"><span class="lab">今日余额(收入−支出)</span><span class="big" id="cash-bal-v">—</span></div>
     <div class="lg-pushwrap">
       <button class="cgt-push" id="lg-push"><span>📤 设为现金箱理论库存</span><small id="lg-push-state"></small></button>
     </div>
@@ -562,16 +667,10 @@ button.lg-btn-main:active {
 <div id="tab-dyn" class="tab-content"></div>
 <!-- ==================== 页签3: 汇总 ==================== -->
 <div id="tab-summary" class="tab-content">
-  <div class="lg-card">
+  <div class="lg-card" id="sum-day">
     <div class="lg-card-title">当日汇总</div>
-    <div class="lg-sum-row"><span class="k">现金账 支出合计</span><span class="v lg-out" id="sum-cash-out">0</span></div>
-    <div class="lg-sum-row"><span class="k">现金账 收入合计</span><span class="v lg-in" id="sum-cash-in">0</span></div>
-    <div class="lg-sum-row"><span class="k">今日净额</span><span class="v" id="sum-cash-bal">—</span></div>
-    <div id="sum-transfer-rows"></div>
-  </div>
-  <div class="lg-card" id="sum-cats">
-    <div class="lg-card-title">分类统计(笔数)</div>
-    <div id="sum-cats-body"></div>
+    <div class="sd-hero" id="sd-hero"></div>
+    <div id="sd-books"></div>
   </div>
   <div class="lg-card">
     <div class="lg-card-title">同步到财务系统(手动)</div>
@@ -1067,18 +1166,8 @@ function clearSumOverride(k) {
     saveKey('sumover'); showToast('已还原为自动值'); renderSummary();
 }
 function renderSummary() {
-    const d = state.curDate, co = sumBook('cash', d, 'out'), ci = sumBook('cash', d, 'in'), bal = balanceOf(d);
-    if ($('sum-cash-out')) $('sum-cash-out').textContent = fmtNum(co);
-    if ($('sum-cash-in')) $('sum-cash-in').textContent = fmtNum(ci);
-    if ($('sum-cash-bal')) $('sum-cash-bal').textContent = fmtNum(bal);
-    const trBox = $('sum-transfer-rows');
-    if (trBox) {
-        const tcats = state.cats.transfer || [];
-        let thtml = '';
-        tcats.forEach((c) => { thtml += '<div class="lg-sum-row"><span class="k">转账账 ' + escHtml(c) + ' 支出</span><span class="v lg-out">' + fmtNum(sumTransferCat(d, c)) + '</span></div>'; });
-        if (!tcats.length) thtml = '<div class="lg-sum-row"><span class="k">转账账 暂无分类</span><span class="v">—</span></div>';
-        trBox.innerHTML = thtml;
-    }
+    const d = state.curDate;
+    renderDaySummary();
     const vals = summaryVals();
     const ov = sumOverOf(d);
     Object.keys(vals).forEach((k) => {
@@ -1101,46 +1190,57 @@ function renderSummary() {
         noteEl.textContent = '转账分类同步设置:橙色格 = ' + showNames('orange_c') + ';DNI 格 = ' + showNames('dni_c1') + ';Mercado 格 = ' + showNames('merc_c2') + '(长按分类可修改)';
     }
     renderSyncState();
-    renderCatStats();
 }
-function catStatsGroup(book, ents, type) {
-    const rows = ents.filter((e) => e.type === type);
-    const cls = (type === 'out') ? 'lg-out' : 'lg-in';
-    const label = (type === 'out') ? '支出' : '收入';
+/* 当日汇总:今日余额(现金账 收入−支出)+ 各账本分类明细 */
+function renderDaySummary() {
+    const d = state.curDate;
+    const hero = $('sd-hero'), box = $('sd-books');
+    if (!hero || !box) return;
+    // 全部账本合计笔数与金额(用于总览)
+    let nOut = 0, nIn = 0, sOut = 0, sIn = 0;
+    state.books.forEach((b) => dayEntries(b.id, d).forEach((e) => {
+        const a = Number(e.amount || 0);
+        if (e.type === 'out') { nOut++; sOut += a; } else { nIn++; sIn += a; }
+    }));
+    sOut = round2(sOut); sIn = round2(sIn);
+    const bal = balanceOf(d);    // 仅现金账:收入−支出
+    hero.innerHTML =
+        '<div class="sd-hero-main"><div class="sd-hero-lab">今日余额<small>现金账 · 收入−支出</small></div>' +
+        '<div class="sd-hero-num' + (bal < 0 ? ' neg' : '') + '">' + fmtNum(bal) + '</div></div>' +
+        '<div class="sd-hero-sub">' +
+          '<div class="sd-chip out"><span class="t">全部账本 支出</span><span class="n">' + nOut + ' 笔</span><span class="m">' + fmtNum(sOut) + '</span></div>' +
+          '<div class="sd-chip in"><span class="t">全部账本 收入</span><span class="n">' + nIn + ' 笔</span><span class="m">' + fmtNum(sIn) + '</span></div>' +
+        '</div>';
+    // 每个账本一块
+    let html = '';
+    state.books.forEach((b) => {
+        const ents = dayEntries(b.id, d);
+        const outs = ents.filter((e) => e.type === 'out'), ins = ents.filter((e) => e.type === 'in');
+        const so = round2(outs.reduce((a, e) => a + Number(e.amount || 0), 0));
+        const si = round2(ins.reduce((a, e) => a + Number(e.amount || 0), 0));
+        html += '<div class="sd-book"><div class="sd-book-head"><span class="sd-book-name">' + escHtml(b.name) + '</span>' +
+            '<span class="sd-book-tot"><span class="lg-out">支出 ' + fmtNum(so) + '</span><span class="lg-in">收入 ' + fmtNum(si) + '</span></span></div>';
+        if (!ents.length) { html += '<div class="sd-empty">当日无记录</div></div>'; return; }
+        html += sdGroup(b, outs, 'out');
+        html += sdGroup(b, ins, 'in');
+        html += '</div>';
+    });
+    box.innerHTML = html;
+}
+function sdGroup(book, rows, type) {
+    if (!rows.length) return '';
+    const cls = (type === 'out') ? 'lg-out' : 'lg-in', label = (type === 'out') ? '支出' : '收入';
     const base = Array.isArray(state.cats[book.id]) ? state.cats[book.id].slice() : [];
     const order = base.slice();
     rows.forEach((e) => { const c = String(e.cat === null || e.cat === undefined ? '' : e.cat); if (order.indexOf(c) === -1) order.push(c); });
-    const sum = round2(rows.reduce((a, e) => a + Number(e.amount || 0), 0));
-    let html = '<div class="lg-cs-head"><span class="' + cls + '">' + label + ' ' + rows.length + ' 笔 · 合计 ' + fmtNum(sum) + '</span></div>';
-    if (!rows.length) return html + '<div class="lg-cs-empty">无</div>';
+    let html = '<div class="sd-group"><div class="sd-group-lab ' + cls + '">' + label + ' · ' + rows.length + ' 笔</div>';
     order.forEach((cat) => {
         const list = rows.filter((e) => String(e.cat === null || e.cat === undefined ? '' : e.cat) === cat);
         if (!list.length) return;
         const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
-        html += '<div class="lg-cs-row"><span class="lg-cs-name">' + escHtml(cat || '未分类') + '</span>' +
-            '<span class="lg-cs-n">' + list.length + ' 笔</span>' +
-            '<span class="lg-cs-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
+        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + '</span><span class="sd-n">' + list.length + ' 笔</span><span class="sd-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
     });
-    return html;
-}
-function renderCatStats() {
-    const wrap = $('sum-cats-body');
-    if (!wrap) return;
-    const d = state.curDate;
-    let totalOut = 0, totalIn = 0;
-    const perBook = state.books.map((b) => {
-        const ents = dayEntries(b.id, d);
-        const nOut = ents.filter((e) => e.type === 'out').length;
-        const nIn = ents.filter((e) => e.type === 'in').length;
-        totalOut += nOut; totalIn += nIn;
-        return { book: b, ents: ents };
-    });
-    let html = '<div class="lg-cs-overview">全部账本 · 支出 ' + totalOut + ' 笔 · 收入 ' + totalIn + ' 笔</div>';
-    perBook.forEach((it) => {
-        html += '<div class="lg-cs-book"><div class="lg-cs-bookname">' + escHtml(it.book.name) + '</div>' +
-            catStatsGroup(it.book, it.ents, 'out') + catStatsGroup(it.book, it.ents, 'in') + '</div>';
-    });
-    wrap.innerHTML = html;
+    return html + '</div>';
 }
 function renderSyncState() {
     const el = $('lg-sync-state');
