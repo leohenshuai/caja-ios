@@ -779,7 +779,7 @@ body {
 .lg-e-note:focus { box-shadow:none !important; border:none !important; }
 .lg-e-cur { flex:none; color:rgba(180,192,225,.55); font-size:17px; font-weight:700; font-family:var(--round); }
 .lg-e-amt {
-  flex:0 0 33%; width:33%; min-width:0; min-height:auto !important; height:56px;
+  flex:0 0 auto; width:auto; min-width:1.6em; max-width:62%; min-height:auto !important; height:56px;
   border:none !important; background:transparent !important; box-shadow:none !important;
   font-family:var(--round) !important; font-size:26px !important; font-weight:800 !important;
   text-align:right !important; padding:0 !important; letter-spacing:-.3px !important; color:#fff !important;
@@ -1597,6 +1597,7 @@ function renderPushState() {
     try { const o = JSON.parse(localStorage.getItem('ledger-theoretical-push-v1') || 'null'); ps.textContent = o ? ('上次 ' + o.at + ' · ' + Number(o.value).toLocaleString()) : ''; } catch (e) { ps.textContent = ''; }
 }
 function renderAll() {
+    setTimeout(() => { try { amtFitAll(); } catch (e) {} }, 0);
     renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer'); renderSafe();
 }
 function renderList(book) {
@@ -2183,6 +2184,20 @@ function openSearch() {
     setTimeout(() => { try { $('sr-q').focus(); } catch (e) {} }, 120);
 }
 function closeSearch() { $('lg-search').classList.remove('show'); try { $('sr-q').blur(); } catch (e) {} }
+/* 金额框宽度随内容自适应:把宽度压到最小读 scrollWidth(=内容宽度),再按内容撑开 */
+function amtFit(el) {
+    if (!el) return;
+    const parent = el.parentElement;
+    const cap = parent ? Math.max(60, Math.round(parent.clientWidth * 0.62)) : 200;
+    el.style.flex = '0 0 auto';
+    el.style.padding = '0';
+    el.style.maxWidth = 'none';
+    el.style.width = '10px';
+    const need = Math.ceil(el.scrollWidth) + 2;
+    el.style.width = Math.max(18, Math.min(need, cap)) + 'px';
+}
+function amtFitAll() { document.querySelectorAll('.lg-e-amt').forEach(amtFit); }
+
 function bindSearch() {
     $('lg-search-btn').addEventListener('click', openSearch);
     $('sr-close').addEventListener('click', closeSearch);
@@ -2203,6 +2218,18 @@ function bindSearch() {
 
 function bind() {
     bindSearch();
+    document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!el || !el.classList || !el.classList.contains('lg-e-amt')) return;
+        // 等本轮所有 input 处理(含千分位格式化)结束后再量,否则宽度算的是旧文本
+        setTimeout(() => amtFit(el), 0);
+        setTimeout(() => amtFit(el), 60);
+    }, true);
+    document.addEventListener('focusin', (e) => {
+        const el = e.target;
+        if (el && el.classList && el.classList.contains('lg-e-amt')) amtFit(el);
+    }, true);
+    window.addEventListener('resize', () => { try { amtFitAll(); } catch (e) {} });
     // 数字键盘「回车」= 直接记一笔(本页无 enter 导航)
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
