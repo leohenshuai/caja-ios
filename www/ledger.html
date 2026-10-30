@@ -1326,16 +1326,38 @@ function bind() {
         switchTab(id);
     });
     const openEl = $('cash-open');
-    const commitOpen = async () => {
+    let openTimer = null;
+    const commitOpen = async (silent) => {
+        const prev = state.opening[state.curDate];
         const raw = (openEl.value || '').trim();
-        if (!raw) delete state.opening[state.curDate];
-        else { const v = parseSum(raw); if (!isFinite(v)) { showToast('请输入数字', 'error'); return; }
-            if (v < 0) { showToast('初始库存不能为负', 'error'); return; }
-            state.opening[state.curDate] = round2(v); }
-        await saveKey('opening'); renderAll(); showToast('已保存');
+        let next;
+        if (!raw) next = undefined;
+        else { const v = parseSum(raw); if (!isFinite(v)) { if (silent === true) return; showToast('请输入数字', 'error'); return; }
+            if (v < 0) { if (silent === true) return; showToast('初始库存不能为负', 'error'); return; }
+            next = round2(v); }
+        const same = next === undefined
+            ? (prev === undefined || prev === null || prev === '')
+            : round2(prev) === next;
+        if (next === undefined) delete state.opening[state.curDate];
+        else state.opening[state.curDate] = next;
+        await saveKey('opening'); renderAll();
+        if (silent === true || same) return;
+        showToast('已保存');
     };
-    openEl.addEventListener('change', commitOpen);
+    const commitOpenNow = () => {
+        if (openTimer) { clearTimeout(openTimer); openTimer = null; }
+        commitOpen(false);
+    };
+    openEl.addEventListener('input', () => {
+        if (openTimer) clearTimeout(openTimer);
+        openTimer = setTimeout(() => { openTimer = null; commitOpen(true); }, 600);
+    });
+    openEl.addEventListener('change', commitOpenNow);
+    openEl.addEventListener('blur', commitOpenNow);
     openEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openEl.blur(); } });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && openTimer) { clearTimeout(openTimer); openTimer = null; commitOpen(true); }
+    });
     $('cash-yesterday').addEventListener('click', () => {
         const v = $('cash-yesterday').dataset.val;
         if (v === undefined) return;
