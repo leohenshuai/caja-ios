@@ -419,16 +419,18 @@ button.lg-btn-main:active {
   color:var(--text-muted);
   margin-top:12px;
 }
-.sd-hero { margin:2px 0 14px; }
+.sd-hero { margin:2px 0 12px; }
 .sd-hero-main {
   display:flex;
   align-items:flex-end;
   justify-content:space-between;
+  flex-wrap:nowrap;
   gap:10px;
-  padding-bottom:12px;
+  padding-bottom:10px;
   border-bottom:1px solid rgba(255,255,255,.08);
 }
 .sd-hero-lab {
+  flex:0 1 auto;
   font-size:15px;
   font-weight:700;
   color:var(--text);
@@ -443,58 +445,61 @@ button.lg-btn-main:active {
 }
 .sd-hero-num {
   font-family:'Courier New', monospace;
-  font-size:34px;
+  font-size:clamp(20px,6.4vw,32px);
   font-weight:800;
   font-variant-numeric:tabular-nums;
   letter-spacing:-.5px;
   color:var(--text);
   min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  overflow:visible;
+  text-overflow:clip;
   white-space:nowrap;
 }
 .sd-hero-num.neg { color:var(--red); }
 .sd-hero-sub {
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr;
   gap:8px;
-  margin-top:12px;
+  margin-top:10px;
 }
 .sd-chip {
   min-width:0;
+  display:flex;
+  align-items:baseline;
+  gap:8px;
   border-radius:14px;
   padding:10px 12px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.1);
 }
 .sd-chip .t {
-  display:block;
-  font-size:11px;
+  flex:1 1 auto;
+  font-size:12px;
   color:var(--text-muted);
 }
 .sd-chip .n {
-  display:block;
-  margin-top:2px;
-  font-size:12px;
+  flex:none;
+  margin-top:0;
+  font-size:11px;
   font-weight:700;
   color:var(--text-muted);
 }
 .sd-chip .m {
-  display:block;
-  margin-top:4px;
+  flex:none;
+  margin-top:0;
   font-family:'Courier New', monospace;
-  font-size:18px;
+  font-size:17px;
   font-weight:800;
   font-variant-numeric:tabular-nums;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  overflow:visible;
+  text-overflow:clip;
   white-space:nowrap;
 }
 .sd-chip.out .m { color:var(--red); }
 .sd-chip.in .m { color:var(--green); }
 .sd-book {
-  margin-top:16px;
-  padding-top:14px;
+  margin-top:14px;
+  padding-top:12px;
   border-top:1px solid rgba(255,255,255,.08);
 }
 .sd-book:first-child {
@@ -532,26 +537,26 @@ button.lg-btn-main:active {
 }
 .sd-book-tot {
   display:flex;
-  gap:10px;
+  gap:8px;
   flex:none;
   font-family:'Courier New', monospace;
-  font-size:12px;
+  font-size:11px;
   font-weight:700;
   white-space:nowrap;
 }
-.sd-group { margin-top:10px; }
+.sd-group { margin-top:8px; }
 .sd-group-lab {
-  font-size:11px;
+  font-size:10.5px;
   font-weight:800;
   letter-spacing:.4px;
-  margin-bottom:4px;
+  margin-bottom:3px;
 }
 .sd-row {
   display:grid;
-  grid-template-columns:1fr auto auto;
+  grid-template-columns:1fr auto;
   column-gap:12px;
   align-items:center;
-  padding:9px 0;
+  padding:8px 0;
   border-bottom:1px solid rgba(255,255,255,.05);
 }
 .sd-row:last-child { border-bottom:none; }
@@ -563,17 +568,12 @@ button.lg-btn-main:active {
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.sd-n {
-  font-size:12px;
-  color:var(--text-muted);
-  white-space:nowrap;
-}
 .sd-amt {
   font-family:'Courier New', monospace;
-  font-size:16px;
+  font-size:15px;
   font-weight:800;
   text-align:right;
-  min-width:72px;
+  min-width:76px;
   font-variant-numeric:tabular-nums;
 }
 .sd-empty {
@@ -1238,7 +1238,7 @@ function sdGroup(book, rows, type) {
         const list = rows.filter((e) => String(e.cat === null || e.cat === undefined ? '' : e.cat) === cat);
         if (!list.length) return;
         const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
-        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + '</span><span class="sd-n">' + list.length + ' 笔</span><span class="sd-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
+        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + '</span><span class="sd-amt ' + cls + '">' + fmtNum(csum) + '</span></div>';
     });
     return html + '</div>';
 }
