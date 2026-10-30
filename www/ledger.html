@@ -45,7 +45,7 @@
 .lg-type.on.in { background:rgba(52,211,153,.2); border-color:rgba(52,211,153,.5); color:#34d399; }
 .lg-field { margin-bottom:12px; }
 .lg-label { font-size:12px; color:var(--text-muted); font-weight:700; margin-bottom:6px; }
-.lg-chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+.lg-chips { display:flex; gap:8px; overflow-x:auto; padding:4px 2px 12px; margin-bottom:-4px; scrollbar-width:none; }
 .lg-chips::-webkit-scrollbar { display:none; }
 .lg-chip { flex:none; min-height:36px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.05); color:var(--text); font-size:14px; font-weight:700; white-space:nowrap; }
 .lg-chip.on { background:linear-gradient(180deg, #38bdf8, #0ea5e9); border-color:transparent; color:#04202e; }
@@ -463,6 +463,177 @@ button.lg-btn-main:active {
 .sd-bar.out b { background:linear-gradient(90deg,#ff6b6b,#ff9a7a); }
 .sd-bar.in b { background:linear-gradient(90deg,#34d399,#6ee7b7); }
 .sd-empty { font-size:13px; color:var(--text-muted); padding:8px 0; }
+
+/* ================= 记账系统 · 全局皮肤 v3(只覆盖视觉,不改行为) ================= */
+:root {
+  --ac1:#38bdf8; --ac2:#7c8cff; --ac3:#c084fc;
+  --ok:#34d399; --bad:#ff6b6b;
+  --card-bg:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.035));
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,"PingFang SC",sans-serif;
+}
+body {
+  background:
+    radial-gradient(120% 55% at 12% -8%, rgba(56,189,248,.22), transparent 60%),
+    radial-gradient(90% 50% at 100% 8%, rgba(168,85,247,.18), transparent 62%),
+    radial-gradient(100% 60% at 50% 110%, rgba(16,185,129,.10), transparent 60%),
+    #070b16 !important;
+  background-attachment:fixed !important;
+}
+
+/* ---- 顶栏 ---- */
+.header { padding-top:calc(10px + env(safe-area-inset-top,0px)); }
+.header h1 { font-family:var(--round); font-size:18px; letter-spacing:.3px; }
+#lg-date { font-family:var(--mono) !important; letter-spacing:.3px; }
+#lg-prev,#lg-next { border-radius:14px !important; }
+#lg-today { border-radius:14px !important; background:linear-gradient(135deg,rgba(56,189,248,.28),rgba(124,140,255,.28)) !important; border-color:rgba(125,211,252,.35) !important; }
+
+/* ---- 页签 ---- */
+.tabs { gap:2px; padding:5px !important; border-radius:22px !important; scrollbar-width:none; }
+.tabs::-webkit-scrollbar { display:none; }
+.tab { border-radius:17px !important; padding:9px 16px !important; font-family:var(--round); letter-spacing:.2px; transition:color .2s; }
+.tabs .tab.active { color:#fff !important; }
+.tabs .glass-ind { background:linear-gradient(135deg,rgba(56,189,248,.34),rgba(124,140,255,.36)) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 4px 14px rgba(56,189,248,.2) !important; }
+
+/* ---- 卡片 ---- */
+.lg-card {
+  background:var(--card-bg) !important;
+  border:1px solid rgba(255,255,255,.11) !important;
+  border-radius:24px !important;
+  padding:16px !important;
+  margin:12px 12px !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 12px 32px rgba(0,0,0,.32) !important;
+}
+.lg-card-title {
+  display:flex; align-items:center; justify-content:flex-start !important; gap:8px;
+  font-family:var(--round); font-size:15px !important; font-weight:800 !important; letter-spacing:.3px !important;
+  color:var(--text) !important; margin-bottom:14px !important;
+}
+.lg-card-title::before { content:''; width:4px; height:15px; border-radius:2px; background:linear-gradient(180deg,var(--ac1),var(--ac3)); flex:none; }
+
+/* ---- 余额英雄卡 ---- */
+.lg-hero {
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(168,85,247,.38), transparent 60%),
+    radial-gradient(90% 120% at 0% 100%, rgba(56,189,248,.34), transparent 60%),
+    linear-gradient(160deg,rgba(30,41,90,.9),rgba(15,23,42,.92)) !important;
+  border-color:rgba(165,180,252,.28) !important;
+  padding:18px 16px 16px !important;
+}
+.lg-hero::after { content:''; position:absolute; right:-40px; top:-50px; width:160px; height:160px; border-radius:50%; background:radial-gradient(circle,rgba(255,255,255,.14),transparent 65%); pointer-events:none; }
+.lg-hero-top { display:flex; align-items:baseline; justify-content:space-between; }
+.lg-hero-lab { font-family:var(--round); font-size:15px; font-weight:800; color:#e0e7ff; }
+.lg-hero-sub { font-size:11px; color:rgba(224,231,255,.6); font-weight:600; }
+.lg-hero .lg-bal-main { display:block !important; border:none !important; margin:8px 0 14px !important; padding:0 !important; }
+.lg-hero .lg-bal-main .big {
+  display:block; font-family:var(--round) !important; font-size:clamp(34px,11.5vw,46px) !important; font-weight:800 !important;
+  letter-spacing:-1px !important; line-height:1.1; font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#fff 20%,#c7d9ff); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+  text-shadow:none; filter:drop-shadow(0 4px 18px rgba(125,160,255,.35));
+}
+.lg-hero .lg-bal-main .big.neg { background:none; color:#ff8f8f !important; -webkit-text-fill-color:#ff8f8f; }
+.lg-hero .lg-bal-main .big.warn { background:none; -webkit-text-fill-color:currentColor; font-size:15px !important; }
+.lg-hero-split { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.lg-hero-box { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:16px; background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.08); min-width:0; }
+.lg-hero-box i { font-style:normal; flex:none; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; }
+.lg-hero-box.out i { background:rgba(255,107,107,.18); color:#ff8f8f; }
+.lg-hero-box.in i { background:rgba(52,211,153,.18); color:#6ee7b7; }
+.lg-hero-box div { min-width:0; }
+.lg-hero-box small { display:block; font-size:11px; color:rgba(224,231,255,.65); font-weight:600; }
+.lg-hero-box .v { display:block; font-family:var(--mono); font-size:15px; font-weight:800; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cgt-push { border-radius:14px !important; min-height:44px !important; background:rgba(255,255,255,.10) !important; border-color:rgba(255,255,255,.2) !important; }
+
+/* ---- 记一笔 ---- */
+.lg-seg { padding:4px; border-radius:18px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.07); gap:4px !important; }
+.lg-type { border:none !important; background:transparent !important; box-shadow:none !important; color:var(--text-muted) !important; border-radius:14px !important; min-height:42px !important; font-family:var(--round); font-size:15px !important; }
+.lg-type.on.out { background:linear-gradient(135deg,#ff6b6b,#e11d48) !important; color:#fff !important; box-shadow:0 6px 16px rgba(244,63,94,.38) !important; }
+.lg-type.on.in { background:linear-gradient(135deg,#34d399,#059669) !important; color:#fff !important; box-shadow:0 6px 16px rgba(16,185,129,.38) !important; }
+.lg-label { font-size:12px !important; letter-spacing:.4px; color:var(--text-muted) !important; margin-bottom:7px !important; }
+.lg-inp { min-height:48px !important; border-radius:16px !important; background:rgba(0,0,0,.28) !important; border:1px solid rgba(255,255,255,.10) !important; }
+#cash-amt,#tr-amt,.lg-inp:not(.lg-inp-note) { font-family:var(--mono); font-size:20px; font-weight:800; letter-spacing:.3px; }
+.lg-inp::placeholder { font-family:var(--round); font-size:15px; font-weight:500; letter-spacing:0; color:rgba(180,192,211,.55); }
+.lg-chip { border-radius:999px !important; min-height:38px !important; padding:0 16px !important; background:rgba(255,255,255,.06) !important; border:1px solid rgba(255,255,255,.12) !important; box-shadow:none !important; }
+.lg-chip.on { background:linear-gradient(135deg,var(--ac1),var(--ac2)) !important; color:#fff !important; border-color:transparent !important; box-shadow:0 5px 14px rgba(56,189,248,.35) !important; }
+.lg-chip.add { background:transparent !important; border-style:dashed !important; }
+.lg-sug { border-radius:14px !important; background:rgba(255,255,255,.05) !important; }
+.lg-btn-main {
+  min-height:52px !important; border-radius:18px !important;
+  background:linear-gradient(135deg,#38bdf8,#6366f1 60%,#a855f7) !important;
+  color:#fff !important; font-family:var(--round); font-size:17px !important; font-weight:800 !important; letter-spacing:1px;
+  box-shadow:0 10px 24px rgba(99,102,241,.45), inset 0 1px 0 rgba(255,255,255,.35) !important;
+}
+
+/* ---- 当日流水 ---- */
+.lg-list { margin-top:0 !important; }
+.lg-row { padding:12px 2px !important; border-bottom:1px solid rgba(255,255,255,.06) !important; position:relative; }
+.lg-row .t { font-size:11px !important; width:44px !important; color:var(--text-muted); }
+.lg-row .c { font-size:15px !important; font-family:var(--round); }
+.lg-row .amt { font-family:var(--mono) !important; font-size:16px !important; padding:5px 10px; border-radius:12px; background:rgba(255,255,255,.05); white-space:nowrap; }
+.lg-row .amt.lg-out { background:rgba(255,107,107,.10); }
+.lg-row .amt.lg-in { background:rgba(52,211,153,.10); }
+.lg-more { border-radius:12px !important; background:rgba(255,255,255,.04) !important; }
+.lg-empty { padding:26px 0 !important; position:relative; }
+.lg-empty::before { content:'🗒️'; display:block; font-size:28px; margin-bottom:6px; opacity:.7; }
+
+
+/* ---- 流水行:去掉套娃边框,做成干净列表 ---- */
+.lg-list .lg-row { background:transparent !important; border:none !important; border-radius:0 !important; box-shadow:none !important; border-bottom:1px solid rgba(255,255,255,.06) !important; padding:11px 0 !important; gap:12px !important; }
+.lg-list .lg-row:last-child { border-bottom:none !important; }
+.lg-list .lg-row .t { width:auto !important; font-size:11px !important; opacity:.75; flex:none; padding:3px 7px; border-radius:8px; background:rgba(255,255,255,.06); }
+.lg-list .lg-row .mid { padding-left:0; }
+.lg-list .lg-row .lg-more { min-width:36px !important; min-height:36px !important; width:36px; height:36px; padding:0 !important; border-radius:50% !important; font-size:15px !important; letter-spacing:1px; background:rgba(255,255,255,.05) !important; border:none !important; box-shadow:none !important; }
+.lg-acts { padding-left:0 !important; }
+/* ---- 转账分类统计块 ---- */
+.lg-stats { gap:10px !important; margin:12px 12px 0 !important; }
+.lg-stat { border-radius:18px !important; padding:12px 8px !important; background:var(--card-bg) !important; border:1px solid rgba(255,255,255,.10) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 6px 18px rgba(0,0,0,.25); }
+.lg-stat { position:relative; overflow:hidden; }
+.lg-stat::before { content:''; position:absolute; left:18%; right:18%; top:0; height:3px; border-radius:0 0 3px 3px; background:linear-gradient(90deg,var(--ac1),var(--ac3)); opacity:.8; }
+.lg-stat .k { font-size:12px !important; }
+.lg-stat .v { font-family:var(--mono) !important; font-size:16px !important; }
+
+/* ---- 汇总页「同步」区 ---- */
+.lg-sum-row { padding:12px 0 !important; }
+.lg-sum-row .k { font-family:var(--round); font-size:14px; font-weight:700; }
+.lg-sum-row .v { font-family:var(--mono) !important; font-size:17px !important; border-bottom:none !important; padding:8px 10px !important; border-radius:12px; background:rgba(0,0,0,.2); margin:-8px 0 !important; }
+.lg-copy { border-radius:13px !important; background:rgba(56,189,248,.14) !important; border-color:rgba(125,211,252,.3) !important; }
+.lg-sync { background:linear-gradient(135deg,rgba(56,189,248,.32),rgba(124,140,255,.32)) !important; }
+.lg-sync-all { border-radius:16px !important; }
+#lg-sync-all { min-height:50px !important; background:linear-gradient(135deg,rgba(56,189,248,.5),rgba(124,140,255,.55)) !important; border-color:rgba(165,180,252,.45) !important; color:#fff !important; font-family:var(--round); font-weight:800 !important; box-shadow:0 8px 20px rgba(99,102,241,.3), inset 0 1px 0 rgba(255,255,255,.3) !important; }
+
+/* ---- 账本管理行 ---- */
+.bk-row { border-radius:16px !important; padding:10px 12px !important; background:rgba(255,255,255,.04); }
+.bk-row .bk-name { font-family:var(--round); }
+
+/* ---- 弹窗 ---- */
+.modal { background:rgba(2,6,16,.62) !important; }
+.modal-content { background:linear-gradient(160deg,#1a2540,#0f172a) !important; border-radius:26px !important; border-color:rgba(255,255,255,.14) !important; box-shadow:0 24px 60px rgba(0,0,0,.55) !important; }
+.modal-content h3 { font-family:var(--round); font-size:17px !important; }
+.lg-modal-btns button { border-radius:14px !important; min-height:46px !important; }
+.lg-modal-btns .primary { background:linear-gradient(135deg,#38bdf8,#6366f1) !important; color:#fff !important; box-shadow:0 8px 20px rgba(99,102,241,.4) !important; }
+
+/* ---- 月历 ---- */
+.lg-cal-cell { border-radius:12px !important; background:rgba(255,255,255,.045) !important; }
+.lg-cal-cell.today { border-color:rgba(125,211,252,.7) !important; box-shadow:0 0 0 2px rgba(56,189,248,.15); }
+.lg-cal-cell.sel { background:linear-gradient(135deg,var(--ac1),var(--ac2)) !important; color:#fff !important; box-shadow:0 6px 14px rgba(56,189,248,.4); }
+.lg-cal-nav { border-radius:14px !important; }
+
+/* ---- 按钮文字居中(flex 容器内默认靠左) ---- */
+.modal .lg-modal-btns button, .lg-btn-main, .lg-copy, .lg-seg .lg-type, .lg-chip, .lg-acts button, .bk-row button, #lg-catmenu .cm-acts button, .cgt-push.lg-sync-all { justify-content:center !important; align-items:center !important; text-align:center !important; }
+.cgt-push.lg-sync-all { gap:8px; }
+.lg-cal-cell { justify-content:center !important; }
+
+/* ---- 汇总卡(沿用上一版,配合新底色再收一下) ---- */
+.sd-hero-main { background:linear-gradient(135deg,rgba(56,189,248,.22),rgba(168,85,247,.2)) !important; border-color:rgba(165,180,252,.25) !important; border-radius:20px !important; }
+.sd-hero-num { font-size:clamp(26px,9vw,38px) !important; }
+.sd-book { background:rgba(255,255,255,.04) !important; border-radius:18px !important; }
+
+/* ---- 入场:只做位移,不碰透明度(避免整页空白的老坑) ---- */
+@keyframes lgRise { from { transform:translateY(10px); } to { transform:none; } }
+.tab-content.active > .lg-card, .tab-content.active > .lg-stats { animation:lgRise .38s cubic-bezier(.22,1.2,.36,1) both; }
+.tab-content.active > .lg-card:nth-child(2) { animation-delay:.04s; }
+.tab-content.active > .lg-card:nth-child(3) { animation-delay:.08s; }
+@media (prefers-reduced-motion:reduce) { .tab-content.active > .lg-card { animation:none; } }
 </style>
 </head>
 <body>
@@ -479,11 +650,13 @@ button.lg-btn-main:active {
 <div class="lg-wrap">
 <!-- ==================== 页签1: 现金账 ==================== -->
 <div id="tab-cash" class="tab-content active">
-  <div class="lg-card">
-    <div class="lg-card-title">余额</div>
-    <div class="lg-bal-row"><span>支出合计</span><span class="v lg-out" id="cash-out-v">0</span></div>
-    <div class="lg-bal-row"><span>收入合计</span><span class="v lg-in" id="cash-in-v">0</span></div>
-    <div class="lg-bal-main"><span class="lab">今日余额(收入−支出)</span><span class="big" id="cash-bal-v">—</span></div>
+  <div class="lg-card lg-hero">
+    <div class="lg-hero-top"><span class="lg-hero-lab">今日余额</span><span class="lg-hero-sub">收入 − 支出</span></div>
+    <div class="lg-bal-main"><span class="big" id="cash-bal-v">—</span></div>
+    <div class="lg-hero-split">
+      <div class="lg-hero-box out"><i>↗</i><div><small>支出合计</small><span class="v lg-out" id="cash-out-v">0</span></div></div>
+      <div class="lg-hero-box in"><i>↙</i><div><small>收入合计</small><span class="v lg-in" id="cash-in-v">0</span></div></div>
+    </div>
     <div class="lg-pushwrap">
       <button class="cgt-push" id="lg-push"><span>📤 设为现金箱理论库存</span><small id="lg-push-state"></small></button>
     </div>
