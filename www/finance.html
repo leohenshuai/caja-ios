@@ -132,12 +132,14 @@
         .preview-card { padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 12px; }
         .preview-card.orange { border-left: 4px solid #f97316; }
         .preview-card.dni { border-left: 4px solid var(--cyan); }
+        .preview-card.vtpay { border-left: 4px solid var(--purple, #8b5cf6); }
         .preview-card.mercado { border-left: 4px solid var(--green); }
         .preview-card.machines { border-left: 4px solid var(--purple); }
         .preview-card.z3 { border-left: 4px solid var(--yellow); }
         .preview-card-title { font-weight: 700; margin-bottom: 8px; }
         .preview-card.orange .preview-card-title { color: #f97316; }
         .preview-card.dni .preview-card-title { color: var(--cyan); }
+        .preview-card.vtpay .preview-card-title { color: var(--purple, #8b5cf6); }
         .preview-card.mercado .preview-card-title { color: var(--green); }
         .preview-card.machines .preview-card-title { color: var(--purple); }
         .preview-card.z3 .preview-card-title { color: var(--yellow); }
@@ -208,7 +210,7 @@
             background:rgba(30,41,59,.88); color:var(--text); font-size:15px; font-weight:700;
             display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;
         }
-        .platform-select-chip:nth-child(1), .platform-select-chip:nth-child(2), .platform-select-chip:nth-child(5) { grid-column:1 / -1; }
+        .platform-select-chip:nth-child(1), .platform-select-chip:nth-child(2), .platform-select-chip:nth-child(3), .platform-select-chip:nth-child(6) { grid-column:1 / -1; }
         .platform-select-chip.selected { color:var(--cyan); border:2px solid var(--cyan); background:linear-gradient(90deg,rgba(6,182,212,.12),rgba(6,182,212,.05)); }
         .platform-chip-value { padding:3px 7px; border-radius:5px; background:rgba(148,163,184,.12); font:700 13px 'Courier New',monospace; overflow:hidden; text-overflow:ellipsis; }
         .platform-content-area { margin:0 18px 18px; padding:12px; border:1px solid #35445e; border-radius:12px; background:rgba(15,23,42,.36); }
@@ -1074,6 +1076,7 @@
         <div class="platform-switch-zone"><div class="platform-dashboard-sub" id="platform-current-status">未录入</div><div class="platform-selector" id="platformSelector">
             <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.selectPlatformProject('orange')"><span>🍊 Orange</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-dni" onclick="app.selectPlatformProject('dni')"><span>🆔 DNI</span><span class="platform-chip-value" id="platform-chip-dni-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-vtpay" onclick="app.selectPlatformProject('vtpay')"><span>💳 Vtpay</span><span class="platform-chip-value" id="platform-chip-vtpay-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-mercado" onclick="app.selectPlatformProject('mercado')"><span>🛒 Mercado</span><span class="platform-chip-value" id="platform-chip-mercado-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-machines" onclick="app.selectPlatformProject('machines')"><span>📱 机器</span><span class="platform-chip-value" id="platform-chip-machines-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-z3" onclick="app.selectPlatformProject('z3')"><span>🖥️ Z3</span><span class="platform-chip-value" id="platform-chip-z3-value">0</span></button>
@@ -1133,6 +1136,31 @@
                     <div class="form-item"><label>昨日余额 (dni_b1) <span style="color:var(--text-muted)">[自动跳过]</span></label><input type="text" id="dni_b1" class="skip-key" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('dni_b1', this.value)" onkeydown="app.handlePlatformNav(event, 'dni_b1')"></div>
                     <div class="form-item"><label>支出 (dni_c1)</label><input type="text" id="dni_c1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('dni_c1', this.value)" onkeydown="app.handlePlatformNav(event, 'dni_c1')"></div>
                     <div class="form-item"><label>软件收入值 (dni_z1)</label><input type="text" id="dni_z1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('dni_z1', this.value)" onkeydown="app.handlePlatformNav(event, 'dni_z1')"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Vtpay 项目卡片 -->
+        <div class="platform-card collapsed" id="platform-vtpay">
+            <div class="platform-header" onclick="app.togglePlatformCollapse('vtpay')">
+                <div style="flex:1; min-width:0;"><div class="platform-title-row"><div class="platform-title">💳 Vtpay</div><span class="platform-toggle-arrow" id="platform-vtpay-arrow">▼</span></div></div>
+                <div class="platform-header-summary" id="platform-vtpay-summary"><div class="platform-header-diff diff-zero" id="platform-vtpay-diff">0</div></div>
+                <button class="btn-reset-small" onclick="event.stopPropagation(); app.resetSection('vtpay')" title="重置Vtpay数据">🗑️</button>
+            </div>
+            <div class="platform-body">
+                <div class="platform-preview">
+                    <div class="preview-card vtpay">
+                        <div class="preview-card-title">[ Vtpay ]</div>
+                        <div class="preview-row"><span>余额 (a1):</span><span id="preview_vtpay_a1" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>今日收入 (e1):</span><span id="preview_vtpay_e1" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>软件收入值 (z1):</span><span id="preview_vtpay_z1" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row total"><span>Vtpay差额 (l1):</span><span id="preview_vtpay_l1" style="text-align: right; min-width: 120px;">0</span></div>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-item"><label>余额 (vtpay_a1)</label><input type="text" id="vtpay_a1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_a1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_a1')"></div>
+                    <div class="form-item"><label>昨日余额 (vtpay_b1) <span style="color:var(--text-muted)">[自动跳过]</span></label><input type="text" id="vtpay_b1" class="skip-key" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_b1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_b1')"></div>
+                    <div class="form-item"><label>支出 (vtpay_c1)</label><input type="text" id="vtpay_c1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_c1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_c1')"></div>
+                    <div class="form-item"><label>软件收入值 (vtpay_z1)</label><input type="text" id="vtpay_z1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_z1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_z1')"></div>
                 </div>
             </div>
         </div>
@@ -1256,6 +1284,7 @@
             <div class="form-grid">
                 <div class="form-item"><label>Orange 加权系数 (COEFF_ORANGE)</label><input type="text" id="coeff_orange_display" value="1.05" placeholder="支持算式: 1.05" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_ORANGE', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Orange 今日收入: e = (f - b + c) × 系数</div></div>
                 <div class="form-item"><label>DNI 加权系数 (COEFF_DNI)</label><input type="text" id="coeff_dni_display" value="1.021" placeholder="支持算式: 1.021" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_DNI', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 DNI 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
+                <div class="form-item"><label>Vtpay 加权系数 (COEFF_VTPAY)</label><input type="text" id="coeff_vtpay_display" value="1.0097" placeholder="支持算式: 1.0097" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_VTPAY', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Vtpay 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
             </div>
         </div>
         <div class="section">
@@ -1264,6 +1293,7 @@
                 <p><strong>加权系数的作用：</strong>加权系数用于调整各平台的收入计算，反映实际运营成本。</p>
                 <p>• Orange 系数 (默认 1.05): 应用于 Orange 平台的收入计算 e = (f - b + c) × COEFF_ORANGE</p>
                 <p>• DNI 系数 (默认 1.021): 应用于 DNI 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_DNI</p>
+                <p>• Vtpay 系数 (默认 1.0097): 应用于 Vtpay 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_VTPAY</p>
                 <p style="margin-top:8px; color:var(--cyan);"><strong>💡 提示：</strong>支持在输入框中使用数学表达式，如 "1.05", "1+0.05", 或 "(100+5)/100"。</p>
             </div>
         </div>
@@ -1327,12 +1357,14 @@
 const PLATFORM_PROJECTS_CONFIG = [
     { name: "Orange", keys: ["orange_f", "orange_b", "orange_c", "orange_z"], z_key: "orange_z", completion_key: "orange_z" },
     { name: "DNI", keys: ["dni_a1", "dni_b1", "dni_c1", "dni_z1"], z_key: "dni_z1", completion_key: "dni_z1" },
+    { name: "Vtpay", keys: ["vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1"], z_key: "vtpay_z1", completion_key: "vtpay_z1" },
     { name: "Mercado", keys: ["merc_f2", "merc_b2", "merc_c2", "merc_other"], z_key: null, completion_key: "merc_c2" }
 ];
-const SKIP_KEYS = new Set(["orange_b", "dni_b1", "merc_b2"]);
+const SKIP_KEYS = new Set(["orange_b", "dni_b1", "vtpay_b1", "merc_b2"]);
 const PLATFORM_KEYS_ORDER = [
     "orange_f", "orange_b", "orange_c", "orange_z",
     "dni_a1", "dni_b1", "dni_c1", "dni_z1",
+    "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1",
     "merc_f2", "merc_b2", "merc_c2", "merc_other",
     "white_list", "black_k_list", "z3_ref"
 ];
@@ -1483,7 +1515,7 @@ function getKeyToProject() {
   }
   class ReportCache {
     constructor(maxSize) { this._cache = {}; this._keys = []; this._maxSize = maxSize !== undefined ? maxSize : 5; }
-    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "merc_f2", "merc_b2", "merc_c2", "merc_other", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI" ];
+    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1", "merc_f2", "merc_b2", "merc_c2", "merc_other", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI", "COEFF_VTPAY" ];
     static _djb2Hash(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); } return (hash >>> 0).toString(16).padStart(8, "0"); }
     _makeKey(data) { const subset = {}; for (const key of ReportCache._KEY_FIELDS) { subset[key] = data[key]; } const serialized = JSON.stringify(subset, Object.keys(subset).sort()); return ReportCache._djb2Hash(serialized); }
     get(data) { const key = this._makeKey(data); return this._cache[key]; }
@@ -1664,10 +1696,11 @@ function getInitData() {
         z_list: emptyZList(),
         orange_f: '', orange_b: '', orange_c: '', orange_z: '',
         dni_a1: '', dni_b1: '', dni_c1: '', dni_z1: '',
+        vtpay_a1: '', vtpay_b1: '', vtpay_c1: '', vtpay_z1: '',
         merc_f2: '', merc_b2: '', merc_c2: '', merc_other: '',
         white_list: [], black_k_list: [], z3_ref: '',
         f_exp: '', b_last: '', k_vault: '', actual_stock: '',
-        COEFF_ORANGE: 1.05, COEFF_DNI: 1.021,
+        COEFF_ORANGE: 1.05, COEFF_DNI: 1.021, COEFF_VTPAY: 1.0097,
         all_cajas_cleared: false,
         caja_reserve: emptyReserveFlags(),
         caja_final_count_dates: [null, null, null, null],
@@ -1717,7 +1750,7 @@ const Calc = {
         const e1 = (a1 - num(data.dni_b1) + num(data.dni_c1)) * (num(data.COEFF_DNI) || 1.021);
         const f2 = num(data.merc_f2);
         const e2 = f2 - num(data.merc_b2) + num(data.merc_c2) - num(data.merc_other);
-        const sNonCash = e2 + num(data.orange_z) + num(data.dni_z1) + jTotal + kTotal;
+        const sNonCash = e2 + num(data.orange_z) + num(data.dni_z1) + num(data.vtpay_z1) + jTotal + kTotal;
         const z3Ref = num(data.z3_ref);
         const zRevenue = listSum(data.z_list) + z3Ref;
         const fExp = num(data.f_exp);
@@ -1947,10 +1980,11 @@ class FinanceApp {
         $('f_exp').value = this.data.f_exp || '';
         $('b_last').value = this.data.b_last || '';
         $('k_vault').value = this.data.k_vault || '';
-        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'merc_f2', 'merc_b2', 'merc_c2', 'merc_other', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
-        const coeffOrangeEl = $('coeff_orange_display'); const coeffDniEl = $('coeff_dni_display');
+        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'vtpay_a1', 'vtpay_b1', 'vtpay_c1', 'vtpay_z1', 'merc_f2', 'merc_b2', 'merc_c2', 'merc_other', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
+        const coeffOrangeEl = $('coeff_orange_display'); const coeffDniEl = $('coeff_dni_display'); const coeffVtpayEl = $('coeff_vtpay_display');
         if (coeffOrangeEl) coeffOrangeEl.value = this.data.COEFF_ORANGE;
         if (coeffDniEl) coeffDniEl.value = this.data.COEFF_DNI;
+        if (coeffVtpayEl) coeffVtpayEl.value = this.data.COEFF_VTPAY;
         const acEl = $('autoCopyToggle'); if (acEl) acEl.checked = this._autoCopyEnabled();
         this._paintAutoCopyCajas();
         const autoCarryTimeEl = $('autoCarryTime');
@@ -2591,7 +2625,7 @@ class FinanceApp {
     }
     toggleCajaCollapse(cajaIdx) { /* 四台旧卡片已移除，切换请用 C1~C4 按钮 */ this.selectCentralTarget(cajaIdx); }
     selectPlatformProject(projectName, focusInput = true) {
-        const allProjects = ['orange', 'dni', 'mercado', 'machines', 'z3'];
+        const allProjects = ['orange', 'dni', 'vtpay', 'mercado', 'machines', 'z3'];
         if (!allProjects.includes(projectName)) projectName = 'orange';
         this.activePlatformProject = projectName;
         allProjects.forEach(name => {
@@ -2599,7 +2633,7 @@ class FinanceApp {
             if (card) { card.classList.toggle('platform-selected', name === projectName); card.classList.toggle('collapsed', name !== projectName); }
             if (chip) chip.classList.toggle('selected', name === projectName);
         });
-        const names = { orange: 'Orange', dni: 'DNI', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
+        const names = { orange: 'Orange', dni: 'DNI', vtpay: 'Vtpay', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
         const title = $('platform-current-name'); if (title) title.textContent = names[projectName];
         const status = $('platform-current-status');
         if (status) {
@@ -2641,7 +2675,7 @@ class FinanceApp {
         document.body.classList.remove('vk-open');
     }
     focusPlatformProjectStart(projectName) {
-        const firstInputMap = { orange:'orange_f', dni:'dni_a1', mercado:'merc_f2', machines:'whiteInput', z3:'z3_ref' };
+        const firstInputMap = { orange:'orange_f', dni:'dni_a1', vtpay:'vtpay_a1', mercado:'merc_f2', machines:'whiteInput', z3:'z3_ref' };
         const inputId = firstInputMap[projectName];
         const focusTarget = () => {
             const platformTab = $('tab-platform');
@@ -2679,14 +2713,15 @@ class FinanceApp {
         this.updateCajaPreview(cajaIdx); this.updateSessionPanel(cajaIdx); this.debouncedSave(); this.showToast(`${CASH_LABELS[faceIdx]} 已彻底清空`, 'warning');
     }
     resetSection(sectionName) {
-        const names = { 'base': '基础账目', 'orange': 'Orange', 'dni': 'DNI', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
+        const names = { 'base': '基础账目', 'orange': 'Orange', 'dni': 'DNI', 'vtpay': 'Vtpay', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
         this.customConfirm(`确定要重置 ${names[sectionName]} 的所有数据吗？`, () => {
             switch(sectionName) {
                 case 'base': this.data.f_exp = ''; this.data.b_last = ''; this.data.k_vault = ''; break;
                 case 'orange': this.data.orange_f = ''; this.data.orange_b = ''; this.data.orange_c = ''; this.data.orange_z = ''; break;
                 case 'dni': this.data.dni_a1 = ''; this.data.dni_b1 = ''; this.data.dni_c1 = ''; this.data.dni_z1 = ''; break;
+                case 'vtpay': this.data.vtpay_a1 = ''; this.data.vtpay_b1 = ''; this.data.vtpay_c1 = ''; this.data.vtpay_z1 = ''; break;
                 case 'mercado': this.data.merc_f2 = ''; this.data.merc_b2 = ''; this.data.merc_c2 = ''; this.data.merc_other = ''; break;
-                case 'coeff': this.data.COEFF_ORANGE = 1.05; this.data.COEFF_DNI = 1.021; break;
+                case 'coeff': this.data.COEFF_ORANGE = 1.05; this.data.COEFF_DNI = 1.021; this.data.COEFF_VTPAY = 1.0097; break;
                 case 'machines': this.data.white_list = []; this.data.black_k_list = []; break;
                 case 'z3': this.data.z3_ref = ''; break;
             }
@@ -2884,7 +2919,7 @@ class FinanceApp {
         PLATFORM_PROJECTS_CONFIG.forEach(proj => { const card = $(`platform-${proj.name.toLowerCase()}`); if (!card) return; const completed = this.isProjectCompleted(proj); if (completed) { card.style.borderColor = 'var(--green)'; } else { const hasData = proj.keys.some(k => hasValue(this.data[k])); card.style.borderColor = hasData ? 'var(--yellow)' : 'var(--border)'; } });
         this.selectPlatformProject(this.activePlatformProject || 'orange', false);
     }
-    updateCoeff(key, value) { const parsed = FinanceCore.SafeCalculator.calc(value); this.data[key] = (parsed !== null && parsed > 0) ? parsed : 1; this.debouncedSave(); const displayEl = $(key === 'COEFF_ORANGE' ? 'coeff_orange_display' : 'coeff_dni_display'); if (displayEl) { displayEl.value = this.data[key]; } this.refreshPlatformPreview(); }
+    updateCoeff(key, value) { const parsed = FinanceCore.SafeCalculator.calc(value); this.data[key] = (parsed !== null && parsed > 0) ? parsed : 1; this.debouncedSave(); const displayEl = $(key === 'COEFF_ORANGE' ? 'coeff_orange_display' : (key === 'COEFF_VTPAY' ? 'coeff_vtpay_display' : 'coeff_dni_display')); if (displayEl) { displayEl.value = this.data[key]; } this.refreshPlatformPreview(); }
     addListItem(type, value) { if (!value) return; const key = LIST_KEYS[type]; if (!this.data[key]) this.data[key] = []; const parts = value.toString().trim().replace(/,/g, '').split(/\s+/).filter(p => p); let sum = 0; let hasValidNumber = false; parts.forEach(part => { const n = parseFloat(part); if (!isNaN(n) && n > 0) { sum += n; hasValidNumber = true; } }); if (hasValidNumber) { this.data[key].push(sum); $(type + 'Input').value = ''; this.debouncedSave(); this.refreshLists(); this.showToast(`已添加: ${fmt(sum)} (求和结果)`, 'success'); } }
     updateListSum(type, value) { const num = Calc.parseSum(value); if (!num && num !== 0) { $(type + 'Input').value = ''; return; } const key = LIST_KEYS[type]; if (!this.data[key]) this.data[key] = []; this.data[key].push(num); $(type + 'Input').value = ''; this.debouncedSave(); this.refreshLists(); this.refreshMachineStatusUI(); this.refreshPlatformPreview(); this.showToast(`已添加 ${type === 'white' ? '白色' : '黑色'}机器: ${fmt(num)}`, 'success'); }
     removeListItem(type, idx) { const key = LIST_KEYS[type]; this.data[key].splice(idx, 1); this.debouncedSave(); this.refreshLists(); this.refreshMachineStatusUI(); }
@@ -2906,16 +2941,17 @@ class FinanceApp {
 
     }
     isNotCarriedOver() {
-        const checkFields = ['f_exp', 'orange_f', 'dni_a1', 'merc_f2', 'orange_z', 'dni_z1', 'z3_ref']; for (const field of checkFields) { if (num(this.data[field]) !== 0) return true; }
+        const checkFields = ['f_exp', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2', 'orange_z', 'dni_z1', 'vtpay_z1', 'z3_ref']; for (const field of checkFields) { if (num(this.data[field]) !== 0) return true; }
         if (listSum(this.data.white_list) !== 0 || listSum(this.data.black_k_list) !== 0) return true;
         if (this.data.z_list.some(v => num(v) !== 0)) return true;
         for (const counts of this.data.all_cajas_counts) { if (counts.some(c => num(c) !== 0)) return true; }
         return false;
     }
     refreshPlatformPreview() {
-        const data = this.data; const coeffOrange = num(data.COEFF_ORANGE) || 1.05; const coeffDni = num(data.COEFF_DNI) || 1.021;
+        const data = this.data; const coeffOrange = num(data.COEFF_ORANGE) || 1.05; const coeffDni = num(data.COEFF_DNI) || 1.021; const coeffVtpay = num(data.COEFF_VTPAY) || 1.0097;
         const orangeF = num(data.orange_f); const orangeB = num(data.orange_b); const orangeC = num(data.orange_c); const orangeZ = num(data.orange_z); const orangeE_raw = (orangeF - orangeB + orangeC) * coeffOrange; const orangeL_raw = orangeE_raw - orangeZ;
         const dniA1 = num(data.dni_a1); const dniB1 = num(data.dni_b1); const dniC1 = num(data.dni_c1); const dniZ1 = num(data.dni_z1); const dniE1_raw = (dniA1 - dniB1 + dniC1) * coeffDni; const dniL1_raw = dniE1_raw - dniZ1;
+        const vtA1 = num(data.vtpay_a1); const vtB1 = num(data.vtpay_b1); const vtC1 = num(data.vtpay_c1); const vtZ1 = num(data.vtpay_z1); const vtE1_raw = (vtA1 - vtB1 + vtC1) * coeffVtpay; const vtL1_raw = vtE1_raw - vtZ1;
         const mercF2 = num(data.merc_f2); const mercB2 = num(data.merc_b2); const mercC2 = num(data.merc_c2); const mercOther = num(data.merc_other); const mercE2_raw = mercF2 - mercB2 + mercC2 - mercOther;
         const fmt = fmtInt;
         const fmtDiff = (v, inverse = false) => { const val = Math.round(v); let color, tag; if (val === 0) { color = 'var(--text)'; tag = '平账'; } else if (inverse) { color = val < 0 ? 'var(--green)' : 'var(--red)'; tag = val < 0 ? '盈余' : '亏损'; } else { color = val > 0 ? 'var(--green)' : 'var(--red)'; tag = val > 0 ? '盈余' : '亏损'; } return `<span style="color:${color}">${val > 0 ? '+' : ''}${fmt(val)} (${tag})</span>`; };
@@ -2927,14 +2963,20 @@ class FinanceApp {
         $('preview_dni_e1').textContent = fmt(Math.round(dniE1_raw));
         $('preview_dni_z1').textContent = fmt(dniZ1);
         $('preview_dni_l1').innerHTML = fmtDiff(dniL1_raw, true);
+        $('preview_vtpay_a1').textContent = fmt(vtA1);
+        $('preview_vtpay_e1').textContent = fmt(Math.round(vtE1_raw));
+        $('preview_vtpay_z1').textContent = fmt(vtZ1);
+        $('preview_vtpay_l1').innerHTML = fmtDiff(vtL1_raw, true);
         $('preview_merc_f2').textContent = fmt(mercF2);
         { const mo = $('preview_merc_other'); if (mo) mo.textContent = fmt(mercOther); }
         $('preview_merc_e2').textContent = fmt(Math.round(mercE2_raw));
         const orangeL = Math.round(orangeL_raw); const orangeDiffEl = $('platform-orange-diff'); orangeDiffEl.textContent = (orangeL > 0 ? '+' : '') + fmt(orangeL) + (orangeL === 0 ? '' : (orangeL < 0 ? ' 盈余' : ' 亏损')); orangeDiffEl.className = orangeL < 0 ? 'platform-header-diff diff-positive' : (orangeL > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const dniL1 = Math.round(dniL1_raw); const dniDiffEl = $('platform-dni-diff'); dniDiffEl.textContent = (dniL1 > 0 ? '+' : '') + fmt(dniL1) + (dniL1 === 0 ? '' : (dniL1 < 0 ? ' 盈余' : ' 亏损')); dniDiffEl.className = dniL1 < 0 ? 'platform-header-diff diff-positive' : (dniL1 > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
+        const vtL1 = Math.round(vtL1_raw); const vtDiffEl = $('platform-vtpay-diff'); vtDiffEl.textContent = (vtL1 > 0 ? '+' : '') + fmt(vtL1) + (vtL1 === 0 ? '' : (vtL1 < 0 ? ' 盈余' : ' 亏损')); vtDiffEl.className = vtL1 < 0 ? 'platform-header-diff diff-positive' : (vtL1 > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const mercDiff = Math.round(mercE2_raw); const mercDiffEl = $('platform-mercado-diff'); mercDiffEl.textContent = (mercDiff > 0 ? '+' : '') + fmt(mercDiff) + (mercDiff === 0 ? '' : (mercDiff > 0 ? ' 盈余' : ' 亏损')); mercDiffEl.className = mercDiff > 0 ? 'platform-header-diff diff-positive' : (mercDiff < 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const orangeChip = $('platform-chip-orange-value'); if (orangeChip) orangeChip.textContent = fmt(orangeL);
         const dniChip = $('platform-chip-dni-value'); if (dniChip) dniChip.textContent = fmt(dniL1);
+        const vtChip = $('platform-chip-vtpay-value'); if (vtChip) vtChip.textContent = fmt(vtL1);
         const mercadoChip = $('platform-chip-mercado-value'); if (mercadoChip) mercadoChip.textContent = fmt(mercDiff);
         this.selectPlatformProject(this.activePlatformProject || 'orange', false);
         this.refreshAssetSummary();
@@ -2982,6 +3024,7 @@ class FinanceApp {
                 <div>昨日累计 (b) ← 累计余额 (l): ${fmt(r.accumL)}</div>
                 <div>Orange昨日 ← 今日: ${this.data.orange_f}</div>
                 <div>DNI昨日 ← 今日: ${this.data.dni_a1}</div>
+                <div>Vtpay昨日 ← 今日: ${this.data.vtpay_a1}</div>
                 <div>Mercado昨日 ← 今日: ${this.data.merc_f2}</div>
                 <div style="margin-top:12px; color:var(--red);">⚠️ 将清空今日所有录入数据</div>
             </div>
@@ -3006,8 +3049,9 @@ class FinanceApp {
         this.data.b_last = Math.round(r.accumL);
         this.data.orange_b = this.data.orange_f;
         this.data.dni_b1 = this.data.dni_a1;
+        this.data.vtpay_b1 = this.data.vtpay_a1;
         this.data.merc_b2 = this.data.merc_f2;
-        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'merc_c2', 'merc_other', 'z3_ref', 'orange_f', 'dni_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
+        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'vtpay_c1', 'vtpay_z1', 'merc_c2', 'merc_other', 'z3_ref', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
         this.data.all_cajas_counts = emptyCountsMatrix();
         this.data.z_list = emptyZList();
         this.data.white_list = [];
@@ -3070,11 +3114,11 @@ class FinanceApp {
             this.refreshMachineStatusUI();
             this.focusFirstActivePlatformInput();
         }
-        if (tabName === 'coeff') { $('coeff_orange_display').value = this.data.COEFF_ORANGE; $('coeff_dni_display').value = this.data.COEFF_DNI; }
+        if (tabName === 'coeff') { $('coeff_orange_display').value = this.data.COEFF_ORANGE; $('coeff_dni_display').value = this.data.COEFF_DNI; if ($('coeff_vtpay_display')) $('coeff_vtpay_display').value = this.data.COEFF_VTPAY; }
         if (tabName === 'base') { const fExpInput = $('f_exp'); focusAndScroll(fExpInput); }
     }
     focusFirstActivePlatformInput() {
-        const projects = ['orange', 'dni', 'mercado', 'machines', 'z3'];
+        const projects = ['orange', 'dni', 'vtpay', 'mercado', 'machines', 'z3'];
         const firstIncomplete = projects.find(projectName => !this.isPlatformProjectCompleted(projectName));
         if (!firstIncomplete) { this.dismissPlatformInput(); return; }
         this.selectPlatformProject(firstIncomplete, false);
