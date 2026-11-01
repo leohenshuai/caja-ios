@@ -1610,7 +1610,7 @@ function syncToFinance(keys) {
         go();
     }
 }
-/* 领取现金箱清点系统推来的「零钱」:只在目标日期当天(或之后补领)入账一次,记为现金账收入 */
+/* 领取现金箱清点系统推来的「零钱」:推送后记账页下次打开即入账一次,记到目标日期那天的现金账收入 */
 async function claimChangeIncome() {
     let o = null;
     try { o = JSON.parse(localStorage.getItem('inventory-change-push-v1') || 'null'); } catch (e) { return; }
@@ -1618,9 +1618,7 @@ async function claimChangeIncome() {
     let claimed = null;
     try { claimed = localStorage.getItem('ledger-change-claimed-seq'); } catch (e) { return; }
     if (claimed !== null && String(claimed) === String(o.seq)) return;           // 同一次推送只入一次
-    const today = localDateStr();
-    if (today < o.forDate) return;                                                // 还没到「第二天」
-    // 目标日期之后才打开:仍记到目标日期那天,不改成今天
+    // 推送后记账页一打开就入账,直接记到目标日期那一天(明天/今天/过去都一样,不再等到那天)
     if (state.entries.some((e) => e.src === 'inv-change' && e.srcSeq === o.seq)) { try { localStorage.setItem('ledger-change-claimed-seq', String(o.seq)); } catch (e) {} return; }
     const entry = { id: newId(), ts: Date.now(), date: o.forDate, book: 'cash', type: 'in', amount: Math.round(Number(o.value) * 100) / 100, cat: '零钱', note: '现金箱零钱(' + o.at + ')', src: 'inv-change', srcSeq: o.seq };
     if (state.cats.cash.indexOf('零钱') === -1) { state.cats.cash.push('零钱'); await saveKey('cats'); }
@@ -1629,7 +1627,7 @@ async function claimChangeIncome() {
     if (!ok) { state.entries.pop(); return; }
     try { localStorage.setItem('ledger-change-claimed-seq', String(o.seq)); } catch (e) {}
     renderAll();
-    showToast('已记入 ' + o.forDate + ' 现金账收入:零钱 ' + fmtNum(entry.amount), 'success');
+    showToast('已记入 ' + o.forDate + ' 现金账收入:零钱 ' + fmtNum(entry.amount) + (o.forDate !== localDateStr() ? '(切到该日期查看)' : ''), 'success');
     haptic('success');
 }
 function renderPushState() {
