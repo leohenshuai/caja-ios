@@ -33,6 +33,8 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
         .metric-card.editable:hover, .metric-card.editable:active { border-color: var(--cyan); background: var(--surface-light); }
         .metric-edit-hint { position: absolute; top: 3px; right: 6px; font-size: 12px; line-height: 1; color: var(--cyan); }
         .metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .cp-quick button { flex:1; min-height:40px; justify-content:center; font-weight:700; }
+        .cp-quick button.on { background: var(--cyan); color:#fff; border-color: var(--cyan); }
         .metric-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; min-height: 12px; }
         .metric-sub:empty { display: none; }
         .metric-value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; }
@@ -233,7 +235,7 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
     <div class="metrics-grid">
         <div class="metric-card"><div class="metric-label">散的零钱</div><div class="metric-value green" id="metric-scattered">0</div></div>
         <div class="metric-card editable" onclick="app.editWholeChange()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的零钱</div><div class="metric-value yellow" id="metric-whole">0</div></div>
-        <div class="metric-card editable" onclick="app.pushChangeToLedger()" title="点击:设为记账系统明天的零钱收入"><span class="metric-edit-hint">📤</span><div class="metric-label">总的零钱</div><div class="metric-value cyan" id="metric-total-change">0</div><div class="metric-sub" id="metric-change-push-state"></div></div>
+        <div class="metric-card editable" onclick="app.pushChangeToLedger()" title="点击:把零钱推给记账系统作为收入(日期默认明天,可改)"><span class="metric-edit-hint">📤</span><div class="metric-label">总的零钱</div><div class="metric-value cyan" id="metric-total-change">0</div><div class="metric-sub" id="metric-change-push-state"></div></div>
         <div class="metric-card editable" onclick="app.editBigMoney()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的大钱</div><div class="metric-value blue" id="metric-big">0</div></div>
         <div class="metric-card"><div class="metric-label">实际库存</div><div class="metric-value green" id="metric-actual">0</div></div>
         <div class="metric-card editable" onclick="app.editTheoretical()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">理论库存</div><div class="metric-value yellow" id="metric-theoretical">0</div></div>
@@ -343,6 +345,23 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
         <div class="ro-grid" id="pasteDetailGrid"></div>
         <div style="font-size:11px; color:var(--text-muted);">此记录仅供查看，不参与计算，也不可修改。</div>
         <div class="modal-footer" style="margin-top:14px;"><button onclick="app.closePasteDetail()">关闭</button></div>
+    </div>
+</div>
+
+<div class="modal" id="changePushModal">
+    <div class="modal-content" style="text-align:center;">
+        <h3 style="margin-bottom:12px;">📤 零钱 → 记账系统收入</h3>
+        <div style="font-size:12px;color:var(--text-muted);">金额(现金账 · 收入 · 零钱)</div>
+        <div id="cpAmount" style="font:700 26px 'Courier New',monospace;color:var(--cyan);margin:4px 0 14px;">0</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">记到哪一天(默认明天)</div>
+        <div class="cp-quick" style="display:flex;gap:8px;margin-bottom:10px;">
+            <button type="button" data-off="0" onclick="app.cpPickOffset(0)">今天</button>
+            <button type="button" data-off="1" onclick="app.cpPickOffset(1)">明天</button>
+            <button type="button" data-off="2" onclick="app.cpPickOffset(2)">后天</button>
+        </div>
+        <input type="date" id="cpDate" style="width:100%;box-sizing:border-box;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,.5);color:var(--text);font:700 17px 'Courier New',monospace;text-align:center;" oninput="app.cpSyncQuick()" onchange="app.cpSyncQuick()">
+        <div id="cpHint" style="font-size:11px;color:var(--text-muted);min-height:16px;margin:8px 0 14px;"></div>
+        <div class="modal-footer"><button onclick="app.cpClose()">取消</button><button onclick="app.cpConfirm()" class="primary">推送</button></div>
     </div>
 </div>
 
@@ -1024,21 +1043,45 @@ class CashBoxApp {
         if (count > 0) { this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast(`已设置 ${count} 个面值`, 'success'); }
     }
     /* 把总的零钱推给记账系统:记账页在「明天」打开时,自动记一笔现金账收入 */
-    _tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    _dateOffsetStr(off) { const d = new Date(); d.setDate(d.getDate() + off); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    _tomorrowStr() { return this._dateOffsetStr(1); }
     pushChangeToLedger() {
         const v = Math.round(Calc.getTotalChange(this.data));
         if (!(v > 0)) { this.showToast('总的零钱为 0,不推送', 'warning'); return; }
-        const forDate = this._tomorrowStr();
+        this._cpValue = v;
+        document.getElementById('cpAmount').textContent = v.toLocaleString();
+        const input = document.getElementById('cpDate');
+        input.value = this._tomorrowStr();                // 默认明天
+        this.cpSyncQuick();
+        document.getElementById('changePushModal').classList.add('show');
+    }
+    cpPickOffset(off) { document.getElementById('cpDate').value = this._dateOffsetStr(off); this.cpSyncQuick(); }
+    cpSyncQuick() {
+        const val = document.getElementById('cpDate').value;
+        document.querySelectorAll('#changePushModal .cp-quick button').forEach(b => b.classList.toggle('on', val === this._dateOffsetStr(Number(b.dataset.off))));
+        const hint = document.getElementById('cpHint');
         let prev = null; try { prev = JSON.parse(localStorage.getItem('inventory-change-push-v1') || 'null'); } catch (e) {}
-        const tip = (prev && prev.forDate === forDate && !prev.claimed) ? `\n\n注意:已有一笔 ${Number(prev.value).toLocaleString()} 尚未被记账系统领取,本次会替换它。` : '';
-        this.showConfirm(`把总的零钱 ${v.toLocaleString()} 作为记账系统 ${forDate} 的零钱收入?\n(现金账 · 收入 · 零钱)${tip}`, () => {
-            const now = new Date();
-            const at = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-            try { localStorage.setItem('inventory-change-push-v1', JSON.stringify({ value: v, seq: Date.now(), forDate, at })); }
-            catch (e) { this.showToast('保存失败', 'error'); return; }
-            this.renderChangePushState();
-            this.showToast(`已设为记账系统 ${forDate} 的零钱收入:${v.toLocaleString()}`, 'success');
-        });
+        const today = this._dateOffsetStr(0);
+        let msg = '';
+        if (!val) msg = '请选择日期';
+        else if (val < today) msg = '⚠️ 这是过去的日期:记账系统下次打开时会立即记到那一天';
+        else if (val === today) msg = '记账系统今天打开时就会入账';
+        else msg = '记账系统到 ' + val + ' 当天打开时入账';
+        if (prev && prev.seq && String(localStorage.getItem('ledger-change-claimed-seq')) !== String(prev.seq)) msg += `\n已有一笔 ${Number(prev.value).toLocaleString()}(${prev.forDate})尚未被领取,本次会替换它`;
+        hint.style.whiteSpace = 'pre-line'; hint.textContent = msg;
+    }
+    cpClose() { document.getElementById('changePushModal').classList.remove('show'); }
+    cpConfirm() {
+        const forDate = document.getElementById('cpDate').value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(forDate)) { this.showToast('请选择有效日期', 'warning'); return; }
+        const v = this._cpValue;
+        const now = new Date();
+        const at = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        try { localStorage.setItem('inventory-change-push-v1', JSON.stringify({ value: v, seq: Date.now(), forDate, at })); }
+        catch (e) { this.showToast('保存失败', 'error'); return; }
+        this.cpClose();
+        this.renderChangePushState();
+        this.showToast(`已设为记账系统 ${forDate} 的零钱收入:${v.toLocaleString()}`, 'success');
     }
     renderChangePushState() {
         const el = document.getElementById('metric-change-push-state'); if (!el) return;
