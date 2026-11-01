@@ -2899,14 +2899,14 @@ class FinanceApp {
         if (claimed !== null && Number(o.seq) === Number(claimed)) return;
         try { localStorage.setItem('finance-ledger-claimed-seq', String(o.seq)); } catch (e) {}
         if (o.date !== todayStr()) { this.showToast('记账页同步的是 ' + o.date + ' 的数据,不是今天,已忽略', 'warning'); return; }
-        const names = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
+        const names = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI支出', vtpay_c1: 'Vtpay支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
         const vals = o.values || {};
         const done = [];
         Object.keys(names).forEach((key) => {
             if (vals[key] === undefined || vals[key] === null) return;
             const v = String(vals[key]);
             if (key === 'f_exp') this.updateBase(key, v);
-            else if (key === 'orange_c' || key === 'dni_c1' || key === 'merc_c2') this.updatePlatform(key, v);
+            else if (key === 'orange_c' || key === 'dni_c1' || key === 'vtpay_c1' || key === 'merc_c2') this.updatePlatform(key, v);
             else this.updateField(key, v, { after: () => this.refreshCajaGrandTotal() });
             const el = $(key);
             if (el) el.value = v;

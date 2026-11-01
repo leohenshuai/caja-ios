@@ -972,6 +972,7 @@ body {
     <div class="lg-sum-row"><span class="k">今日支出<small>f_exp <span class="lg-manual" id="man-f_exp" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-f_exp">0</span><button class="lg-copy lg-revert" data-revert="f_exp" style="display:none">还原</button><button class="lg-copy" data-copy="f_exp">复制</button><button class="lg-copy lg-sync" data-sync="f_exp">同步</button></div>
     <div class="lg-sum-row"><span class="k">橙色支出<small>orange_c <span class="lg-manual" id="man-orange_c" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-orange_c">0</span><button class="lg-copy lg-revert" data-revert="orange_c" style="display:none">还原</button><button class="lg-copy" data-copy="orange_c">复制</button><button class="lg-copy lg-sync" data-sync="orange_c">同步</button></div>
     <div class="lg-sum-row"><span class="k">DNI 支出<small>dni_c1 <span class="lg-manual" id="man-dni_c1" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-dni_c1">0</span><button class="lg-copy lg-revert" data-revert="dni_c1" style="display:none">还原</button><button class="lg-copy" data-copy="dni_c1">复制</button><button class="lg-copy lg-sync" data-sync="dni_c1">同步</button></div>
+    <div class="lg-sum-row"><span class="k">Vtpay 支出<small>vtpay_c1 <span class="lg-manual" id="man-vtpay_c1" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-vtpay_c1">0</span><button class="lg-copy lg-revert" data-revert="vtpay_c1" style="display:none">还原</button><button class="lg-copy" data-copy="vtpay_c1">复制</button><button class="lg-copy lg-sync" data-sync="vtpay_c1">同步</button></div>
     <div class="lg-sum-row"><span class="k">Mercado 支出<small>merc_c2 <span class="lg-manual" id="man-merc_c2" style="display:none">· 手动</span></small></span> <span class="v lg-out" id="sv-merc_c2">0</span><button class="lg-copy lg-revert" data-revert="merc_c2" style="display:none">还原</button><button class="lg-copy" data-copy="merc_c2">复制</button><button class="lg-copy lg-sync" data-sync="merc_c2">同步</button></div>
     <div class="lg-sum-row"><span class="k">实际库余<small>actual_stock <span class="lg-manual" id="man-actual_stock" style="display:none">· 手动</span></small></span> <span class="v" id="sv-actual_stock">—</span><button class="lg-copy lg-revert" data-revert="actual_stock" style="display:none">还原</button><button class="lg-copy" data-copy="actual_stock">复制</button><button class="lg-copy lg-sync" data-sync="actual_stock">同步</button></div>
     <button class="cgt-push lg-sync-all" id="lg-sync-all"><span>📲 全部同步到财务系统</span><small id="lg-sync-state"></small></button>
@@ -1100,6 +1101,7 @@ body {
       <div class="lg-chips" id="cm-target">
         <button type="button" class="lg-chip" data-target="orange_c">橙色格</button>
         <button type="button" class="lg-chip" data-target="dni_c1">DNI格</button>
+        <button type="button" class="lg-chip" data-target="vtpay_c1">Vtpay格</button>
         <button type="button" class="lg-chip" data-target="merc_c2">Mercado格</button>
       </div>
       <div class="lg-note">开启后选汇入财务页哪一格;汇总页该格数值 = 所有汇入该格的转账分类当日支出之和。</div>
@@ -1167,7 +1169,7 @@ class LedgerDB {
     }
 }
 // 全新安装时转账账的起始分类(用户可删可改,不再强制存在)
-const TX_CATS = ['橙色', 'DNI', 'Mercado'];
+const TX_CATS = ['橙色', 'DNI', 'Vtpay', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
     db: null, entries: [], opening: {}, sumover: {},
@@ -1237,11 +1239,27 @@ async function loadAll() {
     });
     if (!hasSync) {
         // 迁移默认值:沿用升级用户旧数据里的三个分类名,但只写当前确实存在的分类
-        const seedSync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Mercado': 'merc_c2' };
+        const seedSync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Vtpay': 'vtpay_c1', 'Mercado': 'merc_c2' };
         state.catsync = {};
         Object.keys(seedSync).filter((k) => (state.cats.transfer || []).indexOf(k) !== -1).forEach((k) => { state.catsync[k] = seedSync[k]; });
         await saveKey('catsync');
     }
+    // 一次性迁移:老数据补上 Vtpay 转账分类并汇入 vtpay_c1。只做一次,用户之后删除/改名不会再被加回
+    try {
+        const migDone = await LedgerDB.get(state.db, 'mig_vtpay');
+        if (!migDone) {
+            const tc = state.cats.transfer || (state.cats.transfer = []);
+            if (tc.indexOf('Vtpay') === -1) {
+                const at = tc.indexOf('DNI');
+                if (at === -1) tc.push('Vtpay'); else tc.splice(at + 1, 0, 'Vtpay');
+                await saveKey('cats');
+            }
+            if (!state.catsync) state.catsync = {};
+            if (!state.catsync['Vtpay']) { state.catsync['Vtpay'] = 'vtpay_c1'; await saveKey('catsync'); }
+            state.mig_vtpay = 1;
+            await saveKey('mig_vtpay');
+        }
+    } catch (e) { console.error('vtpay 迁移失败', e); }
     if (!state.books.some((b) => b.id === state.tab)) state.tab = 'cash';
     state.ver = (await LedgerDB.get(state.db, 'ver')) || 1;
 }
@@ -1453,13 +1471,13 @@ function renderTransfer() {
     }
     renderCats('transfer'); renderTypeButtons('transfer'); renderList('transfer');
 }
-const SYNC_KEYS = ['f_exp', 'orange_c', 'dni_c1', 'merc_c2', 'actual_stock'];
-const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI 支出', merc_c2: 'Mercado 支出', actual_stock: '实际库余' };
+const SYNC_KEYS = ['f_exp', 'orange_c', 'dni_c1', 'vtpay_c1', 'merc_c2', 'actual_stock'];
+const SUM_NAMES = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI 支出', vtpay_c1: 'Vtpay 支出', merc_c2: 'Mercado 支出', actual_stock: '实际库余' };
 // 当天已被手动覆盖的值,无则返回 {}
 function sumOverOf(date) { const m = state.sumover && state.sumover[date]; return (m && typeof m === 'object') ? m : {}; }
 function summaryVals() {
     const d = state.curDate;
-    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: syncSumFor(d, 'orange_c'), dni_c1: syncSumFor(d, 'dni_c1'), merc_c2: syncSumFor(d, 'merc_c2'), actual_stock: balanceOf(d) };
+    const auto = { f_exp: sumBook('cash', d, 'out'), orange_c: syncSumFor(d, 'orange_c'), dni_c1: syncSumFor(d, 'dni_c1'), vtpay_c1: syncSumFor(d, 'vtpay_c1'), merc_c2: syncSumFor(d, 'merc_c2'), actual_stock: balanceOf(d) };
     const ov = sumOverOf(d), out = {};
     Object.keys(auto).forEach((k) => {
         const v = ov[k];
@@ -1502,7 +1520,7 @@ function renderSummary() {
     if (noteEl) {
         const namesOf = (t) => Object.keys(state.catsync || {}).filter((c) => state.catsync[c] === t);
         const showNames = (t) => { const a = namesOf(t); return a.length ? a.join('、') : '无'; };
-        noteEl.textContent = '转账分类同步设置:橙色格 = ' + showNames('orange_c') + ';DNI 格 = ' + showNames('dni_c1') + ';Mercado 格 = ' + showNames('merc_c2') + '(长按分类可修改)';
+        noteEl.textContent = '转账分类同步设置:橙色格 = ' + showNames('orange_c') + ';DNI 格 = ' + showNames('dni_c1') + ';Vtpay 格 = ' + showNames('vtpay_c1') + ';Mercado 格 = ' + showNames('merc_c2') + '(长按分类可修改)';
     }
     renderSyncState();
 }
@@ -1931,9 +1949,9 @@ function newBook() {
 }
 /* ================= 分类菜单 ================= */
 let cmBook = null, cmCat = null;
-// 该分类当前没有目标时,取下一个尚未被任何分类占用的格;三个都占用则回到第一个
+// 该分类当前没有目标时,取下一个尚未被任何分类占用的格;四个都占用则回到第一个
 function defaultTargetFor() {
-    const targets = ['orange_c', 'dni_c1', 'merc_c2'];
+    const targets = ['orange_c', 'dni_c1', 'vtpay_c1', 'merc_c2'];
     const used = Object.keys(state.catsync || {}).map((k) => state.catsync[k]);
     for (let i = 0; i < targets.length; i++) { if (used.indexOf(targets[i]) === -1) return targets[i]; }
     return targets[0];
