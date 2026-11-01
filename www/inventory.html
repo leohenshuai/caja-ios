@@ -33,6 +33,8 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
         .metric-card.editable:hover, .metric-card.editable:active { border-color: var(--cyan); background: var(--surface-light); }
         .metric-edit-hint { position: absolute; top: 3px; right: 6px; font-size: 12px; line-height: 1; color: var(--cyan); }
         .metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .metric-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; min-height: 12px; }
+        .metric-sub:empty { display: none; }
         .metric-value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; }
         .metric-value.green { color: var(--green); } .metric-value.red { color: var(--red); } .metric-value.yellow { color: var(--yellow); } .metric-value.cyan { color: var(--cyan); } .metric-value.blue { color: var(--blue); }
         .progress-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
@@ -231,7 +233,7 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
     <div class="metrics-grid">
         <div class="metric-card"><div class="metric-label">散的零钱</div><div class="metric-value green" id="metric-scattered">0</div></div>
         <div class="metric-card editable" onclick="app.editWholeChange()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的零钱</div><div class="metric-value yellow" id="metric-whole">0</div></div>
-        <div class="metric-card"><div class="metric-label">总的零钱</div><div class="metric-value cyan" id="metric-total-change">0</div></div>
+        <div class="metric-card editable" onclick="app.pushChangeToLedger()" title="点击:设为记账系统明天的零钱收入"><span class="metric-edit-hint">📤</span><div class="metric-label">总的零钱</div><div class="metric-value cyan" id="metric-total-change">0</div><div class="metric-sub" id="metric-change-push-state"></div></div>
         <div class="metric-card editable" onclick="app.editBigMoney()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">整的大钱</div><div class="metric-value blue" id="metric-big">0</div></div>
         <div class="metric-card"><div class="metric-label">实际库存</div><div class="metric-value green" id="metric-actual">0</div></div>
         <div class="metric-card editable" onclick="app.editTheoretical()" title="点击修改"><span class="metric-edit-hint">✏️</span><div class="metric-label">理论库存</div><div class="metric-value yellow" id="metric-theoretical">0</div></div>
@@ -727,6 +729,7 @@ class CashBoxApp {
         document.getElementById('metric-scattered').textContent = scattered.toLocaleString();
         document.getElementById('metric-whole').textContent = this.data.whole_change.toLocaleString();
         document.getElementById('metric-total-change').textContent = totalChange.toLocaleString();
+        this.renderChangePushState();
         document.getElementById('metric-big').textContent = this.data.big_money.toLocaleString();
         document.getElementById('metric-actual').textContent = actual.toLocaleString();
         document.getElementById('metric-theoretical').textContent = this.data.theoretical_inventory.toLocaleString();
@@ -1019,6 +1022,31 @@ class CashBoxApp {
         const assignments = right.split(','); let count = 0;
         assignments.forEach(item => { const parts = item.split('='); if (parts.length === 2) { const face = parseInt(parts[0].trim()); const cnt = Calc.parseSum(parts[1].trim()); const idx = CASH_FACES.indexOf(face); if (idx !== -1 && cnt >= 0) { this.data.cash_counts[idx] = cnt; count++; } } });
         if (count > 0) { this.renderFaceGrid(); this.updateAllMetrics(); this.saveData(); this.showToast(`已设置 ${count} 个面值`, 'success'); }
+    }
+    /* 把总的零钱推给记账系统:记账页在「明天」打开时,自动记一笔现金账收入 */
+    _tomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    pushChangeToLedger() {
+        const v = Math.round(Calc.getTotalChange(this.data));
+        if (!(v > 0)) { this.showToast('总的零钱为 0,不推送', 'warning'); return; }
+        const forDate = this._tomorrowStr();
+        let prev = null; try { prev = JSON.parse(localStorage.getItem('inventory-change-push-v1') || 'null'); } catch (e) {}
+        const tip = (prev && prev.forDate === forDate && !prev.claimed) ? `\n\n注意:已有一笔 ${Number(prev.value).toLocaleString()} 尚未被记账系统领取,本次会替换它。` : '';
+        this.showConfirm(`把总的零钱 ${v.toLocaleString()} 作为记账系统 ${forDate} 的零钱收入?\n(现金账 · 收入 · 零钱)${tip}`, () => {
+            const now = new Date();
+            const at = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            try { localStorage.setItem('inventory-change-push-v1', JSON.stringify({ value: v, seq: Date.now(), forDate, at })); }
+            catch (e) { this.showToast('保存失败', 'error'); return; }
+            this.renderChangePushState();
+            this.showToast(`已设为记账系统 ${forDate} 的零钱收入:${v.toLocaleString()}`, 'success');
+        });
+    }
+    renderChangePushState() {
+        const el = document.getElementById('metric-change-push-state'); if (!el) return;
+        try {
+            const o = JSON.parse(localStorage.getItem('inventory-change-push-v1') || 'null');
+            const claimed = o && localStorage.getItem('ledger-change-claimed-seq') === String(o.seq);
+            el.textContent = o ? `已推送 ${Number(o.value).toLocaleString()} → ${o.forDate}${claimed ? ' ✓已入账' : ''}` : '';
+        } catch (e) { el.textContent = ''; }
     }
     /* 领取财务系统推送的理论库存(只处理一次;覆盖;为 0 不覆盖) */
     claimTheoretical() {
