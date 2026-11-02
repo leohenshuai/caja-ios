@@ -1175,7 +1175,7 @@ const state = {
     db: null, entries: [], opening: {}, sumover: {},
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
-    cats: { cash: ['白色机器', '其他'], transfer: TX_CATS.slice() },
+    cats: { cash: ['货物', '白色机器', '其他'], transfer: TX_CATS.slice() },
     ver: 1, curDate: localDateStr(),
     form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '' } },
     editingId: null, editingCat: null
@@ -1229,12 +1229,14 @@ async function loadAll() {
     else state.books = DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type }));
     DEFAULT_BOOKS.forEach((d) => { if (!state.books.some((b) => b.id === d.id)) state.books.unshift({ id: d.id, name: d.name, type: d.type }); });
     state.books.forEach((b) => {
-        if (b.id === 'cash') state.cats.cash = (rawCats && Array.isArray(rawCats.cash) && rawCats.cash.length) ? rawCats.cash.slice() : ['白色机器', '其他'];
+        if (b.id === 'cash') state.cats.cash = (rawCats && Array.isArray(rawCats.cash) && rawCats.cash.length) ? rawCats.cash.slice() : ['货物', '白色机器', '其他'];
         else if (b.id === 'transfer') {
             state.cats.transfer = (rawCats && Array.isArray(rawCats.transfer)) ? rawCats.transfer.filter((c) => typeof c === 'string' && c) : TX_CATS.slice();
         }
         else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
         if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
+        // 现金账:支出默认「货物」,收入用列表第一个
+        if (b.id === 'cash') state.form.cash.cat = defaultCatFor('cash', state.form.cash.type);
         if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0] || '';
     });
     if (!hasSync) {
@@ -1355,6 +1357,12 @@ async function onExportExternal() {
     if (btn) btn.addEventListener('click', onExportExternal);
 })();
 /* ================= 计算 ================= */
+// 某方向默认分类:现金账支出固定用「货物」(存在时),其余用列表第一个
+function defaultCatFor(book, type) {
+    const list = state.cats[book] || [];
+    if (book === 'cash' && type === 'out' && list.indexOf('货物') !== -1) return '货物';
+    return list[0] || '';
+}
 function dayEntries(book, date) { return state.entries.filter((e) => e.book === book && e.date === date); }
 function sumBook(book, date, type) { return round2(dayEntries(book, date).filter((e) => e.type === type).reduce((a, e) => a + Number(e.amount || 0), 0)); }
 function sumTransferCat(date, cat, type = 'out') { return round2(dayEntries('transfer', date).filter((e) => e.type === type && e.cat === cat).reduce((a, e) => a + Number(e.amount || 0), 0)); }
@@ -2312,7 +2320,12 @@ function bind() {
         switchTab(id);
     });
     document.querySelectorAll('.lg-type').forEach((btn) => {
-        btn.addEventListener('click', () => { state.form[btn.dataset.book].type = btn.dataset.type; renderTypeButtons(btn.dataset.book); });
+        btn.addEventListener('click', () => {
+            const bk = btn.dataset.book, t = btn.dataset.type;
+            state.form[bk].type = t;
+            if (bk === 'cash') { state.form[bk].cat = defaultCatFor(bk, t); renderCats(bk); }
+            renderTypeButtons(bk);
+        });
     });
     ['cash', 'transfer'].forEach((book) => {
         bindCatBox(book, $(eid(book, 'cats')), $(eid(book, 'sug')), $(eid(book, 'note')), $(eid(book, 'amt')));
