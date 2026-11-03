@@ -1153,6 +1153,7 @@
                         <div class="preview-row"><span>余额 (a1):</span><span id="preview_vtpay_a1" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>今日收入 (e1):</span><span id="preview_vtpay_e1" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>软件收入值 (z1):</span><span id="preview_vtpay_z1" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>其他店收入 (other):</span><span id="preview_vtpay_other" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row total"><span>Vtpay差额 (l1):</span><span id="preview_vtpay_l1" style="text-align: right; min-width: 120px;">0</span></div>
                     </div>
                 </div>
@@ -1161,6 +1162,7 @@
                     <div class="form-item"><label>昨日余额 (vtpay_b1) <span style="color:var(--text-muted)">[自动跳过]</span></label><input type="text" id="vtpay_b1" class="skip-key" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_b1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_b1')"></div>
                     <div class="form-item"><label>支出 (vtpay_c1)</label><input type="text" id="vtpay_c1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_c1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_c1')"></div>
                     <div class="form-item"><label>软件收入值 (vtpay_z1)</label><input type="text" id="vtpay_z1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_z1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_z1')"></div>
+                    <div class="form-item"><label>其他店收入 (vtpay_other)</label><input type="text" id="vtpay_other" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_other', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_other')"></div>
                 </div>
             </div>
         </div>
@@ -1357,14 +1359,14 @@
 const PLATFORM_PROJECTS_CONFIG = [
     { name: "Orange", keys: ["orange_f", "orange_b", "orange_c", "orange_z"], z_key: "orange_z", completion_key: "orange_z" },
     { name: "DNI", keys: ["dni_a1", "dni_b1", "dni_c1", "dni_z1"], z_key: "dni_z1", completion_key: "dni_z1" },
-    { name: "Vtpay", keys: ["vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1"], z_key: "vtpay_z1", completion_key: "vtpay_z1" },
+    { name: "Vtpay", keys: ["vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1", "vtpay_other"], z_key: "vtpay_z1", completion_key: "vtpay_z1" },
     { name: "Mercado", keys: ["merc_f2", "merc_b2", "merc_c2", "merc_other"], z_key: null, completion_key: "merc_c2" }
 ];
 const SKIP_KEYS = new Set(["orange_b", "dni_b1", "vtpay_b1", "merc_b2"]);
 const PLATFORM_KEYS_ORDER = [
     "orange_f", "orange_b", "orange_c", "orange_z",
     "dni_a1", "dni_b1", "dni_c1", "dni_z1",
-    "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1",
+    "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1", "vtpay_other",
     "merc_f2", "merc_b2", "merc_c2", "merc_other",
     "white_list", "black_k_list", "z3_ref"
 ];
@@ -1515,7 +1517,7 @@ function getKeyToProject() {
   }
   class ReportCache {
     constructor(maxSize) { this._cache = {}; this._keys = []; this._maxSize = maxSize !== undefined ? maxSize : 5; }
-    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1", "merc_f2", "merc_b2", "merc_c2", "merc_other", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI", "COEFF_VTPAY" ];
+    static _KEY_FIELDS = [ "all_cajas_counts", "z_list", "orange_f", "orange_b", "orange_c", "orange_z", "dni_a1", "dni_b1", "dni_c1", "dni_z1", "vtpay_a1", "vtpay_b1", "vtpay_c1", "vtpay_z1", "vtpay_other", "merc_f2", "merc_b2", "merc_c2", "merc_other", "white_list", "black_k_list", "z3_ref", "f_exp", "b_last", "k_vault", "COEFF_ORANGE", "COEFF_DNI", "COEFF_VTPAY" ];
     static _djb2Hash(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); } return (hash >>> 0).toString(16).padStart(8, "0"); }
     _makeKey(data) { const subset = {}; for (const key of ReportCache._KEY_FIELDS) { subset[key] = data[key]; } const serialized = JSON.stringify(subset, Object.keys(subset).sort()); return ReportCache._djb2Hash(serialized); }
     get(data) { const key = this._makeKey(data); return this._cache[key]; }
@@ -1696,7 +1698,7 @@ function getInitData() {
         z_list: emptyZList(),
         orange_f: '', orange_b: '', orange_c: '', orange_z: '',
         dni_a1: '', dni_b1: '', dni_c1: '', dni_z1: '',
-        vtpay_a1: '', vtpay_b1: '', vtpay_c1: '', vtpay_z1: '',
+        vtpay_a1: '', vtpay_b1: '', vtpay_c1: '', vtpay_z1: '', vtpay_other: '',
         merc_f2: '', merc_b2: '', merc_c2: '', merc_other: '',
         white_list: [], black_k_list: [], z3_ref: '',
         f_exp: '', b_last: '', k_vault: '', actual_stock: '',
@@ -1980,7 +1982,7 @@ class FinanceApp {
         $('f_exp').value = this.data.f_exp || '';
         $('b_last').value = this.data.b_last || '';
         $('k_vault').value = this.data.k_vault || '';
-        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'vtpay_a1', 'vtpay_b1', 'vtpay_c1', 'vtpay_z1', 'merc_f2', 'merc_b2', 'merc_c2', 'merc_other', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
+        ['orange_f', 'orange_b', 'orange_c', 'orange_z', 'dni_a1', 'dni_b1', 'dni_c1', 'dni_z1', 'vtpay_a1', 'vtpay_b1', 'vtpay_c1', 'vtpay_z1', 'vtpay_other', 'merc_f2', 'merc_b2', 'merc_c2', 'merc_other', 'z3_ref'].forEach(key => { const el = $(key); if (el) el.value = this.data[key] || ''; });
         const coeffOrangeEl = $('coeff_orange_display'); const coeffDniEl = $('coeff_dni_display'); const coeffVtpayEl = $('coeff_vtpay_display');
         if (coeffOrangeEl) coeffOrangeEl.value = this.data.COEFF_ORANGE;
         if (coeffDniEl) coeffDniEl.value = this.data.COEFF_DNI;
@@ -2719,7 +2721,7 @@ class FinanceApp {
                 case 'base': this.data.f_exp = ''; this.data.b_last = ''; this.data.k_vault = ''; break;
                 case 'orange': this.data.orange_f = ''; this.data.orange_b = ''; this.data.orange_c = ''; this.data.orange_z = ''; break;
                 case 'dni': this.data.dni_a1 = ''; this.data.dni_b1 = ''; this.data.dni_c1 = ''; this.data.dni_z1 = ''; break;
-                case 'vtpay': this.data.vtpay_a1 = ''; this.data.vtpay_b1 = ''; this.data.vtpay_c1 = ''; this.data.vtpay_z1 = ''; break;
+                case 'vtpay': this.data.vtpay_a1 = ''; this.data.vtpay_b1 = ''; this.data.vtpay_c1 = ''; this.data.vtpay_z1 = ''; this.data.vtpay_other = ''; break;
                 case 'mercado': this.data.merc_f2 = ''; this.data.merc_b2 = ''; this.data.merc_c2 = ''; this.data.merc_other = ''; break;
                 case 'coeff': this.data.COEFF_ORANGE = 1.05; this.data.COEFF_DNI = 1.021; this.data.COEFF_VTPAY = 1.0097; break;
                 case 'machines': this.data.white_list = []; this.data.black_k_list = []; break;
@@ -2941,7 +2943,7 @@ class FinanceApp {
 
     }
     isNotCarriedOver() {
-        const checkFields = ['f_exp', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2', 'orange_z', 'dni_z1', 'vtpay_z1', 'z3_ref']; for (const field of checkFields) { if (num(this.data[field]) !== 0) return true; }
+        const checkFields = ['f_exp', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2', 'orange_z', 'dni_z1', 'vtpay_z1', 'vtpay_other', 'z3_ref']; for (const field of checkFields) { if (num(this.data[field]) !== 0) return true; }
         if (listSum(this.data.white_list) !== 0 || listSum(this.data.black_k_list) !== 0) return true;
         if (this.data.z_list.some(v => num(v) !== 0)) return true;
         for (const counts of this.data.all_cajas_counts) { if (counts.some(c => num(c) !== 0)) return true; }
@@ -2951,7 +2953,7 @@ class FinanceApp {
         const data = this.data; const coeffOrange = num(data.COEFF_ORANGE) || 1.05; const coeffDni = num(data.COEFF_DNI) || 1.021; const coeffVtpay = num(data.COEFF_VTPAY) || 1.0097;
         const orangeF = num(data.orange_f); const orangeB = num(data.orange_b); const orangeC = num(data.orange_c); const orangeZ = num(data.orange_z); const orangeE_raw = (orangeF - orangeB + orangeC) * coeffOrange; const orangeL_raw = orangeE_raw - orangeZ;
         const dniA1 = num(data.dni_a1); const dniB1 = num(data.dni_b1); const dniC1 = num(data.dni_c1); const dniZ1 = num(data.dni_z1); const dniE1_raw = (dniA1 - dniB1 + dniC1) * coeffDni; const dniL1_raw = dniE1_raw - dniZ1;
-        const vtA1 = num(data.vtpay_a1); const vtB1 = num(data.vtpay_b1); const vtC1 = num(data.vtpay_c1); const vtZ1 = num(data.vtpay_z1); const vtE1_raw = (vtA1 - vtB1 + vtC1) * coeffVtpay; const vtL1_raw = vtE1_raw - vtZ1;
+        const vtA1 = num(data.vtpay_a1); const vtB1 = num(data.vtpay_b1); const vtC1 = num(data.vtpay_c1); const vtZ1 = num(data.vtpay_z1); const vtOther = num(data.vtpay_other); const vtE1_raw = (vtA1 - vtB1 + vtC1) * coeffVtpay; const vtL1_raw = vtE1_raw - vtZ1 + vtOther;
         const mercF2 = num(data.merc_f2); const mercB2 = num(data.merc_b2); const mercC2 = num(data.merc_c2); const mercOther = num(data.merc_other); const mercE2_raw = mercF2 - mercB2 + mercC2 - mercOther;
         const fmt = fmtInt;
         const fmtDiff = (v, inverse = false) => { const val = Math.round(v); let color, tag; if (val === 0) { color = 'var(--text)'; tag = '平账'; } else if (inverse) { color = val < 0 ? 'var(--green)' : 'var(--red)'; tag = val < 0 ? '盈余' : '亏损'; } else { color = val > 0 ? 'var(--green)' : 'var(--red)'; tag = val > 0 ? '盈余' : '亏损'; } return `<span style="color:${color}">${val > 0 ? '+' : ''}${fmt(val)} (${tag})</span>`; };
@@ -2966,6 +2968,7 @@ class FinanceApp {
         $('preview_vtpay_a1').textContent = fmt(vtA1);
         $('preview_vtpay_e1').textContent = fmt(Math.round(vtE1_raw));
         $('preview_vtpay_z1').textContent = fmt(vtZ1);
+        $('preview_vtpay_other').textContent = fmt(vtOther);
         $('preview_vtpay_l1').innerHTML = fmtDiff(vtL1_raw, true);
         $('preview_merc_f2').textContent = fmt(mercF2);
         { const mo = $('preview_merc_other'); if (mo) mo.textContent = fmt(mercOther); }
@@ -3051,7 +3054,7 @@ class FinanceApp {
         this.data.dni_b1 = this.data.dni_a1;
         this.data.vtpay_b1 = this.data.vtpay_a1;
         this.data.merc_b2 = this.data.merc_f2;
-        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'vtpay_c1', 'vtpay_z1', 'merc_c2', 'merc_other', 'z3_ref', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
+        ['f_exp', 'orange_c', 'orange_z', 'dni_c1', 'dni_z1', 'vtpay_c1', 'vtpay_z1', 'vtpay_other', 'merc_c2', 'merc_other', 'z3_ref', 'orange_f', 'dni_a1', 'vtpay_a1', 'merc_f2'].forEach(k => this.data[k] = 0);
         this.data.all_cajas_counts = emptyCountsMatrix();
         this.data.z_list = emptyZList();
         this.data.white_list = [];
