@@ -2960,22 +2960,22 @@ class FinanceApp {
         $('preview_orange_f').textContent = fmt(orangeF);
         $('preview_orange_e').textContent = fmt(Math.round(orangeE_raw));
         $('preview_orange_z').textContent = fmt(orangeZ);
-        $('preview_orange_l').innerHTML = fmtDiff(orangeL_raw, true);
+        $('preview_orange_l').innerHTML = fmtDiff(orangeL_raw);
         $('preview_dni_a1').textContent = fmt(dniA1);
         $('preview_dni_e1').textContent = fmt(Math.round(dniE1_raw));
         $('preview_dni_z1').textContent = fmt(dniZ1);
-        $('preview_dni_l1').innerHTML = fmtDiff(dniL1_raw, true);
+        $('preview_dni_l1').innerHTML = fmtDiff(dniL1_raw);
         $('preview_vtpay_a1').textContent = fmt(vtA1);
         $('preview_vtpay_e1').textContent = fmt(Math.round(vtE1_raw));
         $('preview_vtpay_z1').textContent = fmt(vtZ1);
         $('preview_vtpay_other').textContent = fmt(vtOther);
-        $('preview_vtpay_l1').innerHTML = fmtDiff(vtL1_raw, true);
+        $('preview_vtpay_l1').innerHTML = fmtDiff(vtL1_raw);
         $('preview_merc_f2').textContent = fmt(mercF2);
         { const mo = $('preview_merc_other'); if (mo) mo.textContent = fmt(mercOther); }
         $('preview_merc_e2').textContent = fmt(Math.round(mercE2_raw));
-        const orangeL = Math.round(orangeL_raw); const orangeDiffEl = $('platform-orange-diff'); orangeDiffEl.textContent = (orangeL > 0 ? '+' : '') + fmt(orangeL) + (orangeL === 0 ? '' : (orangeL < 0 ? ' 盈余' : ' 亏损')); orangeDiffEl.className = orangeL < 0 ? 'platform-header-diff diff-positive' : (orangeL > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
-        const dniL1 = Math.round(dniL1_raw); const dniDiffEl = $('platform-dni-diff'); dniDiffEl.textContent = (dniL1 > 0 ? '+' : '') + fmt(dniL1) + (dniL1 === 0 ? '' : (dniL1 < 0 ? ' 盈余' : ' 亏损')); dniDiffEl.className = dniL1 < 0 ? 'platform-header-diff diff-positive' : (dniL1 > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
-        const vtL1 = Math.round(vtL1_raw); const vtDiffEl = $('platform-vtpay-diff'); vtDiffEl.textContent = (vtL1 > 0 ? '+' : '') + fmt(vtL1) + (vtL1 === 0 ? '' : (vtL1 < 0 ? ' 盈余' : ' 亏损')); vtDiffEl.className = vtL1 < 0 ? 'platform-header-diff diff-positive' : (vtL1 > 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
+        const orangeL = Math.round(orangeL_raw); const orangeDiffEl = $('platform-orange-diff'); orangeDiffEl.textContent = (orangeL > 0 ? '+' : '') + fmt(orangeL) + (orangeL === 0 ? '' : (orangeL > 0 ? ' 盈余' : ' 亏损')); orangeDiffEl.className = orangeL > 0 ? 'platform-header-diff diff-positive' : (orangeL < 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
+        const dniL1 = Math.round(dniL1_raw); const dniDiffEl = $('platform-dni-diff'); dniDiffEl.textContent = (dniL1 > 0 ? '+' : '') + fmt(dniL1) + (dniL1 === 0 ? '' : (dniL1 > 0 ? ' 盈余' : ' 亏损')); dniDiffEl.className = dniL1 > 0 ? 'platform-header-diff diff-positive' : (dniL1 < 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
+        const vtL1 = Math.round(vtL1_raw); const vtDiffEl = $('platform-vtpay-diff'); vtDiffEl.textContent = (vtL1 > 0 ? '+' : '') + fmt(vtL1) + (vtL1 === 0 ? '' : (vtL1 > 0 ? ' 盈余' : ' 亏损')); vtDiffEl.className = vtL1 > 0 ? 'platform-header-diff diff-positive' : (vtL1 < 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const mercDiff = Math.round(mercE2_raw); const mercDiffEl = $('platform-mercado-diff'); mercDiffEl.textContent = (mercDiff > 0 ? '+' : '') + fmt(mercDiff) + (mercDiff === 0 ? '' : (mercDiff > 0 ? ' 盈余' : ' 亏损')); mercDiffEl.className = mercDiff > 0 ? 'platform-header-diff diff-positive' : (mercDiff < 0 ? 'platform-header-diff diff-negative' : 'platform-header-diff diff-zero');
         const orangeChip = $('platform-chip-orange-value'); if (orangeChip) orangeChip.textContent = fmt(orangeL);
         const dniChip = $('platform-chip-dni-value'); if (dniChip) dniChip.textContent = fmt(dniL1);
