@@ -1719,7 +1719,16 @@ function renderSuggest(book) {
     box.innerHTML = html;
 }
 /* 应用一条备注历史芯片:只填备注/收支方向,不含金额与分类 */
+// 点选「匹配」建议:轻触觉 + 点击音(遵守原生开关;非 App 环境下静默)
+function suggestFeedback() {
+    try {
+        const NB = window.NativeBridge;
+        if (NB && NB.haptic) NB.haptic('selection');
+        if (NB && NB.uiSound) NB.uiSound('tap');
+    } catch (e) {}
+}
 function applySuggest(book, chip) {
+    suggestFeedback();
     const noteEl = $(eid(book, 'note'));
     if (noteEl) noteEl.value = chip.dataset.note || '';
     if (chip.dataset.type) state.form[book].type = chip.dataset.type;
