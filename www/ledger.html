@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="./fx.css">
 <link rel="stylesheet" href="./common.css">
 <link rel="stylesheet" href="./ios26.css">
+<link rel="stylesheet" href="./bottom-bar.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
 <style>
@@ -877,20 +878,9 @@ body {
 /* 顶部账本栏:宽度随内容自适应(账本多了可横向滚动) */
 .tabs:not(.dock) { width:fit-content; max-width:calc(100% - 24px); box-sizing:border-box; }
 .tabs:not(.dock) .tab { padding-left:clamp(12px,4.6vw,22px) !important; padding-right:clamp(12px,4.6vw,22px) !important; font-size:clamp(12px,3.7vw,15px) !important; }
-/* ===== 底部导航栏 + 记录页 ===== */
-.tabs.dock { position:fixed !important; left:0; right:0; width:fit-content; max-width:calc(100% - 24px); bottom:calc(10px + env(safe-area-inset-bottom,0px)); margin:0 auto !important; z-index:1100; overflow-x:auto !important; overflow-y:hidden !important;
-  background:radial-gradient(140px 70px at var(--sx,25%) 0%, rgba(255,255,255,.30), transparent 70%), linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.04) 50%, rgba(56,189,248,.10)) !important; background-color:rgba(14,20,44,.62) !important;
-  border:1px solid rgba(255,255,255,.20) !important; -webkit-backdrop-filter:blur(24px) saturate(1.8); backdrop-filter:blur(24px) saturate(1.8);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(255,255,255,.10), inset 0 0 18px rgba(255,255,255,.05), 0 10px 30px rgba(0,0,0,.35) !important;
-  transform-origin:50% 100%; transition:transform .45s cubic-bezier(.22,1.25,.36,1), opacity .3s, box-shadow .3s, border-color .3s; will-change:transform; }
-.tabs.dock.scrolling { border-color:rgba(255,255,255,.34) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(255,255,255,.14), 0 14px 36px rgba(0,0,0,.4), 0 0 22px rgba(56,189,248,.22) !important; }
-.tabs.dock.compact { transform:translateY(6px) scale(.9); opacity:.82; }
-.tabs.dock .tab { color:rgba(241,245,249,.82) !important; text-shadow:0 1px 6px rgba(0,0,0,.35); transition:color .2s, transform .2s; }
-.tabs.dock .tab:active { transform:scale(.92); }
-.tabs.dock .tab.active { color:#fff !important; }
-.tabs.dock .glass-ind { background:linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.10)) !important; border:1px solid rgba(255,255,255,.35) !important; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); box-shadow:inset 0 1px 0 rgba(255,255,255,.65), 0 4px 14px rgba(56,189,248,.28) !important; }
-.tabs.dock .tab { flex:0 0 auto; text-align:center; padding:11px clamp(12px,4.6vw,24px) !important; font-size:clamp(12px,3.7vw,15px) !important; }
-body.kb-on .tabs.dock { display:none !important; }
+/* ===== 底部操作栏(同财务页风格) + 匹配词页 ===== */
+/* 底栏样式见 bottom-bar.css(记账/现金箱/薪资共用) */
+.bottom-bar button.bb-words { flex:0.55 1 0; }
 .lg-wrap { padding-bottom:calc(96px + env(safe-area-inset-bottom,0px)) !important; }
 body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 .rc-chips { display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; }
@@ -931,7 +921,7 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
   </div>
 </div>
 <div class="tabs" id="lg-tabs"></div>
-<div class="tabs dock" id="lg-dock"></div>
+<div class="bottom-bar" id="lg-dock"></div>
 <div class="lg-wrap">
 <!-- ==================== 页签1: 现金账 ==================== -->
 <div id="tab-cash" class="tab-content active">
@@ -1461,7 +1451,8 @@ function renderTabs() {
         while (tmp.firstChild) el.appendChild(tmp.firstChild);
     };
     fill(bar, state.books.map((b) => tabHtml(b.id, b.name)).join('') + tabHtml('manage', '＋'));
-    fill(dock, tabHtml('words', '匹配词') + tabHtml('summary', '汇总'));
+    const bb = (id, cls, label) => '<button type="button" class="' + cls + (state.tab === id ? ' on' : '') + '" data-tab="' + id + '">' + label + '</button>';
+    dock.innerHTML = bb('words', 'bb-words danger bb-col', '<span>🏷️</span><span>匹配词</span>') + bb('summary', 'bb-sum success bb-wide', '📊 汇总');
     // tabs-glass.js 的滑块依赖 .tab/.tab.active,生成后触发它原来的 resize 刷新
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
 }
@@ -2417,24 +2408,8 @@ function bindWords() {
         const row = t.closest('.rc-row');
         if (row && wd.sel) { const id = row.dataset.wdid; if (wd.picked.has(id)) wd.picked.delete(id); else wd.picked.add(id); renderWords(); }
     });
-    // 系统键盘弹出时隐藏底栏,避免悬在键盘上方
-    document.addEventListener('focusin', (e) => { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) document.body.classList.add('kb-on'); });
-    document.addEventListener('focusout', () => { setTimeout(() => { const a = document.activeElement; if (!(a && /^(INPUT|TEXTAREA)$/.test(a.tagName))) document.body.classList.remove('kb-on'); }, 80); });
 }
-/* 底栏玻璃:随滚动移动高光;下滑收起缩小、上滑/停下恢复;滚动时边缘发亮 */
-(function () {
-    let lastY = window.scrollY, tm = 0;
-    function onScroll() {
-        const bar = document.getElementById('lg-dock'); if (!bar) return;
-        const y = window.scrollY, dy = y - lastY, max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-        bar.style.setProperty('--sx', (10 + 80 * Math.min(1, Math.max(0, y / max))).toFixed(1) + '%');
-        bar.classList.add('scrolling');
-        if (dy > 4 && y > 80 && y < max - 40) bar.classList.add('compact'); else if (dy < -2 || y >= max - 40 || y <= 80) bar.classList.remove('compact');
-        lastY = y;
-        clearTimeout(tm); tm = setTimeout(() => { bar.classList.remove('scrolling', 'compact'); }, 380);
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-})();
+
 function bindSearch() {
     $('lg-search-btn').addEventListener('click', openSearch);
     $('sr-close').addEventListener('click', closeSearch);
@@ -2495,7 +2470,7 @@ function bind() {
     });
     $('lg-cal').addEventListener('click', (e) => { if (e.target === $('lg-cal')) closeCal(); });
     ['lg-tabs', 'lg-dock'].forEach((bid) => $(bid).addEventListener('click', (e) => {
-        const tab = e.target.closest('.tab');
+        const tab = e.target.closest('[data-tab]');
         if (!tab) return;
         const id = tab.dataset.tab;
         if (id === 'manage') { openBooks(); return; }
@@ -2797,5 +2772,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 <script src="./common.js"></script>
 <script src="./keyboard-avoid.js"></script>
 <script src="./tabs-glass.js"></script>
+<script src="./bottom-bar.js"></script>
 </body>
 </html>

@@ -217,6 +217,7 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
     <link rel="stylesheet" href="./fx.css">
     <link rel="stylesheet" href="./common.css">
 <link rel="stylesheet" href="./ios26.css">
+<link rel="stylesheet" href="./bottom-bar.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
 </head>
@@ -311,10 +312,10 @@ function escapeHtml(str) { if (str === null || str === undefined) return ''; con
     </div>
 </div>
 
-<div class="bottom-bar">
-    <button onclick="app.clearAllCash()" class="danger" style="flex:0.8;">🗑️ 清零</button>
-    <button onclick="app.saveData()" class="success" style="flex:1.2;">💾 保存</button>
-    <button onclick="app.resetAll()" style="flex:0.8;">⚠️ 重置</button>
+<div class="bottom-bar tall">
+    <button onclick="app.clearAllCash()" class="danger bb-col bb-narrow bb-left"><span>🗑️</span><span>清零</span></button>
+    <button onclick="app.saveData()" class="success bb-wide"><span>💾</span><span>保存</span></button>
+    <button onclick="app.resetAll()" class="primary bb-cyan">⚠️ 重置</button>
 </div>
 
 <div class="modal" id="inputModal">
@@ -1358,5 +1359,6 @@ document.addEventListener('keydown', (e) => {
 <script>ManualLog.mount({ el: document.getElementById('changeLog'), key: 'inventory-change-log-v1', title: '💰 总零钱记录', btn: '记录当前总零钱', maxCount: 5, getValue: () => Calc.getTotalChange(app.data), toast: m => app.showToast(m, 'success') });</script>
 <script src="./keyboard-avoid.js"></script>
 <script src="./tabs-glass.js"></script>
+<script src="./bottom-bar.js"></script>
 </body>
 </html>

@@ -2207,6 +2207,7 @@
         .modal { align-items: flex-end; }
     </style>
 <link rel="stylesheet" href="./ios26.css">
+<link rel="stylesheet" href="./bottom-bar.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
 </head>
@@ -2322,10 +2323,10 @@
 </div>
 
 <!-- ===== 底部工具栏 ===== -->
-<div class="bottom-bar">
-    <button onclick="app.resetAll()" class="danger" >🗑️ 重置</button>
-    <button onclick="app.saveToStorage()" class="success" >💾 保存</button>
-    <button onclick="app.generateReport(); app.switchTab('report');" class="primary" >📋 对账单</button>
+<div class="bottom-bar tall">
+    <button onclick="app.resetAll()" class="danger bb-col bb-narrow bb-left"><span>🗑️</span><span>重置</span></button>
+    <button onclick="app.saveToStorage()" class="success bb-wide"><span>💾</span><span>保存</span></button>
+    <button onclick="app.generateReport(); app.switchTab('report');" class="primary bb-cyan">📋 对账单</button>
 </div>
 
 <!-- ===== 确认弹窗 ===== -->
@@ -6452,5 +6453,6 @@ if (document.readyState === 'loading') {
     <script src="./fx.js"></script>
 <script src="./keypad-extra.js"></script>
 <script src="./keyboard-avoid.js"></script>
+<script src="./bottom-bar.js"></script>
 </body>
 </html>
