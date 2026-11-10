@@ -1007,9 +1007,8 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 <div id="tab-words" class="tab-content">
   <div class="lg-card">
     <div class="lg-card-title">匹配词管理</div>
-    <div class="lg-note" style="margin-bottom:8px">备注输入时出现的「匹配」建议词。删除只是不再提示,已记的账目不受影响,可随时恢复。</div>
+    <div class="lg-note" style="margin-bottom:8px">备注输入时出现的「匹配」建议词,所有账本共用一份,忽略大小写和多余空格自动去重。删除只是不再提示,已记的账目不受影响,可随时恢复。</div>
     <input type="text" id="wd-q" data-vk-skip placeholder="搜匹配词" autocomplete="off">
-    <div class="rc-chips" id="wd-books"></div>
     <div class="rc-chips" id="wd-state"></div>
     <div class="rc-sum" id="wd-sum"></div>
   </div>
@@ -1232,7 +1231,7 @@ class LedgerDB {
 const TX_CATS = ['橙色', 'DNI', 'Vtpay', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
-    db: null, entries: [], opening: {}, sumover: {}, notehide: {},
+    db: null, entries: [], opening: {}, sumover: {}, notehide: [],
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
     cats: { cash: ['货物', '白色机器', '其他'], transfer: TX_CATS.slice() },
@@ -1278,8 +1277,12 @@ async function loadAll() {
     state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
     if (!Array.isArray(state.entries)) state.entries = [];
     state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
-    state.notehide = (await LedgerDB.get(state.db, 'notehide')) || {};
-    if (typeof state.notehide !== 'object' || Array.isArray(state.notehide)) state.notehide = {};
+    {   // 旧版按账本存({book:[词]}),合并成一份共用列表
+        const raw = await LedgerDB.get(state.db, 'notehide'), set = new Set();
+        const add = (a) => (Array.isArray(a) ? a : []).forEach((w) => { const k = noteKey(w); if (k) set.add(k); });
+        if (Array.isArray(raw)) add(raw); else if (raw && typeof raw === 'object') Object.keys(raw).forEach((b) => add(raw[b]));
+        state.notehide = Array.from(set);
+    }
     state.sumover = (await LedgerDB.get(state.db, 'sumover')) || {};
     if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
@@ -1729,35 +1732,31 @@ function renderList(book) {
     box.innerHTML = html;
 }
 /* ================= 备注历史匹配 ================= */
-function hiddenNotes(book) { const a = state.notehide && state.notehide[book]; return new Set(Array.isArray(a) ? a : []); }
-function buildNoteIndex(book, others, withHidden) {
-    const map = new Map(), hidBy = {};
+// 所有账本共用一份匹配词:忽略大小写、全半角、首尾与多余空格后去重
+function noteKey(raw) { return String(raw || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function hiddenNotes() { return new Set(Array.isArray(state.notehide) ? state.notehide : []); }
+function buildNoteIndex(withHidden) {
+    const map = new Map(), hid = hiddenNotes();
     state.entries.forEach((e) => {
-        if (others ? e.book === book : e.book !== book) return;
-        const raw = (e.note || '').trim();
+        const raw = String(e.note || '').trim().replace(/\s+/g, ' ');
         if (!raw) return;
-        const k = raw.toLowerCase();
-        const hid = hidBy[e.book] || (hidBy[e.book] = hiddenNotes(e.book));
-        const isH = hid.has(k);
+        const k = noteKey(raw), isH = hid.has(k);
         if (isH && !withHidden) return;
         let it = map.get(k);
-        if (!it) { it = { key: k, book: e.book, hidden: isH, note: raw, count: 0, lastTs: 0, lastType: 'out' }; map.set(k, it); }
+        if (!it) { it = { key: k, hidden: isH, note: raw, count: 0, lastTs: 0, lastType: 'out' }; map.set(k, it); }
         it.count += 1;
         if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastType = e.type; it.note = raw; }
     });
     return map;
 }
 function suggestFor(book, q) {
-    let items = Array.from(buildNoteIndex(book).values());
-    // 当前账本没有任何匹配时,才去其他账本借备注
-    if (q && !items.some((it) => it.note.toLowerCase().indexOf(q.toLowerCase()) !== -1)) items = Array.from(buildNoteIndex(book, true).values());
+    const items = Array.from(buildNoteIndex(false).values());
     if (!q) return items.sort((a, b) => b.lastTs - a.lastTs).slice(0, 6);
-    const ql = q.toLowerCase(), out = [];
+    const ql = noteKey(q), out = [];
     items.forEach((it) => {
-        const low = it.note.toLowerCase();
-        if (low.indexOf(ql) === -1) return;
+        if (it.key.indexOf(ql) === -1) return;
         const recency = 20 * (1 - Math.min(1, (Date.now() - it.lastTs) / (30 * 86400000)));
-        out.push({ it: it, score: (low.indexOf(ql) === 0 ? 100 : 0) + Math.min(it.count, 20) * 3 + recency });
+        out.push({ it: it, score: (it.key.indexOf(ql) === 0 ? 100 : 0) + Math.min(it.count, 20) * 3 + recency });
     });
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, 6).map((x) => x.it);
@@ -2333,38 +2332,27 @@ function amtFitAll() { document.querySelectorAll('.lg-e-amt').forEach(amtFit); }
 
 
 /* ================= 匹配词管理页 ================= */
-const wd = { book: 'all', st: 'on', q: '', sel: false, picked: new Set(), limit: 100 };
+const wd = { st: 'on', q: '', sel: false, picked: new Set(), limit: 100 };
 function wdList() {
-    const q = wd.q.trim().toLowerCase(), out = [];
-    state.books.forEach((b) => {
-        if (wd.book !== 'all' && wd.book !== b.id) return;
-        buildNoteIndex(b.id, false, true).forEach((it) => {
-            if (it.book !== b.id) return;
-            if ((wd.st === 'hid') !== !!it.hidden) return;
-            if (q && it.note.toLowerCase().indexOf(q) === -1) return;
-            out.push(it);
-        });
+    const q = noteKey(wd.q), out = [];
+    buildNoteIndex(true).forEach((it) => {
+        if ((wd.st === 'hid') !== !!it.hidden) return;
+        if (q && it.key.indexOf(q) === -1) return;
+        out.push(it);
     });
-    // 已隐藏但已没有对应账目的词:仍要能恢复
+    // 已删除但已没有对应账目的词:仍要能恢复
     if (wd.st === 'hid') {
-        state.books.forEach((b) => {
-            if (wd.book !== 'all' && wd.book !== b.id) return;
-            const have = new Set(out.filter((x) => x.book === b.id).map((x) => x.key));
-            hiddenNotes(b.id).forEach((k) => { if (!have.has(k) && (!q || k.indexOf(q) !== -1)) out.push({ key: k, book: b.id, hidden: true, note: k, count: 0, lastTs: 0 }); });
-        });
+        const have = new Set(out.map((x) => x.key));
+        hiddenNotes().forEach((k) => { if (!have.has(k) && !buildNoteIndex(true).has(k) && (!q || k.indexOf(q) !== -1)) out.push({ key: k, hidden: true, note: k, count: 0, lastTs: 0 }); });
     }
     out.sort((a, b) => (b.count - a.count) || (b.lastTs - a.lastTs));
     return out;
 }
-function wdId(it) { return it.book + '\u0001' + it.key; }
+function wdId(it) { return it.key; }
 async function wdSetHidden(items, hide) {
-    items.forEach((it) => {
-        const a = Array.isArray(state.notehide[it.book]) ? state.notehide[it.book] : (state.notehide[it.book] = []);
-        const i = a.indexOf(it.key);
-        if (hide && i === -1) a.push(it.key);
-        if (!hide && i !== -1) a.splice(i, 1);
-        if (!a.length) delete state.notehide[it.book];
-    });
+    const set = hiddenNotes();
+    items.forEach((it) => { if (hide) set.add(it.key); else set.delete(it.key); });
+    state.notehide = Array.from(set);
     await saveKey('notehide');
     wd.picked.clear(); wd.sel = false;
     renderAll(); showToast(hide ? '已删除 ' + items.length + ' 个匹配词' : '已恢复 ' + items.length + ' 个匹配词');
@@ -2374,13 +2362,11 @@ function wdChips(items, cur, key) {
 }
 function renderWords() {
     if (state.tab !== 'words' || !$('wd-list')) return;
-    if (wd.book !== 'all' && !bookOf(wd.book)) wd.book = 'all';
-    $('wd-books').innerHTML = wdChips([['all', '全部账本']].concat(state.books.map((b) => [b.id, b.name])), wd.book, 'book');
     $('wd-state').innerHTML = wdChips([['on', '使用中'], ['hid', '已删除']], wd.st, 'st');
     const res = wdList(), map = new Map(res.map((it) => [wdId(it), it]));
     wd.picked.forEach((id) => { if (!map.has(id)) wd.picked.delete(id); });
     const n = wd.picked.size, hidMode = wd.st === 'hid';
-    $('wd-sum').innerHTML = '共 <b>' + res.length + '</b> 个' + (hidMode ? '已删除' : '匹配词');
+    $('wd-sum').innerHTML = '共 <b>' + res.length + '</b> 个' + (hidMode ? '已删除' : '匹配词') + '(所有账本共用,已去重)';
     $('wd-tool').innerHTML = '<button data-wdt="sel">' + (wd.sel ? '退出多选' : '多选') + '</button>' +
         (wd.sel ? '<button data-wdt="all">全选(' + res.length + ')</button><button data-wdt="none">清空</button>' +
             '<button class="' + (hidMode ? '' : 'danger') + '" data-wdt="batch"' + (n ? '' : ' disabled') + '>' + (hidMode ? '恢复' : '删除') + '所选(' + n + ')</button>' : '');
@@ -2392,7 +2378,7 @@ function renderWords() {
         const when = d ? String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') : '';
         html += '<div class="rc-row' + (picked ? ' picked' : '') + (it.hidden ? ' hid' : '') + '" data-wdid="' + escHtml(id) + '">' +
             (wd.sel ? '<span class="rc-ck">✓</span>' : '') +
-            '<div class="mid"><div class="c">' + escHtml(it.note) + '<span class="sr-bk">' + escHtml(bookName(it.book)) + '</span></div>' +
+            '<div class="mid"><div class="c">' + escHtml(it.note) + '</div>' +
             '<div class="nt">' + (it.count ? '用过 ' + it.count + ' 次 · 最近 ' + when : '已无对应账目') + '</div></div>' +
             (wd.sel ? '' : '<button class="act' + (it.hidden ? '' : ' danger') + '" data-wdone="' + escHtml(id) + '">' + (it.hidden ? '恢复' : '删除') + '</button>') + '</div>';
     });
