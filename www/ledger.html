@@ -896,15 +896,13 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 .rc-chips { display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; }
 .rc-chips::-webkit-scrollbar { display:none; }
 .rc-chips .lg-chip { min-height:34px !important; padding:0 14px !important; font-size:13px !important; }
-#rc-q { width:100%; box-sizing:border-box; min-height:44px; margin-bottom:10px; padding:0 14px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:15px; }
+#wd-q { width:100%; box-sizing:border-box; min-height:44px; margin-bottom:10px; padding:0 14px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:var(--text); font-size:15px; }
 .rc-sum { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13px; color:var(--text-muted); margin-top:2px; }
 .rc-sum b { color:var(--text); font-family:var(--mono, 'Courier New', monospace); }
 .rc-tool { display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
 .rc-tool button { min-height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; font-weight:700; }
 .rc-tool button.danger { color:#ff8f8f; border-color:rgba(255,107,107,.4); }
 .rc-tool button:disabled { opacity:.4; }
-.rc-day { display:flex; justify-content:space-between; align-items:baseline; margin:14px 2px 2px; font-size:13px; font-weight:700; color:var(--text-muted); font-family:var(--mono, 'Courier New', monospace); }
-.rc-day small { font-weight:600; opacity:.85; }
 .rc-row { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid rgba(255,255,255,.06); }
 .rc-row .mid { flex:1; min-width:0; }
 .rc-row .c { font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -914,6 +912,9 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 .rc-row .r small { display:block; margin-top:2px; font-size:11px; color:var(--text-muted); opacity:.75; }
 .rc-ck { flex:none; width:24px; height:24px; border-radius:8px; border:2px solid rgba(255,255,255,.3); display:flex; align-items:center; justify-content:center; font-size:14px; color:transparent; }
 .rc-row.picked .rc-ck { background:#0ea5e9; border-color:#0ea5e9; color:#04202e; }
+.rc-row.hid .c { opacity:.5; text-decoration:line-through; }
+.rc-row .act { flex:none; min-height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; font-weight:700; }
+.rc-row .act.danger { color:#ff8f8f; border-color:rgba(255,107,107,.4); }
 .rc-row.picked { background:rgba(14,165,233,.08); }
 .rc-more { width:100%; min-height:44px; margin-top:10px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-weight:700; }
 </style>
@@ -1002,19 +1003,19 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 </div>
 <!-- ==================== 自定义账本(动态生成) ==================== -->
 <div id="tab-dyn" class="tab-content"></div>
-<!-- ==================== 页签: 记录管理 ==================== -->
-<div id="tab-records" class="tab-content">
+<!-- ==================== 页签: 匹配词管理 ==================== -->
+<div id="tab-words" class="tab-content">
   <div class="lg-card">
-    <div class="lg-card-title">记录管理</div>
-    <input type="text" id="rc-q" data-vk-skip placeholder="搜 备注 / 分类 / 金额 / 日期" autocomplete="off">
-    <div class="rc-chips" id="rc-books"></div>
-    <div class="rc-chips" id="rc-type"></div>
-    <div class="rc-chips" id="rc-range"></div>
-    <div class="rc-sum" id="rc-sum"></div>
+    <div class="lg-card-title">匹配词管理</div>
+    <div class="lg-note" style="margin-bottom:8px">备注输入时出现的「匹配」建议词。删除只是不再提示,已记的账目不受影响,可随时恢复。</div>
+    <input type="text" id="wd-q" data-vk-skip placeholder="搜匹配词" autocomplete="off">
+    <div class="rc-chips" id="wd-books"></div>
+    <div class="rc-chips" id="wd-state"></div>
+    <div class="rc-sum" id="wd-sum"></div>
   </div>
   <div class="lg-card">
-    <div class="rc-tool" id="rc-tool"></div>
-    <div id="rc-list"></div>
+    <div class="rc-tool" id="wd-tool"></div>
+    <div id="wd-list"></div>
   </div>
 </div>
 <!-- ==================== 页签3: 汇总 ==================== -->
@@ -1231,7 +1232,7 @@ class LedgerDB {
 const TX_CATS = ['橙色', 'DNI', 'Vtpay', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
-    db: null, entries: [], opening: {}, sumover: {},
+    db: null, entries: [], opening: {}, sumover: {}, notehide: {},
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
     cats: { cash: ['货物', '白色机器', '其他'], transfer: TX_CATS.slice() },
@@ -1277,6 +1278,8 @@ async function loadAll() {
     state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
     if (!Array.isArray(state.entries)) state.entries = [];
     state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
+    state.notehide = (await LedgerDB.get(state.db, 'notehide')) || {};
+    if (typeof state.notehide !== 'object' || Array.isArray(state.notehide)) state.notehide = {};
     state.sumover = (await LedgerDB.get(state.db, 'sumover')) || {};
     if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
@@ -1455,12 +1458,12 @@ function renderTabs() {
         while (tmp.firstChild) el.appendChild(tmp.firstChild);
     };
     fill(bar, state.books.map((b) => tabHtml(b.id, b.name)).join('') + tabHtml('manage', '＋'));
-    fill(dock, tabHtml('records', '记录') + tabHtml('summary', '汇总'));
+    fill(dock, tabHtml('words', '匹配词') + tabHtml('summary', '汇总'));
     // tabs-glass.js 的滑块依赖 .tab/.tab.active,生成后触发它原来的 resize 刷新
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
 }
 function applyTabVisible() {
-    ['cash', 'transfer', 'summary', 'records'].forEach((t) => { const el = $('tab-' + t); if (el) el.classList.toggle('active', state.tab === t); });
+    ['cash', 'transfer', 'summary', 'words'].forEach((t) => { const el = $('tab-' + t); if (el) el.classList.toggle('active', state.tab === t); });
     const dyn = $('tab-dyn'), bk = bookOf(state.tab);
     if (dyn) dyn.classList.toggle('active', !!bk && bk.type === 'plain');
 }
@@ -1704,7 +1707,7 @@ function renderPushState() {
 }
 function renderAll() {
     setTimeout(() => { try { amtFitAll(); } catch (e) {} }, 0);
-    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer'); renderSafe(); renderRecords();
+    renderDate(); renderCash(); renderTransfer(); renderSummary(); renderTabs(); renderDyn(); renderSuggest('cash'); renderSuggest('transfer'); renderSafe(); renderWords();
 }
 function renderList(book) {
     const box = $(eid(book, 'list'));
@@ -1726,15 +1729,19 @@ function renderList(book) {
     box.innerHTML = html;
 }
 /* ================= 备注历史匹配 ================= */
-function buildNoteIndex(book, others) {
-    const map = new Map();
+function hiddenNotes(book) { const a = state.notehide && state.notehide[book]; return new Set(Array.isArray(a) ? a : []); }
+function buildNoteIndex(book, others, withHidden) {
+    const map = new Map(), hidBy = {};
     state.entries.forEach((e) => {
         if (others ? e.book === book : e.book !== book) return;
         const raw = (e.note || '').trim();
         if (!raw) return;
         const k = raw.toLowerCase();
+        const hid = hidBy[e.book] || (hidBy[e.book] = hiddenNotes(e.book));
+        const isH = hid.has(k);
+        if (isH && !withHidden) return;
         let it = map.get(k);
-        if (!it) { it = { note: raw, count: 0, lastTs: 0, lastType: 'out' }; map.set(k, it); }
+        if (!it) { it = { key: k, book: e.book, hidden: isH, note: raw, count: 0, lastTs: 0, lastType: 'out' }; map.set(k, it); }
         it.count += 1;
         if (e.ts >= it.lastTs) { it.lastTs = e.ts; it.lastType = e.type; it.note = raw; }
     });
@@ -2325,112 +2332,109 @@ function amtFit(el) {
 function amtFitAll() { document.querySelectorAll('.lg-e-amt').forEach(amtFit); }
 
 
-/* ================= 记录管理页 ================= */
-const rc = { book: 'all', type: 'all', range: 'all', q: '', sel: false, picked: new Set(), limit: 100 };
-function rcFiltered() {
-    const terms = srNorm(rc.q).split(/\s+/).filter(Boolean);
-    const range = srRange(rc.range);
-    const res = state.entries.filter((e) => {
-        if (rc.book !== 'all' && e.book !== rc.book) return false;
-        if (rc.type !== 'all' && e.type !== rc.type) return false;
-        if (range && (e.date < range[0] || e.date > range[1])) return false;
-        if (!terms.length) return true;
-        const hay = srNorm(e.cat) + ' ' + srNorm(e.note) + ' ' + srNorm(bookName(e.book)) + ' ' + srNorm(e.amount) + ' ' + srNorm(fmtNum(e.amount)) + ' ' + srNorm(e.date);
-        return terms.every((t) => hay.indexOf(t.replace(/,/g, '')) > -1 || hay.indexOf(t) > -1);
+/* ================= 匹配词管理页 ================= */
+const wd = { book: 'all', st: 'on', q: '', sel: false, picked: new Set(), limit: 100 };
+function wdList() {
+    const q = wd.q.trim().toLowerCase(), out = [];
+    state.books.forEach((b) => {
+        if (wd.book !== 'all' && wd.book !== b.id) return;
+        buildNoteIndex(b.id, false, true).forEach((it) => {
+            if (it.book !== b.id) return;
+            if ((wd.st === 'hid') !== !!it.hidden) return;
+            if (q && it.note.toLowerCase().indexOf(q) === -1) return;
+            out.push(it);
+        });
     });
-    res.sort((a, b) => (a.date === b.date ? b.ts - a.ts : (a.date < b.date ? 1 : -1)));
-    return res;
+    // 已隐藏但已没有对应账目的词:仍要能恢复
+    if (wd.st === 'hid') {
+        state.books.forEach((b) => {
+            if (wd.book !== 'all' && wd.book !== b.id) return;
+            const have = new Set(out.filter((x) => x.book === b.id).map((x) => x.key));
+            hiddenNotes(b.id).forEach((k) => { if (!have.has(k) && (!q || k.indexOf(q) !== -1)) out.push({ key: k, book: b.id, hidden: true, note: k, count: 0, lastTs: 0 }); });
+        });
+    }
+    out.sort((a, b) => (b.count - a.count) || (b.lastTs - a.lastTs));
+    return out;
 }
-function rcChips(items, cur, key) {
-    return items.map((it) => '<button type="button" class="lg-chip' + (cur === it[0] ? ' on' : '') + '" data-rck="' + key + '" data-rcv="' + escHtml(it[0]) + '">' + escHtml(it[1]) + '</button>').join('');
-}
-function renderRecords() {
-    if (state.tab !== 'records' || !$('rc-list')) return;
-    if (rc.book !== 'all' && !bookOf(rc.book)) rc.book = 'all';
-    const ids = new Set(state.entries.map((e) => e.id));
-    rc.picked.forEach((id) => { if (!ids.has(id)) rc.picked.delete(id); });
-    $('rc-books').innerHTML = rcChips([['all', '全部账本']].concat(state.books.map((b) => [b.id, b.name])), rc.book, 'book');
-    $('rc-type').innerHTML = rcChips([['all', '全部'], ['out', '支出'], ['in', '收入']], rc.type, 'type');
-    $('rc-range').innerHTML = rcChips([['all', '全部时间'], ['today', '今天'], ['week', '近7天'], ['month', '本月']], rc.range, 'range');
-    const res = rcFiltered();
-    let sOut = 0, sIn = 0;
-    res.forEach((e) => { if (e.type === 'out') sOut += Number(e.amount || 0); else sIn += Number(e.amount || 0); });
-    sOut = round2(sOut); sIn = round2(sIn);
-    $('rc-sum').innerHTML = '共 <b>' + res.length + '</b> 笔 · 支出 <b class="lg-out">' + fmtNum(sOut) + '</b> · 收入 <b class="lg-in">' + fmtNum(sIn) + '</b>';
-    let pOut = 0, pIn = 0;
-    res.forEach((e) => { if (rc.picked.has(e.id)) { if (e.type === 'out') pOut += Number(e.amount || 0); else pIn += Number(e.amount || 0); } });
-    const n = rc.picked.size;
-    $('rc-tool').innerHTML = '<button data-rct="sel">' + (rc.sel ? '退出多选' : '多选') + '</button>' +
-        (rc.sel ? '<button data-rct="all">全选当前筛选(' + res.length + ')</button><button data-rct="none">清空</button>' +
-            '<button class="danger" data-rct="del"' + (n ? '' : ' disabled') + '>删除所选(' + n + ')</button>' : '') +
-        (rc.sel && n ? '<div class="rc-sum" style="width:100%">已选 <b>' + n + '</b> 笔 · 支出 <b class="lg-out">' + fmtNum(round2(pOut)) + '</b> · 收入 <b class="lg-in">' + fmtNum(round2(pIn)) + '</b></div>' : '');
-    if (!res.length) { $('rc-list').innerHTML = '<div class="lg-empty">没有符合条件的记录</div>'; return; }
-    const shown = res.slice(0, rc.limit);
-    const dayTot = {};
-    res.forEach((e) => { const o = dayTot[e.date] || (dayTot[e.date] = { out: 0, in: 0 }); o[e.type] += Number(e.amount || 0); });
-    let html = '', last = '';
-    shown.forEach((e) => {
-        if (e.date !== last) {
-            last = e.date; const o = dayTot[e.date];
-            html += '<div class="rc-day"><span>' + e.date + ' 周' + srWeekday(e.date) + '</span><small>' + (o.out ? '支 ' + fmtNum(round2(o.out)) : '') + (o.out && o.in ? ' · ' : '') + (o.in ? '收 ' + fmtNum(round2(o.in)) : '') + '</small></div>';
-        }
-        const dt = new Date(e.ts), hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
-        const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
-        const picked = rc.picked.has(e.id);
-        html += '<div class="rc-row' + (picked ? ' picked' : '') + '" data-rcid="' + e.id + '">' +
-            (rc.sel ? '<span class="rc-ck">✓</span>' : '') +
-            '<div class="mid"><div class="c">' + escHtml(e.cat || '未分类') + '<span class="sr-bk">' + escHtml(bookName(e.book)) + '</span></div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
-            '<div class="r"><span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span><small>' + hh + '</small></div>' +
-            (rc.sel ? '' : '<button class="lg-more" data-rcmore="' + e.id + '">⋯</button>') + '</div>' +
-            '<div class="lg-acts" data-rcacts="' + e.id + '"><button data-rcact="edit" data-id="' + e.id + '">编辑</button><button class="danger" data-rcact="del" data-id="' + e.id + '">删除</button></div>';
+function wdId(it) { return it.book + '\u0001' + it.key; }
+async function wdSetHidden(items, hide) {
+    items.forEach((it) => {
+        const a = Array.isArray(state.notehide[it.book]) ? state.notehide[it.book] : (state.notehide[it.book] = []);
+        const i = a.indexOf(it.key);
+        if (hide && i === -1) a.push(it.key);
+        if (!hide && i !== -1) a.splice(i, 1);
+        if (!a.length) delete state.notehide[it.book];
     });
-    if (res.length > shown.length) html += '<button class="rc-more" data-rct="more">加载更多(还有 ' + (res.length - shown.length) + ' 笔)</button>';
-    $('rc-list').innerHTML = html;
+    await saveKey('notehide');
+    wd.picked.clear(); wd.sel = false;
+    renderAll(); showToast(hide ? '已删除 ' + items.length + ' 个匹配词' : '已恢复 ' + items.length + ' 个匹配词');
 }
-function bindRecords() {
+function wdChips(items, cur, key) {
+    return items.map((it) => '<button type="button" class="lg-chip' + (cur === it[0] ? ' on' : '') + '" data-wdk="' + key + '" data-wdv="' + escHtml(it[0]) + '">' + escHtml(it[1]) + '</button>').join('');
+}
+function renderWords() {
+    if (state.tab !== 'words' || !$('wd-list')) return;
+    if (wd.book !== 'all' && !bookOf(wd.book)) wd.book = 'all';
+    $('wd-books').innerHTML = wdChips([['all', '全部账本']].concat(state.books.map((b) => [b.id, b.name])), wd.book, 'book');
+    $('wd-state').innerHTML = wdChips([['on', '使用中'], ['hid', '已删除']], wd.st, 'st');
+    const res = wdList(), map = new Map(res.map((it) => [wdId(it), it]));
+    wd.picked.forEach((id) => { if (!map.has(id)) wd.picked.delete(id); });
+    const n = wd.picked.size, hidMode = wd.st === 'hid';
+    $('wd-sum').innerHTML = '共 <b>' + res.length + '</b> 个' + (hidMode ? '已删除' : '匹配词');
+    $('wd-tool').innerHTML = '<button data-wdt="sel">' + (wd.sel ? '退出多选' : '多选') + '</button>' +
+        (wd.sel ? '<button data-wdt="all">全选(' + res.length + ')</button><button data-wdt="none">清空</button>' +
+            '<button class="' + (hidMode ? '' : 'danger') + '" data-wdt="batch"' + (n ? '' : ' disabled') + '>' + (hidMode ? '恢复' : '删除') + '所选(' + n + ')</button>' : '');
+    if (!res.length) { $('wd-list').innerHTML = '<div class="lg-empty">' + (hidMode ? '没有已删除的匹配词' : '没有匹配词') + '</div>'; return; }
+    let html = '';
+    res.slice(0, wd.limit).forEach((it) => {
+        const id = wdId(it), picked = wd.picked.has(id);
+        const d = it.lastTs ? new Date(it.lastTs) : null;
+        const when = d ? String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') : '';
+        html += '<div class="rc-row' + (picked ? ' picked' : '') + (it.hidden ? ' hid' : '') + '" data-wdid="' + escHtml(id) + '">' +
+            (wd.sel ? '<span class="rc-ck">✓</span>' : '') +
+            '<div class="mid"><div class="c">' + escHtml(it.note) + '<span class="sr-bk">' + escHtml(bookName(it.book)) + '</span></div>' +
+            '<div class="nt">' + (it.count ? '用过 ' + it.count + ' 次 · 最近 ' + when : '已无对应账目') + '</div></div>' +
+            (wd.sel ? '' : '<button class="act' + (it.hidden ? '' : ' danger') + '" data-wdone="' + escHtml(id) + '">' + (it.hidden ? '恢复' : '删除') + '</button>') + '</div>';
+    });
+    if (res.length > wd.limit) html += '<button class="rc-more" data-wdt="more">加载更多(还有 ' + (res.length - wd.limit) + ' 个)</button>';
+    $('wd-list').innerHTML = html;
+}
+function bindWords() {
     let timer = null;
-    $('rc-q').addEventListener('input', () => { rc.q = $('rc-q').value; rc.limit = 100; clearTimeout(timer); timer = setTimeout(renderRecords, 160); });
-    const panel = $('tab-records');
-    panel.addEventListener('click', (ev) => {
+    $('wd-q').addEventListener('input', () => { wd.q = $('wd-q').value; wd.limit = 100; clearTimeout(timer); timer = setTimeout(renderWords, 160); });
+    $('tab-words').addEventListener('click', (ev) => {
         const t = ev.target;
-        const chip = t.closest('[data-rck]');
-        if (chip) { rc[chip.dataset.rck] = chip.dataset.rcv; rc.limit = 100; renderRecords(); return; }
-        const tool = t.closest('[data-rct]');
+        const chip = t.closest('[data-wdk]');
+        if (chip) { wd[chip.dataset.wdk] = chip.dataset.wdv; wd.limit = 100; wd.picked.clear(); renderWords(); return; }
+        const tool = t.closest('[data-wdt]');
         if (tool) {
-            const k = tool.dataset.rct;
-            if (k === 'sel') { rc.sel = !rc.sel; rc.picked.clear(); }
-            else if (k === 'all') rcFiltered().forEach((e) => rc.picked.add(e.id));
-            else if (k === 'none') rc.picked.clear();
-            else if (k === 'more') rc.limit += 100;
-            else if (k === 'del') {
-                const ids = Array.from(rc.picked); if (!ids.length) return;
-                let sum = 0; state.entries.forEach((e) => { if (rc.picked.has(e.id)) sum += e.type === 'out' ? -Number(e.amount || 0) : Number(e.amount || 0); });
-                askConfirm('删除所选 ' + ids.length + ' 笔记录(净额 ' + fmtNum(round2(sum)) + '),无法恢复', async () => {
-                    const set = new Set(ids);
-                    state.entries = state.entries.filter((e) => !set.has(e.id));
-                    await saveKey('entries'); rc.picked.clear(); rc.sel = false; renderAll(); showToast('已删除 ' + ids.length + ' 笔');
-                });
+            const k = tool.dataset.wdt, res = wdList();
+            if (k === 'sel') { wd.sel = !wd.sel; wd.picked.clear(); }
+            else if (k === 'all') res.forEach((it) => wd.picked.add(wdId(it)));
+            else if (k === 'none') wd.picked.clear();
+            else if (k === 'more') wd.limit += 100;
+            else if (k === 'batch') {
+                const items = res.filter((it) => wd.picked.has(wdId(it))); if (!items.length) return;
+                if (wd.st === 'hid') { wdSetHidden(items, false); return; }
+                askConfirm('删除所选 ' + items.length + ' 个匹配词?只是不再作为建议出现,已记的账目不受影响,可在「已删除」里恢复', () => wdSetHidden(items, true));
                 return;
             }
-            renderRecords(); return;
+            renderWords(); return;
         }
-        const more = t.closest('[data-rcmore]');
-        if (more) {
-            const acts = panel.querySelector('.lg-acts[data-rcacts="' + more.dataset.rcmore + '"]');
-            panel.querySelectorAll('.lg-acts.show').forEach((a) => { if (a !== acts) a.classList.remove('show'); });
-            if (acts) acts.classList.toggle('show');
+        const one = t.closest('[data-wdone]');
+        if (one) {
+            const it = wdList().find((x) => wdId(x) === one.dataset.wdone); if (!it) return;
+            if (it.hidden) wdSetHidden([it], false);
+            else askConfirm('删除匹配词「' + it.note + '」?只是不再作为建议出现,已记的账目不受影响,可在「已删除」里恢复', () => wdSetHidden([it], true));
             return;
         }
-        const act = t.closest('[data-rcact]');
-        if (act) { if (act.dataset.rcact === 'edit') openEdit(act.dataset.id); else deleteEntry(act.dataset.id); return; }
         const row = t.closest('.rc-row');
-        if (row && rc.sel) { const id = row.dataset.rcid; if (rc.picked.has(id)) rc.picked.delete(id); else rc.picked.add(id); renderRecords(); }
+        if (row && wd.sel) { const id = row.dataset.wdid; if (wd.picked.has(id)) wd.picked.delete(id); else wd.picked.add(id); renderWords(); }
     });
     // 系统键盘弹出时隐藏底栏,避免悬在键盘上方
     document.addEventListener('focusin', (e) => { if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) document.body.classList.add('kb-on'); });
     document.addEventListener('focusout', () => { setTimeout(() => { const a = document.activeElement; if (!(a && /^(INPUT|TEXTAREA)$/.test(a.tagName))) document.body.classList.remove('kb-on'); }, 80); });
 }
-
 /* 底栏玻璃:随滚动移动高光;下滑收起缩小、上滑/停下恢复;滚动时边缘发亮 */
 (function () {
     let lastY = window.scrollY, tm = 0;
@@ -2465,7 +2469,7 @@ function bindSearch() {
 
 function bind() {
     bindSearch();
-    bindRecords();
+    bindWords();
     document.addEventListener('input', (e) => {
         const el = e.target;
         if (!el || !el.classList || !el.classList.contains('lg-e-amt')) return;
