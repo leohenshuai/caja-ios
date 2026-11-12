@@ -1152,8 +1152,8 @@
                         <div class="preview-card-title">[ Vtpay ]</div>
                         <div class="preview-row"><span>余额 (a1):</span><span id="preview_vtpay_a1" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>今日收入 (e1):</span><span id="preview_vtpay_e1" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
-                        <div class="preview-row"><span>软件收入值 (z1):</span><span id="preview_vtpay_z1" style="text-align: right; min-width: 120px;">0</span></div>
-                        <div class="preview-row"><span>其他店收入 (other):</span><span id="preview_vtpay_other" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>本店收入值 (z1):</span><span id="preview_vtpay_z1" style="text-align: right; min-width: 120px;">0</span></div>
+                        <div class="preview-row"><span>软件收入值 (other):</span><span id="preview_vtpay_other" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row total"><span>Vtpay差额 (l1):</span><span id="preview_vtpay_l1" style="text-align: right; min-width: 120px;">0</span></div>
                     </div>
                 </div>
@@ -1161,8 +1161,8 @@
                     <div class="form-item"><label>余额 (vtpay_a1)</label><input type="text" id="vtpay_a1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_a1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_a1')"></div>
                     <div class="form-item"><label>昨日余额 (vtpay_b1) <span style="color:var(--text-muted)">[自动跳过]</span></label><input type="text" id="vtpay_b1" class="skip-key" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_b1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_b1')"></div>
                     <div class="form-item"><label>支出 (vtpay_c1)</label><input type="text" id="vtpay_c1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_c1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_c1')"></div>
-                    <div class="form-item"><label>软件收入值 (vtpay_z1)</label><input type="text" id="vtpay_z1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_z1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_z1')"></div>
-                    <div class="form-item"><label>其他店收入 (vtpay_other)</label><input type="text" id="vtpay_other" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_other', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_other')"></div>
+                    <div class="form-item"><label>本店收入值 (vtpay_z1)</label><input type="text" id="vtpay_z1" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_z1', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_z1')"></div>
+                    <div class="form-item"><label>软件收入值 (vtpay_other)</label><input type="text" id="vtpay_other" placeholder="支持空格求和" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updatePlatform('vtpay_other', this.value)" onkeydown="app.handlePlatformNav(event, 'vtpay_other')"></div>
                 </div>
             </div>
         </div>
@@ -2953,7 +2953,7 @@ class FinanceApp {
         const data = this.data; const coeffOrange = num(data.COEFF_ORANGE) || 1.05; const coeffDni = num(data.COEFF_DNI) || 1.021; const coeffVtpay = num(data.COEFF_VTPAY) || 1.0097;
         const orangeF = num(data.orange_f); const orangeB = num(data.orange_b); const orangeC = num(data.orange_c); const orangeZ = num(data.orange_z); const orangeE_raw = (orangeF - orangeB + orangeC) * coeffOrange; const orangeL_raw = orangeE_raw - orangeZ;
         const dniA1 = num(data.dni_a1); const dniB1 = num(data.dni_b1); const dniC1 = num(data.dni_c1); const dniZ1 = num(data.dni_z1); const dniE1_raw = (dniA1 - dniB1 + dniC1) * coeffDni; const dniL1_raw = dniE1_raw - dniZ1;
-        const vtA1 = num(data.vtpay_a1); const vtB1 = num(data.vtpay_b1); const vtC1 = num(data.vtpay_c1); const vtZ1 = num(data.vtpay_z1); const vtOther = num(data.vtpay_other); const vtE1_raw = (vtA1 - vtB1 + vtC1) * coeffVtpay; const vtL1_raw = vtE1_raw - (vtZ1 + vtOther);
+        const vtA1 = num(data.vtpay_a1); const vtB1 = num(data.vtpay_b1); const vtC1 = num(data.vtpay_c1); const vtZ1 = num(data.vtpay_z1); const vtOther = num(data.vtpay_other); const vtE1_raw = (vtA1 - vtB1 + vtC1) * coeffVtpay; const vtL1_raw = vtE1_raw - vtOther;
         const mercF2 = num(data.merc_f2); const mercB2 = num(data.merc_b2); const mercC2 = num(data.merc_c2); const mercOther = num(data.merc_other); const mercE2_raw = mercF2 - mercB2 + mercC2 - mercOther;
         const fmt = fmtInt;
         const fmtDiff = (v, inverse = false) => { const val = Math.round(v); let color, tag; if (val === 0) { color = 'var(--text)'; tag = '平账'; } else if (inverse) { color = val < 0 ? 'var(--green)' : 'var(--red)'; tag = val < 0 ? '盈余' : '亏损'; } else { color = val > 0 ? 'var(--green)' : 'var(--red)'; tag = val > 0 ? '盈余' : '亏损'; } return `<span style="color:${color}">${val > 0 ? '+' : ''}${fmt(val)} (${tag})</span>`; };
