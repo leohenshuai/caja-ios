@@ -1,5 +1,5 @@
 /* 统一底栏(记账 / 现金箱 / 薪资):玻璃胶囊 + 实色圆润按钮 + 滚动特效。须放在 ios26.css 之后 */
-.bottom-bar { position:fixed !important; left:12px !important; right:12px !important; bottom:calc(env(safe-area-inset-bottom,0px) * .45 + 8px) !important; margin:0 !important; z-index:1100 !important;
+.bottom-bar { position:fixed !important; left:12px !important; right:12px !important; bottom:calc(env(safe-area-inset-bottom,0px) * .45 + 8px) !important; margin:0 !important; z-index:150 !important;
   display:flex !important; justify-content:stretch !important; gap:8px !important; padding:8px !important; border-radius:34px !important; box-sizing:border-box !important;
   background:radial-gradient(160px 80px at var(--sx,25%) 0%, rgba(255,255,255,.18), transparent 70%), rgba(24,32,54,.52) !important;
   border:.5px solid rgba(255,255,255,.22) !important; -webkit-backdrop-filter:blur(30px) saturate(190%) !important; backdrop-filter:blur(30px) saturate(190%) !important;
