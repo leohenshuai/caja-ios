@@ -1304,10 +1304,12 @@ async function loadAll() {
         }
         else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
         if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
-        // 现金账:支出默认「货物」,收入用列表第一个
+        // 现金账:支出默认「货物」,收入默认「库存」
         if (b.id === 'cash') state.form.cash.cat = defaultCatFor('cash', state.form.cash.type);
         if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0] || '';
     });
+    // 现金账收入默认「库存」:没有该分类时自动补上
+    if (state.books.some((b) => b.id === 'cash') && state.cats.cash.indexOf('库存') === -1) { state.cats.cash.push('库存'); await saveKey('cats'); }
     if (!hasSync) {
         // 迁移默认值:沿用升级用户旧数据里的三个分类名,但只写当前确实存在的分类
         const seedSync = { '橙色': 'orange_c', 'DNI': 'dni_c1', 'Vtpay': 'vtpay_c1', 'Mercado': 'merc_c2' };
@@ -1430,6 +1432,7 @@ async function onExportExternal() {
 function defaultCatFor(book, type) {
     const list = state.cats[book] || [];
     if (book === 'cash' && type === 'out' && list.indexOf('货物') !== -1) return '货物';
+    if (book === 'cash' && type === 'in' && list.indexOf('库存') !== -1) return '库存';
     return list[0] || '';
 }
 function dayEntries(book, date) { return state.entries.filter((e) => e.book === book && e.date === date); }
@@ -2053,11 +2056,13 @@ function initBookSwipe() {
         if (!t) return;
         const dx = t.clientX - x0, dy = t.clientY - y0;
         if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-        if (!bookOf(state.tab) || state.books.length < 2) return;   // 仅账本页响应,汇总/匹配词页不切
-        const idx = state.books.findIndex((b) => b.id === state.tab);
-        const next = ((idx + (dx < 0 ? 1 : -1)) % state.books.length + state.books.length) % state.books.length;
+        // 切换序列 = 账本…+汇总;匹配词/管理页不响应
+        const seq = state.books.map((b) => b.id).concat(['summary']);
+        const idx = seq.indexOf(state.tab);
+        if (idx === -1 || seq.length < 2) return;
+        const next = ((idx + (dx < 0 ? 1 : -1)) % seq.length + seq.length) % seq.length;
         haptic('selection');
-        switchTab(state.books[next].id);
+        switchTab(seq[next]);
     }, { passive: true });
     wrap.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
 }
