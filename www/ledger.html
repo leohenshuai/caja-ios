@@ -881,6 +881,11 @@ body {
 /* ===== 底部操作栏(同财务页风格) + 匹配词页 ===== */
 /* 底栏样式见 bottom-bar.css(记账/现金箱/薪资共用) */
 .bottom-bar button.bb-words { flex:0.55 1 0; }
+.bottom-bar button.bb-solo { flex:1 1 0; }
+/* 编辑弹窗:收支切换(md-type) */
+.md-type { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--text); font-size:15px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.md-type.on.out { background:rgba(255,107,107,.22); border-color:rgba(255,107,107,.55); color:#ff8f8f; }
+.md-type.on.in { background:rgba(52,211,153,.2); border-color:rgba(52,211,153,.5); color:#34d399; }
 .lg-wrap { padding-bottom:calc(96px + env(safe-area-inset-bottom,0px)) !important; }
 body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 .rc-chips { display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; }
@@ -955,7 +960,6 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
       <div class="lg-label">分类</div>
       <div class="lg-chips" id="cash-cats"></div>
     </div>
-    <button class="lg-btn-main" id="cash-save">记一笔</button>
   </div>
   <div class="lg-card">
     <div class="lg-card-title">当日现金账</div>
@@ -984,7 +988,6 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
       <div class="lg-label">分类</div>
       <div class="lg-chips" id="tr-cats"></div>
     </div>
-    <button class="lg-btn-main" id="tr-save">记一笔</button>
   </div>
   <div class="lg-card">
     <div class="lg-card-title">当日转账账</div>
@@ -997,7 +1000,7 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 <div id="tab-words" class="tab-content">
   <div class="lg-card">
     <div class="lg-card-title">匹配词管理</div>
-    <div class="lg-note" style="margin-bottom:8px">备注输入时出现的「匹配」建议词,所有账本共用一份,忽略大小写和多余空格自动去重。删除只是不再提示,已记的账目不受影响,可随时恢复。</div>
+    <div class="lg-note" style="margin-bottom:8px">记一笔处的「最近/匹配」建议词,所有账本共用一份,忽略大小写和多余空格自动去重;未输入备注时常显最近用过的 5 条。删除只是不再提示,已记的账目不受影响,可随时恢复。</div>
     <input type="text" id="wd-q" data-vk-skip placeholder="搜匹配词" autocomplete="off">
     <div class="rc-chips" id="wd-state"></div>
     <div class="rc-sum" id="wd-sum"></div>
@@ -1106,6 +1109,17 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
 <div class="modal" id="lg-modal">
   <div class="modal-content">
     <h3>编辑账目</h3>
+    <div class="lg-field">
+      <div class="lg-label">收支</div>
+      <div class="lg-seg">
+        <button type="button" class="md-type" data-mdtype="out">支出</button>
+        <button type="button" class="md-type" data-mdtype="in">收入</button>
+      </div>
+    </div>
+    <div class="lg-field">
+      <div class="lg-label">账本</div>
+      <div class="lg-chips" id="md-books"></div>
+    </div>
     <div class="lg-field">
       <div class="lg-label">金额</div>
       <input type="text" class="lg-inp lg-e-amt2" data-vk-raw id="md-amt" autocomplete="off">
@@ -1442,7 +1456,6 @@ function renderTabs() {
     const bar = $('lg-tabs'), dock = $('lg-dock');
     if (!bar || !dock) return;
     const tabHtml = (id, label) => '<div class="tab' + (state.tab === id ? ' active' : '') + '" data-tab="' + escHtml(id) + '">' + escHtml(label) + '</div>';
-    // 账本和「＋」(新建账本)留在顶部原位;记录 / 汇总 放底部玻璃栏
     const fill = (el, html) => {
         // 只替换 .tab 节点,保留 tabs-glass.js 插入的滑块(ind)与已初始化标记
         Array.prototype.slice.call(el.querySelectorAll('.tab')).forEach((t) => t.remove());
@@ -1450,9 +1463,12 @@ function renderTabs() {
         tmp.innerHTML = html;
         while (tmp.firstChild) el.appendChild(tmp.firstChild);
     };
-    fill(bar, state.books.map((b) => tabHtml(b.id, b.name)).join('') + tabHtml('manage', '＋'));
+    fill(bar, state.books.map((b) => tabHtml(b.id, b.name)).join('') + tabHtml('summary', '汇总') + tabHtml('manage', '＋'));
     const bb = (id, cls, label) => '<button type="button" class="' + cls + (state.tab === id ? ' on' : '') + '" data-tab="' + id + '">' + label + '</button>';
-    dock.innerHTML = bb('words', 'bb-words danger bb-col', '<span>🏷️</span><span>匹配词</span>') + bb('summary', 'bb-sum success bb-wide', '📊 汇总');
+    // 汇总回到顶栏页签(账本 → 汇总 → ＋);底栏 = 匹配词 + 记一笔(仅账本页显示)
+    if (bookOf(state.tab)) dock.innerHTML = bb('words', 'bb-words danger bb-col', '<span>🏷️</span><span>匹配词</span>') +
+        '<button type="button" class="bb-save primary bb-wide" data-docksave="1"><span>✏️</span><span>记一笔</span></button>';
+    else dock.innerHTML = bb('words', 'bb-words danger bb-col bb-solo', '<span>🏷️</span><span>匹配词</span>');
     // tabs-glass.js 的滑块依赖 .tab/.tab.active,生成后触发它原来的 resize 刷新
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
 }
@@ -1480,7 +1496,6 @@ function plainHtml(bk) {
         '<div id="' + eid(bk.id, 'sughead') + '" class="lg-sug-head"></div>' +
         '<div class="lg-sugs" id="' + eid(bk.id, 'sug') + '"></div></div>' +
         '<div class="lg-field"><div class="lg-label">分类</div><div class="lg-chips" id="' + eid(bk.id, 'cats') + '"></div></div>' +
-        '<button class="lg-btn-main" id="' + eid(bk.id, 'save') + '">记一笔</button>' +
         '</div>' +
         '<div class="lg-card"><div class="lg-card-title">当日' + escHtml(bk.name) + '</div>' +
         '<div class="lg-list" id="' + eid(bk.id, 'list') + '"></div></div>';
@@ -1742,7 +1757,7 @@ function buildNoteIndex(withHidden) {
 }
 function suggestFor(book, q) {
     const items = Array.from(buildNoteIndex(false).values());
-    if (!q) return items.sort((a, b) => b.lastTs - a.lastTs).slice(0, 6);
+    if (!q) return items.sort((a, b) => b.lastTs - a.lastTs).slice(0, 5);
     const ql = noteKey(q), out = [];
     items.forEach((it) => {
         if (it.key.indexOf(ql) === -1) return;
@@ -1750,7 +1765,7 @@ function suggestFor(book, q) {
         out.push({ it: it, score: (it.key.indexOf(ql) === 0 ? 100 : 0) + Math.min(it.count, 20) * 3 + recency });
     });
     out.sort((a, b) => b.score - a.score);
-    return out.slice(0, 6).map((x) => x.it);
+    return out.slice(0, 5).map((x) => x.it);
 }
 function hiNote(text, q) {
     if (!q) return escHtml(text);
@@ -1761,20 +1776,30 @@ function hiNote(text, q) {
     while (idx !== -1) { out += escHtml(text.slice(i, idx)) + '<mark>' + escHtml(text.slice(idx, idx + ql.length)) + '</mark>'; i = idx + ql.length; idx = lower.indexOf(ql, i); }
     return out + escHtml(text.slice(i));
 }
-function renderSuggest(book) {
-    const noteEl = $(eid(book, 'note')), box = $(eid(book, 'sug')), head = $(eid(book, 'sughead'));
-    if (!noteEl || !box) return;
-    const q = (noteEl.value || '').trim();
-    if (!q) { box.innerHTML = ''; if (head) head.textContent = ''; return; }   // 未输入时不显示
-    const items = suggestFor(book, q);
-    if (!items.length) { box.innerHTML = ''; if (head) head.textContent = ''; return; }
-    if (head) head.textContent = '匹配';
+// 未输入时也常显:展示最近用过的 5 条匹配词(点选即回填备注与收支方向)
+function sugChipHtml(items, q) {
     let html = '';
     items.forEach((it) => {
         html += '<button type="button" class="lg-sug" data-note="' + escHtml(it.note) + '" data-type="' + escHtml(it.lastType) + '">' +
             '<span class="n">' + hiNote(it.note, q) + '</span></button>';
     });
-    box.innerHTML = html;
+    return html;
+}
+function renderSuggest(book) {
+    const noteEl = $(eid(book, 'note')), box = $(eid(book, 'sug')), head = $(eid(book, 'sughead'));
+    if (!noteEl || !box) return;
+    const q = (noteEl.value || '').trim();
+    if (!q) {   // 未输入时常显最近用过的 5 条
+        const items = suggestFor(book, '');
+        if (!items.length) { box.innerHTML = ''; if (head) head.textContent = ''; return; }
+        if (head) head.textContent = '最近';
+        box.innerHTML = sugChipHtml(items, '');
+        return;
+    }
+    const items = suggestFor(book, q);
+    if (!items.length) { box.innerHTML = ''; if (head) head.textContent = ''; return; }
+    if (head) head.textContent = '匹配';
+    box.innerHTML = sugChipHtml(items, q);
 }
 /* 应用一条备注历史芯片:只填备注/收支方向,不含金额与分类 */
 // 点选「匹配」建议:轻触觉 + 点击音(遵守原生开关;非 App 环境下静默)
@@ -1944,26 +1969,48 @@ function openEdit(id) {
     const e = state.entries.find((x) => x.id === id);
     if (!e) return;
     state.editingId = id; state.editingCat = e.cat;
+    state.editingBook = e.book; state.editingType = e.type;
     $('md-amt').value = String(e.amount); $('md-note').value = e.note || '';
-    const cats = state.cats[e.book].slice();
-    if (e.cat && cats.indexOf(e.cat) === -1) cats.push(e.cat);
-    let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === e.cat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
-    $('md-cats').innerHTML = html;
+    renderMdTypes(); renderMdBooks(); renderMdCats();
     $('lg-modal').classList.add('show');
+}
+function renderMdTypes() {
+    document.querySelectorAll('#lg-modal .md-type').forEach((b) => {
+        const on = b.dataset.mdtype === state.editingType;
+        b.classList.toggle('on', on);
+        b.classList.toggle(b.dataset.mdtype, on);
+    });
+}
+function renderMdBooks() {
+    let html = '';
+    state.books.forEach((b) => {
+        html += '<button type="button" class="lg-chip' + (b.id === state.editingBook ? ' on' : '') + '" data-mdbook="' + escHtml(b.id) + '">' + escHtml(b.name) + '</button>';
+    });
+    $('md-books').innerHTML = html;
+}
+function renderMdCats() {
+    const cats = (state.cats[state.editingBook] || []).slice();
+    if (state.editingCat && cats.indexOf(state.editingCat) === -1) cats.push(state.editingCat);
+    let html = '';
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === state.editingCat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    $('md-cats').innerHTML = html;
 }
 async function saveEdit() {
     const e = state.entries.find((x) => x.id === state.editingId);
     if (!e) { $('lg-modal').classList.remove('show'); return; }
     const amt = parseSum($('md-amt').value);
     if (!(amt > 0)) { showToast('请输入金额', 'error'); return; }
+    const oldBook = e.book;
     e.amount = Math.round(amt * 100) / 100;
     e.cat = state.editingCat ? state.editingCat : '未分类';
     e.note = $('md-note').value.trim();
+    e.type = state.editingType || e.type;
+    e.book = state.editingBook || e.book;
     await saveKey('entries');
     $('lg-modal').classList.remove('show');
-    state.editingId = null; state.editingCat = null;
-    renderAll(); showToast('已保存');
+    state.editingId = null; state.editingCat = null; state.editingBook = null; state.editingType = null;
+    renderAll();
+    showToast(e.book !== oldBook ? '已保存 · 已移至' + bookName(e.book) : '已保存');
 }
 function deleteEntry(id) {
     if (!state.entries.find((x) => x.id === id)) return;
@@ -1984,6 +2031,35 @@ function switchTab(id) {
     state.tab = id;
     renderTabs();
     renderAll();
+}
+/* ================= 左右滑动切换账本(同财务页滑动切换 Caja) ================= */
+function initBookSwipe() {
+    const wrap = document.querySelector('.lg-wrap');
+    if (!wrap || wrap._swipeBound) return;
+    wrap._swipeBound = true;
+    let x0 = 0, y0 = 0, tracking = false;
+    const THRESHOLD = 45;
+    // 横向可滚动的行(分类/建议词)、输入框、弹层上不触发切换
+    const skip = (t) => t.closest('input, textarea, .lg-chips, .lg-sugs, .tabs, .bottom-bar, .modal, #vk-keypad, #lg-catmenu');
+    wrap.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1 || skip(e.target)) { tracking = false; return; }
+        const t = e.touches[0];
+        x0 = t.clientX; y0 = t.clientY; tracking = true;
+    }, { passive: true });
+    wrap.addEventListener('touchend', (e) => {
+        if (!tracking) return;
+        tracking = false;
+        const t = e.changedTouches && e.changedTouches[0];
+        if (!t) return;
+        const dx = t.clientX - x0, dy = t.clientY - y0;
+        if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        if (!bookOf(state.tab) || state.books.length < 2) return;   // 仅账本页响应,汇总/匹配词页不切
+        const idx = state.books.findIndex((b) => b.id === state.tab);
+        const next = ((idx + (dx < 0 ? 1 : -1)) % state.books.length + state.books.length) % state.books.length;
+        haptic('selection');
+        switchTab(state.books[next].id);
+    }, { passive: true });
+    wrap.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
 }
 function openBooks() {
     $('lg-books').classList.add('show');
@@ -2188,7 +2264,6 @@ function bindDyn() {
             else if (act.dataset.act === 'del') deleteEntry(act.dataset.id);
             return;
         }
-        if (e.target.closest('.lg-btn-main')) { saveEntry(book); return; }
     });
 }
 /* ================= 搜索:单账本 / 全部聚合 ================= */
@@ -2470,6 +2545,7 @@ function bind() {
     });
     $('lg-cal').addEventListener('click', (e) => { if (e.target === $('lg-cal')) closeCal(); });
     ['lg-tabs', 'lg-dock'].forEach((bid) => $(bid).addEventListener('click', (e) => {
+        if (bid === 'lg-dock' && e.target.closest('[data-docksave]')) { saveEntry(state.tab); return; }
         const tab = e.target.closest('[data-tab]');
         if (!tab) return;
         const id = tab.dataset.tab;
@@ -2488,8 +2564,7 @@ function bind() {
         bindCatBox(book, $(eid(book, 'cats')), $(eid(book, 'sug')), $(eid(book, 'note')), $(eid(book, 'amt')));
     });
     bindDyn();
-    $('cash-save').addEventListener('click', () => saveEntry('cash'));
-    $('tr-save').addEventListener('click', () => saveEntry('transfer'));
+    initBookSwipe();
     $('lg-push').addEventListener('click', pushTheoretical);
     ['cash-list', 'tr-list'].forEach((id) => {
         const box = $(id);
@@ -2542,6 +2617,18 @@ function bind() {
         state.editingCat = chip.dataset.mdcat;
         $('md-cats').querySelectorAll('.lg-chip').forEach((c) => c.classList.toggle('on', c === chip));
     });
+    $('md-books').addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-mdbook]');
+        if (!chip || chip.dataset.mdbook === state.editingBook) return;
+        state.editingBook = chip.dataset.mdbook;
+        // 换账本后原分类在新账本不存在时,清空让用户重选
+        if ((state.cats[state.editingBook] || []).indexOf(state.editingCat) === -1) state.editingCat = '';
+        renderMdBooks(); renderMdCats();
+    });
+    document.querySelectorAll('#lg-modal .md-type').forEach((btn) => btn.addEventListener('click', () => {
+        state.editingType = btn.dataset.mdtype;
+        renderMdTypes();
+    }));
     $('md-cancel').addEventListener('click', () => { state.editingId = null; $('lg-modal').classList.remove('show'); });
     $('md-save').addEventListener('click', saveEdit);
     $('pm-cancel').addEventListener('click', closePrompt);
