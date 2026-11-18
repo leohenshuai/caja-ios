@@ -210,7 +210,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             if !voiceEngine.isRunning { try? voiceEngine.start() }
             if voiceEngine.isRunning {
                 let node = sfxNodes[sfxIdx]; sfxIdx = (sfxIdx + 1) % sfxNodes.count
-                node.volume = 0.7
+                node.volume = 1.0
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
                 node.play()
@@ -600,13 +600,32 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     func webViewWebContentProcessDidTerminate(_ w: WKWebView) { w.reload() }
 }
 
+// ---- 启动/回前台时把媒体音量拉到最高(替代快捷指令的"打开App时设音量"自动化) ----
+// 私有 API:MediaPlayer.framework 的 AVSystemController。自签侧载可用,App Store 审核不可用。
+// setVolumeTo 取值 0~1(1.0=最高);若装机实测音量反而变小,可能该版本刻度是 0~10,把 1.0 改成 10.0 即可。
+func maxMediaVolume() {
+    dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)   // 确保私有框架已加载
+    guard let cls = NSClassFromString("AVSystemController") else { return }
+    let shared = NSSelectorFromString("sharedAVSystemController")
+    guard let inst = (cls as! NSObject.Type).perform(shared), let controller = inst.takeUnretainedValue() as? NSObject else { return }
+    let setSel = NSSelectorFromString("setVolumeTo:forCategory:")
+    guard let method = class_getInstanceMethod(type(of: controller), setSel) else { return }
+    typealias Fn = @convention(c) (AnyObject, Selector, Float, String) -> Void
+    let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
+    fn(controller, setSel, 1.0, AVAudioSessionCategoryPlayback)
+}
+
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     func application(_ app: UIApplication, didFinishLaunchingWithOptions o: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        maxMediaVolume()
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.rootViewController = VC()
         window?.makeKeyAndVisible()
         return true
+    }
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        maxMediaVolume()   // 与快捷指令"App打开时"自动化等效:每次回到前台都拉满
     }
 }
 UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
