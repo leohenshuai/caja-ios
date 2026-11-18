@@ -1074,12 +1074,12 @@
             <div class="platform-dashboard-title-row"><div class="platform-dashboard-title">🏪 平台项目 · <span id="platform-current-name">Orange</span></div><button class="platform-main-reset" onclick="app.resetActivePlatform()" title="重置当前平台" aria-label="重置当前平台"><span class="platform-trash-icon" aria-hidden="true">🗑️</span></button></div>
         </div>
         <div class="platform-switch-zone"><div class="platform-dashboard-sub" id="platform-current-status">未录入</div><div class="platform-selector" id="platformSelector">
-            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.selectPlatformProject('orange')"><span>🍊 Orange</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
-            <button class="platform-select-chip" id="platform-chip-dni" onclick="app.selectPlatformProject('dni')"><span>🆔 DNI</span><span class="platform-chip-value" id="platform-chip-dni-value">0</span></button>
-            <button class="platform-select-chip" id="platform-chip-vtpay" onclick="app.selectPlatformProject('vtpay')"><span>💳 Vtpay</span><span class="platform-chip-value" id="platform-chip-vtpay-value">0</span></button>
-            <button class="platform-select-chip" id="platform-chip-mercado" onclick="app.selectPlatformProject('mercado')"><span>🛒 Mercado</span><span class="platform-chip-value" id="platform-chip-mercado-value">0</span></button>
-            <button class="platform-select-chip" id="platform-chip-machines" onclick="app.selectPlatformProject('machines')"><span>📱 机器</span><span class="platform-chip-value" id="platform-chip-machines-value">0</span></button>
-            <button class="platform-select-chip" id="platform-chip-z3" onclick="app.selectPlatformProject('z3')"><span>🖥️ Z3</span><span class="platform-chip-value" id="platform-chip-z3-value">0</span></button>
+            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.dismissPlatformInput();app.selectPlatformProject('orange')"><span>🍊 Orange</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-dni" onclick="app.dismissPlatformInput();app.selectPlatformProject('dni')"><span>🆔 DNI</span><span class="platform-chip-value" id="platform-chip-dni-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-vtpay" onclick="app.dismissPlatformInput();app.selectPlatformProject('vtpay')"><span>💳 Vtpay</span><span class="platform-chip-value" id="platform-chip-vtpay-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-mercado" onclick="app.dismissPlatformInput();app.selectPlatformProject('mercado')"><span>🛒 Mercado</span><span class="platform-chip-value" id="platform-chip-mercado-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-machines" onclick="app.dismissPlatformInput();app.selectPlatformProject('machines')"><span>📱 机器</span><span class="platform-chip-value" id="platform-chip-machines-value">0</span></button>
+            <button class="platform-select-chip" id="platform-chip-z3" onclick="app.dismissPlatformInput();app.selectPlatformProject('z3')"><span>🖥️ Z3</span><span class="platform-chip-value" id="platform-chip-z3-value">0</span></button>
         </div></div>
         <div class="platform-content-area">
         <!-- Orange 项目卡片 -->
@@ -2626,7 +2626,7 @@ class FinanceApp {
         this.showToast(`第${recIdx + 1}次清点记录已修改，总额与报表已重算`, 'success');
     }
     toggleCajaCollapse(cajaIdx) { /* 四台旧卡片已移除，切换请用 C1~C4 按钮 */ this.selectCentralTarget(cajaIdx); }
-    selectPlatformProject(projectName, focusInput = true) {
+    selectPlatformProject(projectName, focusInput = false) {
         const allProjects = ['orange', 'dni', 'vtpay', 'mercado', 'machines', 'z3'];
         if (!allProjects.includes(projectName)) projectName = 'orange';
         this.activePlatformProject = projectName;
@@ -2692,6 +2692,7 @@ class FinanceApp {
     }
     resetActivePlatform() { this.resetSection(this.activePlatformProject || 'orange'); }
     togglePlatformCollapse(projectName) {
+        this.dismissPlatformInput();   // 点芯片切换项目不自动弹键盘
         this.selectPlatformProject(projectName);
     }
     customConfirm(msg, callback) { $('confirmMessage').textContent = msg; toggleModal('confirmModal', true); this.confirmCallback = callback; }
@@ -3112,6 +3113,7 @@ class FinanceApp {
         if (tabName === 'settle') { this.syncSettleAccumPanel(); if (typeof settleApp !== 'undefined' && settleApp.autoDetectIncluded) settleApp.autoDetectIncluded(); this.fillSettleFromAccum(); }
         if (tabName === 'caja') this.focusCentralStart();
         if (tabName === 'platform') {
+            this.dismissPlatformInput();   // 进入平台项目不弹键盘,也收掉从其它页签带过来的键盘
             this.refreshPlatformPreview();
             this.refreshProjectStatusUI();
             this.refreshMachineStatusUI();
@@ -3124,8 +3126,7 @@ class FinanceApp {
         const projects = ['orange', 'dni', 'vtpay', 'mercado', 'machines', 'z3'];
         const firstIncomplete = projects.find(projectName => !this.isPlatformProjectCompleted(projectName));
         if (!firstIncomplete) { this.dismissPlatformInput(); return; }
-        this.selectPlatformProject(firstIncomplete, false);
-        this.focusPlatformProjectStart(firstIncomplete);
+        this.selectPlatformProject(firstIncomplete, false);   // 只选中,不弹键盘;输入由用户点输入框触发
     }
     syncSettleAccumPanel() {
         const panel = $('settleAccumPanel');
