@@ -600,32 +600,64 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     func webViewWebContentProcessDidTerminate(_ w: WKWebView) { w.reload() }
 }
 
-// ---- 启动/回前台时把媒体音量拉到最高(替代快捷指令的"打开App时设音量"自动化) ----
-// 私有 API:MediaPlayer.framework 的 AVSystemController。自签侧载可用,App Store 审核不可用。
-// setVolumeTo 取值 0~1(1.0=最高);若装机实测音量反而变小,可能该版本刻度是 0~10,把 1.0 改成 10.0 即可。
-func maxMediaVolume() {
-    dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)   // 确保私有框架已加载
-    guard let cls = NSClassFromString("AVSystemController") else { return }
-    let shared = NSSelectorFromString("sharedAVSystemController")
-    guard let inst = (cls as! NSObject.Type).perform(shared), let controller = inst.takeUnretainedValue() as? NSObject else { return }
-    let setSel = NSSelectorFromString("setVolumeTo:forCategory:")
-    guard let method = class_getInstanceMethod(type(of: controller), setSel) else { return }
-    typealias Fn = @convention(c) (AnyObject, Selector, Float, String) -> Void
-    let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
-    fn(controller, setSel, 1.0, AVAudioSession.Category.playback.rawValue)
-}
-
+// ---- 音量诊断版(临时):把候选路径全部试一遍并弹窗报数,定位哪条路能改媒体音量 ----
+// 输出: before=初始音量 class/inst/method=私有类查找结果 afterAV=AVSystemController调用后 afterMP=MPVolumeView滑条后
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+    var volLog = ""
     func application(_ app: UIApplication, didFinishLaunchingWithOptions o: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        maxMediaVolume()
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.rootViewController = VC()
         window?.makeKeyAndVisible()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.snap("before"); self.tryAVSystem() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { self.tryMPVolumeView() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { self.showVolAlert() }
         return true
     }
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        maxMediaVolume()   // 与快捷指令"App打开时"自动化等效:每次回到前台都拉满
+    func snap(_ tag: String) { volLog += tag + "=" + String(AVAudioSession.sharedInstance().outputVolume) + "\n" }
+    func tryAVSystem() {
+        dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)
+        guard let cls = NSClassFromString("AVSystemController") else { volLog += "class✗\n"; snap("afterAV"); return }
+        volLog += "class✓\n"
+        guard let inst = (cls as! NSObject.Type).perform(NSSelectorFromString("sharedAVSystemController")),
+              let c = inst.takeUnretainedValue() as? NSObject else { volLog += "inst✗\n"; snap("afterAV"); return }
+        volLog += "inst✓\n"
+        let sel = NSSelectorFromString("setVolumeTo:forCategory:")
+        guard let method = class_getInstanceMethod(type(of: c), sel) else { volLog += "method✗\n"; snap("afterAV"); return }
+        volLog += "method✓\n"
+        typealias Fn = @convention(c) (AnyObject, Selector, Float, String) -> Void
+        let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
+        for cat in ["AVAudioSessionCategoryPlayback", "AudioSessionCategory_Playback"] {
+            fn(c, sel, 1.0, cat)
+            snap("v1.0_" + cat)
+        }
+    }
+    func findSlider(_ v: UIView) -> UISlider? {
+        if let s = v as? UISlider { return s }
+        for sub in v.subviews { if let s = findSlider(sub) { return s } }
+        return nil
+    }
+    func tryMPVolumeView() {
+        dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)
+        guard let cls = NSClassFromString("MPVolumeView"), let w = window else { volLog += "MPVolumeView✗\n"; snap("afterMP"); return }
+        let vv = (cls as! NSObject.Type).init() as! UIView
+        vv.frame = CGRect(x: -100, y: -100, width: 1, height: 1)
+        vv.alpha = 0.01
+        w.addSubview(vv)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let s = self.findSlider(vv)
+            self.volLog += "slider" + (s != nil ? "✓" : "✗") + "\n"
+            if let s = s {
+                s.value = 1.0
+                s.sendActions(for: .valueChanged)
+            }
+            self.snap("afterMP")
+        }
+    }
+    func showVolAlert() {
+        let a = UIAlertController(title: "音量诊断", message: volLog.trimmingCharacters(in: .whitespacesAndNewlines), preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "好", style: .default))
+        window?.rootViewController?.present(a, animated: true)
     }
 }
 UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
