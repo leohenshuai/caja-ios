@@ -612,7 +612,7 @@ func maxMediaVolume() {
     guard let method = class_getInstanceMethod(type(of: controller), setSel) else { return }
     typealias Fn = @convention(c) (AnyObject, Selector, Float, String) -> Void
     let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
-    fn(controller, setSel, 1.0, AVAudioSessionCategoryPlayback)
+    fn(controller, setSel, 1.0, AVAudioSessionCategoryPlayback.rawValue)
 }
 
 final class AppDelegate: UIResponder, UIApplicationDelegate {
