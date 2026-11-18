@@ -210,7 +210,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             if !voiceEngine.isRunning { try? voiceEngine.start() }
             if voiceEngine.isRunning {
                 let node = sfxNodes[sfxIdx]; sfxIdx = (sfxIdx + 1) % sfxNodes.count
-                node.volume = 1.0
+                node.volume = 0.7
                 node.stop()
                 node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
                 node.play()
@@ -600,64 +600,13 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     func webViewWebContentProcessDidTerminate(_ w: WKWebView) { w.reload() }
 }
 
-// ---- 音量诊断版(临时):把候选路径全部试一遍并弹窗报数,定位哪条路能改媒体音量 ----
-// 输出: before=初始音量 class/inst/method=私有类查找结果 afterAV=AVSystemController调用后 afterMP=MPVolumeView滑条后
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
-    var volLog = ""
     func application(_ app: UIApplication, didFinishLaunchingWithOptions o: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.rootViewController = VC()
         window?.makeKeyAndVisible()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.snap("before"); self.tryAVSystem() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { self.tryMPVolumeView() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { self.showVolAlert() }
         return true
-    }
-    func snap(_ tag: String) { volLog += tag + "=" + String(AVAudioSession.sharedInstance().outputVolume) + "\n" }
-    func tryAVSystem() {
-        dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)
-        guard let cls = NSClassFromString("AVSystemController") else { volLog += "class✗\n"; snap("afterAV"); return }
-        volLog += "class✓\n"
-        guard let inst = (cls as! NSObject.Type).perform(NSSelectorFromString("sharedAVSystemController")),
-              let c = inst.takeUnretainedValue() as? NSObject else { volLog += "inst✗\n"; snap("afterAV"); return }
-        volLog += "inst✓\n"
-        let sel = NSSelectorFromString("setVolumeTo:forCategory:")
-        guard let method = class_getInstanceMethod(type(of: c), sel) else { volLog += "method✗\n"; snap("afterAV"); return }
-        volLog += "method✓\n"
-        typealias Fn = @convention(c) (AnyObject, Selector, Float, String) -> Void
-        let fn = unsafeBitCast(method_getImplementation(method), to: Fn.self)
-        for cat in ["AVAudioSessionCategoryPlayback", "AudioSessionCategory_Playback"] {
-            fn(c, sel, 1.0, cat)
-            snap("v1.0_" + cat)
-        }
-    }
-    func findSlider(_ v: UIView) -> UISlider? {
-        if let s = v as? UISlider { return s }
-        for sub in v.subviews { if let s = findSlider(sub) { return s } }
-        return nil
-    }
-    func tryMPVolumeView() {
-        dlopen("/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer", RTLD_LAZY)
-        guard let cls = NSClassFromString("MPVolumeView"), let w = window else { volLog += "MPVolumeView✗\n"; snap("afterMP"); return }
-        let vv = (cls as! NSObject.Type).init() as! UIView
-        vv.frame = CGRect(x: -100, y: -100, width: 1, height: 1)
-        vv.alpha = 0.01
-        w.addSubview(vv)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let s = self.findSlider(vv)
-            self.volLog += "slider" + (s != nil ? "✓" : "✗") + "\n"
-            if let s = s {
-                s.value = 1.0
-                s.sendActions(for: .valueChanged)
-            }
-            self.snap("afterMP")
-        }
-    }
-    func showVolAlert() {
-        let a = UIAlertController(title: "音量诊断", message: volLog.trimmingCharacters(in: .whitespacesAndNewlines), preferredStyle: .alert)
-        a.addAction(UIAlertAction(title: "好", style: .default))
-        window?.rootViewController?.present(a, animated: true)
     }
 }
 UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
