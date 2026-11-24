@@ -174,8 +174,8 @@
 </main>
 <div class="modal" id="dataModal" style="background:rgba(2,6,23,.82) !important"><div class="dialog" style="background:#1b2438 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;max-height:86vh;overflow:auto"><h3 style="margin:0 0 4px">数据导入 / 导出</h3><p id="dataInfo" style="margin:0 0 14px"></p>
 <div class="dm-sec">手动</div>
-<div class="dm-grid"><button class="primary wide" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(CSV)</button><button class="secondary" id="dataImport" type="button">选择文件导入</button></div>
-<input id="importFile" type="file" accept="application/json,.json,text/csv,.csv" hidden>
+<div class="dm-grid"><button class="primary wide" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(Excel)</button><button class="secondary" id="dataImport" type="button">选择文件导入</button></div>
+<input id="importFile" type="file" accept="application/json,.json,text/csv,.csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 <div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="dm-grid"><button class="primary wide" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
 <div id="watchBox" hidden style="margin-top:20px"><div class="dm-sec">自动</div>
 <div class="dm-card">
@@ -319,6 +319,90 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   $('amount').addEventListener('blur',()=>{const n=parseAmount($('amount').value);if(Number.isFinite(n)&&n>0)$('amount').value=fmtAmountInput(n);amountPreview()});
   /* ===== 数据导入 / 导出(独立入口:页头「数据」按钮) ===== */
   function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+  function downloadBlob(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+  /* ===== Excel (.xlsx) 生成与读取:无外部库,xlsx 本质是 zip 包 XML,这里用不压缩(stored)方式打包 ===== */
+  const xmlEsc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const xmlUnesc=s=>String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n))).replace(/&#x([0-9a-fA-F]+);/g,(_,h)=>String.fromCodePoint(parseInt(h,16))).replace(/&amp;/g,'&');
+  const CRC_TABLE=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+  function crc32(bytes){let c=~0;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&255]^(c>>>8);return (~c)>>>0}
+  function zipStore(files){
+    const enc=new TextEncoder(),chunks=[],central=[];let offset=0;
+    files.forEach(f=>{
+      const nameB=enc.encode(f.name),data=typeof f.data==='string'?enc.encode(f.data):f.data,crc=crc32(data),size=data.length;
+      const lh=new DataView(new ArrayBuffer(30));
+      lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint32(14,crc,true);lh.setUint32(18,size,true);lh.setUint32(22,size,true);lh.setUint16(26,nameB.length,true);
+      chunks.push(new Uint8Array(lh.buffer),nameB,data);
+      const ch=new DataView(new ArrayBuffer(46));
+      ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint32(16,crc,true);ch.setUint32(20,size,true);ch.setUint32(24,size,true);ch.setUint16(28,nameB.length,true);ch.setUint32(42,offset,true);
+      central.push(new Uint8Array(ch.buffer),nameB);
+      offset+=30+nameB.length+size;
+    });
+    const cdSize=central.reduce((s,c)=>s+c.length,0),end=new DataView(new ArrayBuffer(22));
+    end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cdSize,true);end.setUint32(16,offset,true);
+    return new Blob([...chunks,...central,new Uint8Array(end.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+  function makeXlsx(head,rows,totalRow){
+    const COLS=['A','B','C','D','E','F'];
+    const cell=(v,ci,style)=>{
+      const ref=COLS[ci]+'R';
+      if(v===''||v==null)return `<c r="${ref}" s="${style}"/>`;
+      if(typeof v==='number')return `<c r="${ref}" s="${style}"><v>${v}</v></c>`;
+      return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    };
+    const rowXml=(vals,ri,kind)=>`<row r="${ri}">`+vals.map((v,ci)=>cell(v,ci,kind==='head'?1:kind==='total'?(ci===5?5:4):(ci===5?3:2)).replace('R',ri)).join('')+`</row>`;
+    const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="5" width="30" customWidth="1"/><col min="6" max="6" width="15" customWidth="1"/></cols><sheetData>${rowXml(head,1,'head')}${rows.map((r,i)=>rowXml(r,i+2,'body')).join('')}${rowXml(totalRow,rows.length+2,'total')}</sheetData></worksheet>`;
+    const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1D5C45"/><bgColor rgb="FF1D5C45"/></patternFill></fill></fills><borders count="2"><border/><border><left style="thin"><color rgb="FFD9D4C8"/></left><right style="thin"><color rgb="FFD9D4C8"/></right><top style="thin"><color rgb="FFD9D4C8"/></top><bottom style="thin"><color rgb="FFD9D4C8"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf></cellXfs></styleSheet>`;
+    return zipStore([
+      {name:'[Content_Types].xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`},
+      {name:'_rels/.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+      {name:'xl/workbook.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="资金到账" sheetId="1" r:id="rId1"/></sheets></workbook>`},
+      {name:'xl/_rels/workbook.xml.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+      {name:'xl/styles.xml',data:styles},
+      {name:'xl/worksheets/sheet1.xml',data:sheet}
+    ]);
+  }
+  /* 读取 .xlsx:解 zip(不压缩直接读,压缩的用系统解压),把第一个工作表转成 CSV 文本再走 readSource */
+  async function xlsxToCsvText(file){
+    const buf=new Uint8Array(await file.arrayBuffer()),dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);
+    let eocd=-1;for(let i=buf.length-22;i>=0&&i>buf.length-22-65536;i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}}
+    if(eocd<0)throw Error('不是有效的 Excel 文件');
+    const count=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);const files={};
+    for(let n=0;n<count;n++){
+      if(dv.getUint32(p,true)!==0x02014b50)break;
+      const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nameLen=dv.getUint16(p+28,true),extraLen=dv.getUint16(p+30,true),commentLen=dv.getUint16(p+32,true),lho=dv.getUint32(p+42,true);
+      const name=new TextDecoder().decode(buf.slice(p+46,p+46+nameLen));
+      files[name]={method,data:buf.slice(lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true),lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true)+csize)};
+      p+=46+nameLen+extraLen+commentLen;
+    }
+    async function unzipText(name){
+      const f=files[name];if(!f)return'';
+      if(f.method===0)return new TextDecoder().decode(f.data);
+      if(f.method===8){
+        if(typeof DecompressionStream==='undefined')throw Error('此设备无法解压这个 Excel,请用 Excel 另存或改用 JSON/CSV 导入');
+        return await new Response(new Blob([f.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+      }
+      throw Error('不支持的 Excel 压缩方式');
+    }
+    const shared=[],ssXml=await unzipText('xl/sharedStrings.xml');
+    if(ssXml){let sm;const siRe=/<si>([\s\S]*?)<\/si>/g;while((sm=siRe.exec(ssXml))){let t='',tm;const tRe=/<t[^>]*>([\s\S]*?)<\/t>/g;while((tm=tRe.exec(sm[1])))t+=xmlUnesc(tm[1]);shared.push(t)}}
+    const sheetName=Object.keys(files).find(k=>/^xl\/worksheets\/[^/]+\.xml$/.test(k));if(!sheetName)throw Error('Excel 里找不到工作表');
+    const sheetXml=await unzipText(sheetName),rows=[];let rm;const rowRe=/<row[^>]*>([\s\S]*?)<\/row>/g;
+    while((rm=rowRe.exec(sheetXml))){
+      const cells=[];let cm;const cellRe=/<c\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+      while((cm=cellRe.exec(rm[1]))){
+        const attrs=cm[1],inner=cm[2]||'',refM=/r="([A-Z]+)\d+"/.exec(attrs);let idx=0;
+        if(refM){for(const ch of refM[1])idx=idx*26+(ch.charCodeAt(0)-64);idx--}
+        const tM=/t="(\w+)"/.exec(attrs),t=tM?tM[1]:'';let val='';
+        if(t==='s'){const vM=/<v>([\s\S]*?)<\/v>/.exec(inner);if(vM)val=shared[Number(vM[1])]||''}
+        else if(t==='inlineStr'){const tM2=/<t[^>]*>([\s\S]*?)<\/t>/.exec(inner);if(tM2)val=xmlUnesc(tM2[1])}
+        else{const vM=/<v>([\s\S]*?)<\/v>/.exec(inner);if(vM)val=xmlUnesc(vM[1])}
+        cells[idx]=val;
+      }
+      rows.push(cells);
+    }
+    if(!rows.length)throw Error('Excel 里没有数据');
+    return rows.map(r=>Array.from({length:r.length},(_,i)=>'"'+String(r[i]??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  }
   const TYPE_TXT={debito:'Débito',credito:'Crédito',prepaid:'Prepaid',short:'差钱'},DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
   const sigOf=x=>x.reference?['ref',x.type,x.reference].join('|'):[x.type,Number(x.amount).toFixed(2),x.currency,x.saleDate,x.arrivalDate,x.note].join('|');
   function normItem(x){
@@ -386,10 +470,10 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   $('dataBtn').onclick=openData;$('dataClose').onclick=()=>dm.classList.remove('open');
   dm.addEventListener('click',e=>{if(e.target===dm)dm.classList.remove('open')});
   $('dataExportJson').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:2,exportedAt:new Date().toISOString(),count:items.length,items},null,2),'application/json')};
-  /* 导出表格:极简宽表,照手写账本(图三)——一共 6 列,按交易日期从旧到新排序,同一天只占一行;
+  /* 导出表格:Excel (.xlsx) 文件,极简宽表照手写账本(图三)——一共 6 列,按交易日期从旧到新排序,同一天只占一行;
      每类一格,格内写「金额 (到账月.日) 状态」——状态每格必写:已到 / 待到 / 逾期(过了到账日还没到),差钱写 已补 / 待补;
-     同一天同类型多笔时格内以「 / 」并列。流水号/备注不在表格里,完整备份用上面的 JSON 导出。
-     导入解析见 readSource 的极简宽表分支,金额/日期/状态可逐笔还原 */
+     同一天同类型多笔时格内以「 / 」并列。表头深绿底白字、首行冻结、合计行加粗(样式在 makeXlsx)。
+     流水号/备注不在表格里,完整备份用上面的 JSON 导出。导入解析见 readSource 的极简宽表分支,金额/日期/状态可逐笔还原 */
   $('dataExportCsv').onclick=()=>{
     if(!items.length){alert('当前没有记录可导出');return}
     const TYPES=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
@@ -415,15 +499,14 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
       });
       grand+=dayTotal;row.push(dayTotal?Math.round(dayTotal*100)/100:'');rows.push(row);
     });
-    rows.push(['合计',...TYPES.map(([t])=>totals[t]?Math.round(totals[t]*100)/100:''),Math.round(grand*100)/100]);
-    const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
-    download(`资金到账数据_${stamp()}.csv`,csv,'text/csv');
+    const totalRow=['合计',...TYPES.map(([t])=>totals[t]?Math.round(totals[t]*100)/100:''),Math.round(grand*100)/100];
+    downloadBlob(`资金到账数据_${stamp()}.xlsx`,makeXlsx(head,rows,totalRow));
   };
   $('dataImport').onclick=()=>$('importFile').click();
   $('importFile').addEventListener('change',async()=>{
     const file=$('importFile').files[0];if(!file)return;
     try{
-      const src=readSource(await file.text()),good=src.map(normItem).filter(Boolean),bad=src.length-good.length;
+      const src=readSource(/\.xlsx$/i.test(file.name)?await xlsxToCsvText(file):await file.text()),good=src.map(normItem).filter(Boolean),bad=src.length-good.length;
       if(!good.length)throw Error('没有找到有效记录');
       const ids=new Set(items.map(x=>x.id)),sigs=new Set(items.map(sigOf)),seen=new Set(),fresh=[];
       good.forEach(x=>{const s=sigOf(x);if(ids.has(x.id)||sigs.has(s)||seen.has(s))return;seen.add(s);fresh.push(x)});
@@ -431,7 +514,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
       dmPlan.hidden=false;
       $('dataPlanText').textContent=`文件「${file.name}」:有效 ${good.length} 笔${bad?`,无效 ${bad} 笔(已忽略)`:''}。其中新记录 ${fresh.length} 笔,与现有重复 ${good.length-fresh.length} 笔。`;
       $('dataMerge').disabled=!fresh.length;$('dataMerge').textContent=`合并导入(新增 ${fresh.length} 笔)`;
-    }catch(err){pending=null;dmPlan.hidden=true;alert('无法读取:'+(err.message||'文件格式不对')+'\n请选择本工具导出的 JSON 或 CSV 文件')}
+    }catch(err){pending=null;dmPlan.hidden=true;alert('无法读取:'+(err.message||'文件格式不对')+'\n请选择本工具导出的 JSON、CSV 或 Excel 文件')}
     finally{$('importFile').value=''}
   });
   function applyImport(list,msg){
