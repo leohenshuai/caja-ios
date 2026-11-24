@@ -342,7 +342,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     const rows=parseCSV(text);if(rows.length<2)throw Error('文件里没有数据');
     /* 横向宽表(新导出格式):一行一个交易日期,各类型横排。展开还原成逐笔记录,旧的逐笔格式在下面继续兼容 */
     const hdr=rows[0].map(h=>h.trim()),wideTypes=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
-    /* 极简宽表(现行导出格式):单元格为「金额 (到账月.日)」,待到账带「待」、差钱带「待补/已补」后缀。
+    /* 极简宽表(现行导出格式):单元格为「金额 (到账月.日) 状态」,状态为 已到/待到/逾期、差钱为 已补/待补(旧版无后缀的按已到兼容)。
        流水号/备注不在此格式内,完整备份请用 JSON 导出;金额、日期、状态可逐笔还原 */
     if(hdr.includes('交易日期')&&wideTypes.some(([,label])=>hdr.includes(label))&&!hdr.some(h=>h.includes('金额'))){
       const at=name=>hdr.indexOf(name),out=[];
@@ -354,7 +354,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
           String(r[ci]).split(' / ').forEach(part=>{
             const m=/^([\d.,]+)(?:\s*\((\d{1,2})\.(\d{1,2})\))?(.*)$/.exec(part.trim());if(!m)return;
             let arrivalDate='';if(m[2]){const am=Number(m[2]);arrivalDate=`${am<sm?sy+1:sy}-${pad(am)}-${pad(Number(m[3]))}`}
-            out.push({type,amount:m[1],currency:'ARS',saleDate,arrivalDate,note:'',arrived:/已补/.test(m[4])||!/待/.test(m[4]),reference:''});
+            out.push({type,amount:m[1],currency:'ARS',saleDate,arrivalDate,note:'',arrived:/已到|已补/.test(m[4])||!/待|逾期/.test(m[4]),reference:''});
           });
         });
       });
@@ -387,7 +387,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   dm.addEventListener('click',e=>{if(e.target===dm)dm.classList.remove('open')});
   $('dataExportJson').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:2,exportedAt:new Date().toISOString(),count:items.length,items},null,2),'application/json')};
   /* 导出表格:极简宽表,照手写账本(图三)——一共 6 列,按交易日期从旧到新排序,同一天只占一行;
-     每类一格,格内写「金额 (到账月.日)」,待到账在后面加「待」,差钱加「待补/已补」;
+     每类一格,格内写「金额 (到账月.日) 状态」——状态每格必写:已到 / 待到 / 逾期(过了到账日还没到),差钱写 已补 / 待补;
      同一天同类型多笔时格内以「 / 」并列。流水号/备注不在表格里,完整备份用上面的 JSON 导出。
      导入解析见 readSource 的极简宽表分支,金额/日期/状态可逐笔还原 */
   $('dataExportCsv').onclick=()=>{
@@ -408,7 +408,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
         row.push(list.map(x=>{
           let s=String(x.amount);
           if(x.arrivalDate)s+=` (${Number(x.arrivalDate.slice(5,7))}.${Number(x.arrivalDate.slice(8,10))})`;
-          if(t==='short')s+=x.arrived?' 已补':' 待补';else if(!x.arrived)s+=' 待';
+          if(t==='short')s+=x.arrived?' 已补':' 待补';else s+=x.arrived?' 已到':(x.arrivalDate&&x.arrivalDate<localISO()?' 逾期':' 待到');
           return s;
         }).join(' / '));
         const sum=list.reduce((s2,x)=>s2+Number(x.amount||0),0);totals[t]=(totals[t]||0)+sum;if(t!=='short')dayTotal+=sum;
