@@ -340,6 +340,23 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     text=text.replace(/^\ufeff/,'').trim();
     if(text[0]==='['||text[0]==='{'){const p=JSON.parse(text),src=Array.isArray(p)?p:p.items;if(!Array.isArray(src))throw Error('格式错误');if(!Array.isArray(p)){const t=Number(p['未扣税合计']);src.meta={tot:Number.isFinite(t)?t:NaN,target:DATE_RE.test(p.targetDate)?p.targetDate:''}}return src}
     const rows=parseCSV(text);if(rows.length<2)throw Error('文件里没有数据');
+    /* 横向宽表(新导出格式):一行一个交易日期,各类型横排。展开还原成逐笔记录,旧的逐笔格式在下面继续兼容 */
+    const hdr=rows[0].map(h=>h.trim()),wideTypes=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
+    if(hdr.includes('交易日期')&&wideTypes.some(([,label])=>hdr.includes(label+' 金额'))){
+      const at=name=>hdr.indexOf(name),splitCell=v=>String(v||'').split(' / ').map(s=>s.trim());
+      const out=[];
+      rows.slice(1).forEach(r=>{
+        const saleDate=(r[at('交易日期')]||'').trim();if(!DATE_RE.test(saleDate))return;/* 合计行等非日期行跳过 */
+        const currency=(at('币种')>-1?(r[at('币种')]||'').trim():'')||'ARS',note=at('备注')>-1?(r[at('备注')]||'').trim():'';
+        wideTypes.forEach(([type,label])=>{
+          const ai=at(label+' 金额');if(ai<0||!(r[ai]||'').trim())return;
+          const amounts=splitCell(r[ai]),arrivals=splitCell(r[at(label+(type==='short'?' 补上日期':' 到账日期'))]),stats=splitCell(r[at(label+' 状态')]),refs=splitCell(r[at(label+' 流水号')]);
+          amounts.forEach((amount,i)=>{if(amount){const st=stats[i]||stats[0]||'';out.push({type,amount,currency,saleDate,arrivalDate:arrivals[i]||arrivals[0]||'',note,arrived:st==='已到账'||st==='已补上',reference:refs[i]||''})}});
+        });
+      });
+      if(!out.length)throw Error('文件里没有数据');
+      return out;
+    }
     const H={类型:'type',金额:'amount',交易日期:'saleDate',到账日期:'arrivalDate',备注:'note',状态:'arrived',币种:'currency',流水号:'reference'},cols=rows[0].map(h=>H[h.trim()]);
     if(!cols.includes('type')||!cols.includes('amount'))throw Error('不是本工具导出的 CSV');
     return rows.slice(1).map(r=>{const o={};cols.forEach((k,n)=>{if(k)o[k]=r[n]});return o});
@@ -350,7 +367,34 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   $('dataBtn').onclick=openData;$('dataClose').onclick=()=>dm.classList.remove('open');
   dm.addEventListener('click',e=>{if(e.target===dm)dm.classList.remove('open')});
   $('dataExportJson').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:2,exportedAt:new Date().toISOString(),count:items.length,items},null,2),'application/json')};
-  $('dataExportCsv').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}const head=['类型','金额','币种','交易日期','到账日期','备注','状态','流水号'];const rows=items.map(x=>[x.type,x.amount,x.currency||'ARS',x.saleDate,x.arrivalDate,x.note||'',x.arrived?'已到账':'待到账',x.reference||'']);const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download(`资金到账数据_${stamp()}.csv`,csv,'text/csv')};
+  /* 导出表格:横向宽表(仿手写账本)——按交易日期从旧到新排序,同一交易日期只占一行,
+     Débito / Crédito / Prepaid / 差钱 横向并排,每类带自己的金额、到账日期、状态、流水号;
+     同一天同类型有多笔时,单元格内以「 / 」并列,导入时可逐笔还原(导入解析见 readSource 的宽表分支) */
+  $('dataExportCsv').onclick=()=>{
+    if(!items.length){alert('当前没有记录可导出');return}
+    const TYPES=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
+    const head=['交易日期','币种',...TYPES.flatMap(([t,label])=>[label+' 金额',label+(t==='short'?' 补上日期':' 到账日期'),label+' 状态',label+' 流水号']),'当日合计','备注'];
+    const groups=new Map();
+    [...items].sort((a,b)=>a.saleDate.localeCompare(b.saleDate)||(a.currency||'ARS').localeCompare(b.currency||'ARS')).forEach(x=>{
+      const key=x.saleDate+'|'+(x.currency||'ARS');if(!groups.has(key))groups.set(key,{saleDate:x.saleDate,currency:x.currency||'ARS',byType:{},notes:[]});
+      const g=groups.get(key);(g.byType[x.type]=g.byType[x.type]||[]).push(x);
+      const note=(x.note||'').trim();if(note&&!g.notes.includes(note))g.notes.push(note);
+    });
+    const rows=[],totals={};let grand=0;
+    groups.forEach(g=>{
+      const row=[g.saleDate,g.currency];let dayTotal=0;
+      TYPES.forEach(([t])=>{
+        const list=(g.byType[t]||[]).slice().sort((a,b)=>String(a.arrivalDate||'').localeCompare(String(b.arrivalDate||''))||a.amount-b.amount);
+        if(!list.length){row.push('','','','');return}
+        row.push(list.map(x=>x.amount).join(' / '),list.map(x=>x.arrivalDate||'').join(' / '),list.map(x=>t==='short'?(x.arrived?'已补上':'未补上'):(x.arrived?'已到账':'待到账')).join(' / '),list.map(x=>x.reference||'').join(' / '));
+        const sum=list.reduce((s,x)=>s+Number(x.amount||0),0);totals[t]=(totals[t]||0)+sum;if(t!=='short')dayTotal+=sum;
+      });
+      grand+=dayTotal;row.push(dayTotal?Math.round(dayTotal*100)/100:'',g.notes.join('；'));rows.push(row);
+    });
+    const totalRow=['合计','',...TYPES.flatMap(([t])=>[totals[t]?Math.round(totals[t]*100)/100:'','','','']),Math.round(grand*100)/100,''];rows.push(totalRow);
+    const csv='\ufeff'+[head,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    download(`资金到账数据_${stamp()}.csv`,csv,'text/csv');
+  };
   $('dataImport').onclick=()=>$('importFile').click();
   $('importFile').addEventListener('change',async()=>{
     const file=$('importFile').files[0];if(!file)return;
