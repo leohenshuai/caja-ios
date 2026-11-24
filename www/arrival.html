@@ -177,6 +177,14 @@
 <div class="dm-grid"><button class="primary wide" id="dataExportJson" type="button">导出数据(JSON,完整)</button><button class="secondary" id="dataExportCsv" type="button">导出表格(Excel)</button><button class="secondary" id="dataImport" type="button">选择文件导入</button></div>
 <input id="importFile" type="file" accept="application/json,.json,text/csv,.csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 <div id="dataPlan" hidden><p id="dataPlanText" style="margin:12px 0 8px"></p><div class="dm-grid"><button class="primary wide" id="dataMerge" type="button">合并导入</button><button class="danger" id="dataReplace" type="button">替换全部</button><button class="secondary" id="dataCancel" type="button">取消</button></div></div>
+<div style="margin-top:20px"><div class="dm-sec">历史归档</div>
+<div class="dm-card">
+<p id="archInfo" class="hint" style="margin:0 0 10px;line-height:1.6">暂无归档记录</p>
+<div class="dm-grid"><button class="secondary" id="archToggle" type="button">查看归档</button><button class="secondary" id="archClear" type="button" style="color:#f87171">清空归档</button></div>
+<div style="display:flex;gap:8px;margin-top:10px"><input type="date" id="archCutDate" style="flex:1;padding:10px;border-radius:10px;min-width:0"><button class="secondary" id="archDelBefore" type="button" style="flex:none">删除该日期前的归档</button></div>
+<p class="hint" style="margin:8px 0 0;line-height:1.6">超过 15 天的已到账记录会自动存入归档(不再直接删除),导出表格/JSON 时会包含归档,历史完整。归档永不自动清理;手动删除前会先自动导出一份完整 Excel 备份。</p>
+<div id="archList" hidden style="max-height:320px;overflow:auto;margin-top:6px"></div>
+</div></div>
 <div id="watchBox" hidden style="margin-top:20px"><div class="dm-sec">自动</div>
 <div class="dm-card">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span id="watchDot" style="width:9px;height:9px;border-radius:50%;background:#64748b;flex:none"></span><b style="font-size:15px">自动导入</b><span id="watchBadge" style="margin-left:auto;font-size:12px;color:var(--muted)">未启用</span></div>
@@ -422,7 +430,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   }
   function readSource(text){
     text=text.replace(/^\ufeff/,'').trim();
-    if(text[0]==='['||text[0]==='{'){const p=JSON.parse(text),src=Array.isArray(p)?p:p.items;if(!Array.isArray(src))throw Error('格式错误');if(!Array.isArray(p)){const t=Number(p['未扣税合计']);src.meta={tot:Number.isFinite(t)?t:NaN,target:DATE_RE.test(p.targetDate)?p.targetDate:''}}return src}
+    if(text[0]==='['||text[0]==='{'){const p=JSON.parse(text),src=Array.isArray(p)?p:p.items;if(!Array.isArray(src))throw Error('格式错误');if(!Array.isArray(p)){const t=Number(p['未扣税合计']);src.meta={tot:Number.isFinite(t)?t:NaN,target:DATE_RE.test(p.targetDate)?p.targetDate:''};if(Array.isArray(p.archive))src.archive=p.archive}return src}
     const rows=parseCSV(text);if(rows.length<2)throw Error('文件里没有数据');
     /* 横向宽表(新导出格式):一行一个交易日期,各类型横排。展开还原成逐笔记录,旧的逐笔格式在下面继续兼容 */
     const hdr=rows[0].map(h=>h.trim()),wideTypes=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
@@ -466,20 +474,22 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
   }
   const dm=$('dataModal'),dmInfo=$('dataInfo'),dmPlan=$('dataPlan');let pending=null;
   const stamp=()=>localISO()+'_'+new Date().toTimeString().slice(0,5).replace(':','-');
-  function openData(){pending=null;dmPlan.hidden=true;dmInfo.textContent=`当前共有 ${items.length} 笔记录。`;dm.classList.add('open')}
+  function openData(){pending=null;dmPlan.hidden=true;dmInfo.textContent=`当前共有 ${items.length} 笔记录,另有历史归档 ${archive.length} 笔。`;renderArchive();dm.classList.add('open')}
   $('dataBtn').onclick=openData;$('dataClose').onclick=()=>dm.classList.remove('open');
   dm.addEventListener('click',e=>{if(e.target===dm)dm.classList.remove('open')});
-  $('dataExportJson').onclick=()=>{if(!items.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:2,exportedAt:new Date().toISOString(),count:items.length,items},null,2),'application/json')};
+  $('dataExportJson').onclick=()=>{const all=allRecords();if(!all.length){alert('当前没有记录可导出');return}download(`资金到账数据_${stamp()}.json`,JSON.stringify({app:'fund-arrival',version:3,exportedAt:new Date().toISOString(),count:all.length,items:all,archive},null,2),'application/json')};
   /* 导出表格:Excel (.xlsx) 文件,极简宽表照手写账本(图三)——一共 6 列,按交易日期从旧到新排序,同一天只占一行;
      每类一格,格内写「金额 (到账月.日) 状态」——状态每格必写:已到 / 待到 / 逾期(过了到账日还没到),差钱写 已补 / 待补;
      同一天同类型多笔时格内以「 / 」并列。表头深绿底白字、首行冻结、合计行加粗(样式在 makeXlsx)。
-     流水号/备注不在表格里,完整备份用上面的 JSON 导出。导入解析见 readSource 的极简宽表分支,金额/日期/状态可逐笔还原 */
+     流水号/备注不在表格里,完整备份用上面的 JSON 导出。导入解析见 readSource 的极简宽表分支,金额/日期/状态可逐笔还原。
+     导出范围 = 主列表 + 历史归档(allRecords),所以早期记录即使已归档也不会在表格里缺失 */
   $('dataExportCsv').onclick=()=>{
-    if(!items.length){alert('当前没有记录可导出');return}
+    const all=allRecords();
+    if(!all.length){alert('当前没有记录可导出');return}
     const TYPES=[['debito','Débito'],['credito','Crédito'],['prepaid','Prepaid'],['short','差钱']];
     const head=['交易日期',...TYPES.map(([,label])=>label),'当日合计'];
     const groups=new Map();
-    [...items].sort((a,b)=>a.saleDate.localeCompare(b.saleDate)).forEach(x=>{
+    [...all].sort((a,b)=>a.saleDate.localeCompare(b.saleDate)).forEach(x=>{
       if(!groups.has(x.saleDate))groups.set(x.saleDate,{});
       const g=groups.get(x.saleDate);(g[x.type]=g[x.type]||[]).push(x);
     });
@@ -507,33 +517,99 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     const file=$('importFile').files[0];if(!file)return;
     try{
       const src=readSource(/\.xlsx$/i.test(file.name)?await xlsxToCsvText(file):await file.text()),good=src.map(normItem).filter(Boolean),bad=src.length-good.length;
-      if(!good.length)throw Error('没有找到有效记录');
-      const ids=new Set(items.map(x=>x.id)),sigs=new Set(items.map(sigOf)),seen=new Set(),fresh=[];
+      if(!good.length&&!(src.archive&&src.archive.length))throw Error('没有找到有效记录');
+      const ids=new Set([...items,...archive].map(x=>x.id)),sigs=new Set([...items,...archive].map(sigOf)),seen=new Set(),fresh=[];
       good.forEach(x=>{const s=sigOf(x);if(ids.has(x.id)||sigs.has(s)||seen.has(s))return;seen.add(s);fresh.push(x)});
-      pending={good,fresh};
+      pending={good,fresh,arch:src.archive?src.archive.map(normItem).filter(Boolean):[]};
       dmPlan.hidden=false;
-      $('dataPlanText').textContent=`文件「${file.name}」:有效 ${good.length} 笔${bad?`,无效 ${bad} 笔(已忽略)`:''}。其中新记录 ${fresh.length} 笔,与现有重复 ${good.length-fresh.length} 笔。`;
-      $('dataMerge').disabled=!fresh.length;$('dataMerge').textContent=`合并导入(新增 ${fresh.length} 笔)`;
+      $('dataPlanText').textContent=`文件「${file.name}」:有效 ${good.length} 笔${bad?`,无效 ${bad} 笔(已忽略)`:''}。其中新记录 ${fresh.length} 笔,与现有重复 ${good.length-fresh.length} 笔。${pending.arch.length?`另含归档记录 ${pending.arch.length} 笔,将存入历史归档。`:''}导入时已到账超过 ${PURGE_DAYS} 天的记录会自动存入历史归档。`;
+      $('dataMerge').disabled=!fresh.length&&!pending.arch.length;$('dataMerge').textContent=`合并导入(新增 ${fresh.length} 笔)`;
     }catch(err){pending=null;dmPlan.hidden=true;alert('无法读取:'+(err.message||'文件格式不对')+'\n请选择本工具导出的 JSON、CSV 或 Excel 文件')}
     finally{$('importFile').value=''}
   });
-  function applyImport(list,msg){
-    try{localStorage.setItem(KEY+'-before-import',JSON.stringify({at:new Date().toISOString(),items}))}catch(e){}
-    items=list;save();resetForm();render();dm.classList.remove('open');pending=null;alert(msg+'\n导入前的数据已自动留了一份,万一导错可联系我恢复。');
+  function applyImport(list,msg,replace){
+    try{localStorage.setItem(KEY+'-before-import',JSON.stringify({at:new Date().toISOString(),items,archive}))}catch(e){}
+    /* 按龄分流:已到账且到账日期超过 PURGE_DAYS 天的进历史归档,其余进主列表;文件自带的 archive 字段一并入归档 */
+    const toItems=list.filter(x=>!isOldArrived(x));let toArch=list.filter(isOldArrived);
+    if(pending&&pending.arch&&pending.arch.length)toArch=toArch.concat(pending.arch);
+    if(replace){items=toItems;archive=[];saveArchive();archiveAdd(toArch)}
+    else{items=items.concat(toItems);archiveAdd(toArch)}
+    save();resetForm();render();renderArchive();dm.classList.remove('open');pending=null;alert(`${msg}\n现主列表 ${items.length} 笔,历史归档 ${archive.length} 笔。\n导入前的数据已自动留了一份,万一导错可联系我恢复。`);
   }
-  $('dataMerge').onclick=()=>{if(!pending||!pending.fresh.length)return;applyImport(items.concat(pending.fresh),`已新增 ${pending.fresh.length} 笔,现共 ${items.length+pending.fresh.length} 笔。`)};
-  $('dataReplace').onclick=()=>{if(!pending)return;if(!confirm(`将用文件中的 ${pending.good.length} 笔记录替换当前全部 ${items.length} 笔记录。\n此操作会删除当前记录中文件里没有的部分。继续吗?`))return;applyImport(pending.good,`已替换为 ${pending.good.length} 笔记录。`)};
+  $('dataMerge').onclick=()=>{if(!pending||(!pending.fresh.length&&!(pending.arch&&pending.arch.length)))return;applyImport(pending.fresh,`已新增 ${pending.fresh.length} 笔。`,false)};
+  $('dataReplace').onclick=()=>{if(!pending)return;if(!confirm(`将用文件中的 ${pending.good.length} 笔记录替换当前全部记录(主列表 ${items.length} 笔 + 历史归档 ${archive.length} 笔)。\n此操作会删除当前记录中文件里没有的部分。继续吗?`))return;applyImport(pending.good,`已替换为 ${pending.good.length} 笔记录。`,true)};
   $('dataCancel').onclick=()=>{pending=null;dmPlan.hidden=true};
-  /* 自动清理:到账日期早于 15 天前且已到账的记录,打开页面/回到前台时删除。
-     只在这两个时机清理(不在 render 里),避免刚把旧单标成已到账就立刻消失。
-     被删记录另存最近一批到 KEY-purged,万一误删可恢复。 */
+  /* ===== 历史归档(方案B):自动清理不再真删,转入归档长期保存 =====
+     归档存 KEY-archive,永不自动清理,只能在数据管理里手动删(删前强制先导出一份完整 Excel)。
+     导出 Excel/JSON 的范围是主列表+归档(allRecords),历史不会因为归档而在导出里缺失。
+     恢复到主列表的记录带 keep 标记,不再被自动清理(可在主列表改回未到账/编辑/删除)。 */
   const PURGE_DAYS=15;
-  function purgeOld(){
-    const cut=addDays(localISO(),-PURGE_DAYS),gone=items.filter(x=>x.arrived&&(x.arrivalDate||x.saleDate)<cut);
-    if(!gone.length)return false;
-    try{localStorage.setItem(KEY+'-purged',JSON.stringify({at:new Date().toISOString(),items:gone}))}catch(e){}
-    items=items.filter(x=>!(x.arrived&&(x.arrivalDate||x.saleDate)<cut));save();return true;
+  const AKEY=KEY+'-archive';
+  let archive=(()=>{try{const v=JSON.parse(localStorage.getItem(AKEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return[]}})();
+  const saveArchive=()=>{try{localStorage.setItem(AKEY,JSON.stringify(archive))}catch(e){alert('归档保存失败:浏览器存储空间不足,请先导出并清理部分归档')}};
+  const isOldArrived=x=>!!(x&&x.arrived&&!x.keep&&(x.arrivalDate||x.saleDate)<addDays(localISO(),-PURGE_DAYS));
+  function archiveAdd(list){
+    const sigs=new Set([...archive,...items].map(sigOf)),ids=new Set([...archive,...items].map(x=>x.id));let n=0;
+    (list||[]).forEach(x=>{if(!x)return;const s=sigOf(x);if(ids.has(x.id)||sigs.has(s))return;sigs.add(s);ids.add(x.id);archive.push(x);n++});
+    if(n){archive.sort((a,b)=>a.saleDate.localeCompare(b.saleDate));saveArchive()}
+    return n;
   }
+  function allRecords(){
+    const sigs=new Set(items.map(sigOf)),ids=new Set(items.map(x=>x.id)),out=[...items];
+    archive.forEach(x=>{const s=sigOf(x);if(ids.has(x.id)||sigs.has(s))return;sigs.add(s);ids.add(x.id);out.push(x)});
+    return out;
+  }
+  /* 自动清理:到账日期早于 15 天前且已到账的记录,打开页面/回到前台时转入历史归档。
+     只在这两个时机清理(不在 render 里),避免刚把旧单标成已到账就立刻消失。 */
+  function purgeOld(){
+    const gone=items.filter(isOldArrived);
+    if(!gone.length)return false;
+    items=items.filter(x=>!isOldArrived(x));
+    archiveAdd(gone);
+    try{localStorage.setItem(KEY+'-purged',JSON.stringify({at:new Date().toISOString(),items:gone}))}catch(e){}
+    save();return true;
+  }
+  /* 旧版只把最后一批被清记录存在 KEY-purged,升级后并入归档,不浪费 */
+  try{const p=JSON.parse(localStorage.getItem(KEY+'-purged')||'null');if(p&&Array.isArray(p.items)&&p.items.length)archiveAdd(p.items.map(normItem).filter(Boolean))}catch(e){}
+  /* ===== 归档区 UI:查看 / 恢复 / 单删 / 按日期清 / 清空(esc 复用页面上方已有的转义函数) ===== */
+  function renderArchive(){
+    const info=$('archInfo');if(!info)return;
+    if(!archive.length){info.textContent='暂无归档记录。超过 15 天的已到账记录会自动存到这里。';$('archList').innerHTML='';return}
+    const per={};archive.forEach(x=>{const m=per[x.type]=per[x.type]||{};m[x.currency]=(m[x.currency]||0)+Number(x.amount||0)});
+    const parts=Object.keys(TYPE_TXT).filter(t=>per[t]).map(t=>`${TYPE_TXT[t]} ${totalsText(per[t])}`);
+    info.textContent=`共 ${archive.length} 笔 · 交易日期 ${archive[0].saleDate} ~ ${archive[archive.length-1].saleDate}${parts.length?' · '+parts.join(' · '):''}`;
+    const groups=new Map();
+    [...archive].sort((a,b)=>b.saleDate.localeCompare(a.saleDate)).forEach(x=>{if(!groups.has(x.saleDate))groups.set(x.saleDate,[]);groups.get(x.saleDate).push(x)});
+    let html='';
+    groups.forEach((list,d)=>{html+=`<div style="padding:8px 4px 2px;font-weight:700;font-size:13px">${d}</div>`+list.map(x=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-top:1px solid rgba(148,163,184,.15)"><div style="flex:1;min-width:0"><b>${TYPE_TXT[x.type]||x.type}</b> ${money(x.amount,x.currency)}<br><small style="color:var(--muted)">到账 ${x.arrivalDate||'—'} · ${x.type==='short'?'已补':'已到'}${x.reference?' · 流水号 '+esc(x.reference):''}${x.note?' · '+esc(x.note):''}</small></div><button class="secondary" type="button" data-arch-restore="${x.id}" style="flex:none;padding:7px 10px">恢复</button><button class="secondary" type="button" data-arch-del="${x.id}" style="flex:none;padding:7px 10px;color:#f87171">删除</button></div>`).join('')});
+    $('archList').innerHTML=html;
+  }
+  $('archToggle').onclick=()=>{const el=$('archList');el.hidden=!el.hidden;$('archToggle').textContent=el.hidden?'查看归档':'收起归档';if(!el.hidden)renderArchive()};
+  $('archList').addEventListener('click',e=>{
+    const rb=e.target.closest('[data-arch-restore]'),db=e.target.closest('[data-arch-del]');if(!rb&&!db)return;
+    if(rb){
+      const i=archive.findIndex(x=>x.id===rb.dataset.archRestore);if(i<0)return;
+      const[x]=archive.splice(i,1);x.keep=true;items.push(x);saveArchive();save();render();renderArchive();
+      alert('已恢复到主列表。这笔不会再被自动清理,需要的话可在主列表里改回未到账、编辑或删除。');return;
+    }
+    const i=archive.findIndex(x=>x.id===db.dataset.archDel);if(i<0)return;
+    const x=archive[i];
+    if(!confirm(`删除这笔归档记录?${TYPE_TXT[x.type]||x.type} ${money(x.amount,x.currency)}(交易 ${x.saleDate})\n删除后无法恢复。`))return;
+    archive.splice(i,1);saveArchive();renderArchive();
+  });
+  function exportThenConfirm(what,n,fn){
+    if(allRecords().length)$('dataExportCsv').click();
+    setTimeout(()=>{if(confirm(`已先为你导出一份完整 Excel(含归档)作备份。\n确定${what}吗?共 ${n} 笔,删除后无法恢复。`))fn()},700);
+  }
+  $('archDelBefore').onclick=()=>{
+    const d=$('archCutDate').value;if(!d){alert('先选择一个日期');return}
+    const n=archive.filter(x=>x.saleDate<d).length;if(!n){alert('该日期之前没有归档记录');return}
+    exportThenConfirm(`删除交易日期早于 ${d} 的归档记录`,n,()=>{archive=archive.filter(x=>!(x.saleDate<d));saveArchive();renderArchive();alert(`已删除 ${n} 笔归档记录`)});
+  };
+  $('archClear').onclick=()=>{
+    if(!archive.length){alert('归档是空的');return}
+    exportThenConfirm('清空全部归档记录',archive.length,()=>{archive=[];saveArchive();renderArchive();alert('归档已清空')});
+  };
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&purgeOld())render()});
   purgeOld();
   $('today').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date());resetForm();render();
@@ -568,9 +644,11 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
       if(r.empty){if(manual)alert(r.downloading?'文件正在从 iCloud 下载,请稍后再点一次「立即检查」':'文件夹里没有 JSON/CSV 文件');return}
       if(r.same){if(manual)alert(`最新文件「${r.name}」已经读取过,没有新内容`);return}
       let src;try{src=readSource(r.text)}catch(e){localStorage.setItem(WKEY,r.sig);alert(`自动导入:最新文件「${r.name}」无法识别(${e.message||'格式不对'}),已跳过`);return}
-      const good=src.map(normItem).filter(Boolean),bad=src.length-good.length,cut=addDays(localISO(),-PURGE_DAYS);
-      const keep=good.filter(x=>!(x.arrived&&x.arrivalDate<cut)),expired=good.length-keep.length;
-      const ids=new Set(items.map(x=>x.id)),sigs=new Set(items.map(sigOf)),seen=new Set(),fresh=[];
+      const good=src.map(normItem).filter(Boolean),bad=src.length-good.length;
+      const keep=good.filter(x=>!isOldArrived(x)),expiredRecs=good.filter(isOldArrived);
+      let archN=0;
+      if(expiredRecs.length){try{localStorage.setItem(KEY+'-before-import',JSON.stringify({at:new Date().toISOString(),items,archive}))}catch(e){}archN=archiveAdd(expiredRecs);if(archN)renderArchive()}
+      const ids=new Set([...items,...archive].map(x=>x.id)),sigs=new Set([...items,...archive].map(sigOf)),seen=new Set(),fresh=[];
       keep.forEach(x=>{const g=sigOf(x);if(ids.has(x.id)||sigs.has(g)||seen.has(g))return;seen.add(g);fresh.push(x)});
       if(fresh.length){
         try{localStorage.setItem(KEY+'-before-import',JSON.stringify({at:new Date().toISOString(),items}))}catch(e){}
@@ -594,7 +672,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
       if(!fresh.length&&!manual&&!cmpAlert)return;
       if(fresh.length){const t=new Date();localStorage.setItem('arrival-watch-info',JSON.stringify({at:`${pad(t.getMonth()+1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}`,name:r.name,added:fresh.length}));watchLastPaint(true)}
       const tot=fresh.reduce((m,x)=>(m[x.currency]=(m[x.currency]||0)+x.amount,m),{});
-      alert(`📥 已自动导入\n文件:${r.name}\n新增 ${fresh.length} 笔`+(fresh.length?`(合计 ${totalsText(tot)})`:'')+`\n重复忽略 ${keep.length-fresh.length} 笔`+(expired?`\n超过 ${PURGE_DAYS} 天的已到账记录忽略 ${expired} 笔`:'')+(bad?`\n无效 ${bad} 笔(已忽略)`:'')+`\n现共 ${items.length} 笔记录。`+cmpMsg);
+      alert(`📥 已自动导入\n文件:${r.name}\n新增 ${fresh.length} 笔`+(fresh.length?`(合计 ${totalsText(tot)})`:'')+`\n重复忽略 ${keep.length-fresh.length} 笔`+(archN?`\n超过 ${PURGE_DAYS} 天的已到账记录存入历史归档 ${archN} 笔`:'')+(bad?`\n无效 ${bad} 笔(已忽略)`:'')+`\n现共 ${items.length} 笔记录,历史归档 ${archive.length} 笔。`+cmpMsg);
     }finally{watchBusy=false}
   }
   renderCompare();window.addEventListener('storage',e=>{if(e.key===WHITE_KEY)renderCompare()});document.addEventListener('visibilitychange',()=>{if(!document.hidden)renderCompare()});
