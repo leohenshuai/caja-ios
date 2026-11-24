@@ -845,6 +845,8 @@ body {
 .lg-entry { background:rgba(0,0,0,.24); border-color:var(--g-stroke); border-radius:16px; }
 .lg-entry:focus-within { border-color:rgba(6,182,212,.6); box-shadow:0 0 0 2px rgba(6,182,212,.14); }
 .lg-chip.on { background:var(--cyan) !important; color:#04141a !important; box-shadow:0 4px 12px rgba(6,182,212,.3) !important; }
+.lg-chip .lg-def { font-style:normal; font-size:9px; font-weight:800; margin-left:6px; padding:1px 5px; border-radius:99px; background:rgba(6,182,212,.28); color:#a5f3fc; vertical-align:2px; }
+.lg-chip.on .lg-def { background:rgba(4,20,30,.22); color:#04141a; }
 .lg-btn-main {
   background:var(--cyan) !important; color:#fff !important;
   font-family:inherit; font-size:16px !important; min-height:48px !important; border-radius:14px !important;
@@ -1157,8 +1159,10 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
     <h3 id="cm-title">分类</h3>
     <div class="cm-acts">
       <button type="button" id="cm-rename">改名</button>
+      <button type="button" id="cm-default">设为默认</button>
       <button type="button" class="danger" id="cm-delete">删除</button>
     </div>
+    <div class="lg-note" id="cm-def-note" style="margin:-4px 0 12px"></div>
     <div id="cm-sync-wrap" style="display:none">
       <div class="cm-sync-row"><span>同步到财务系统</span><input type="checkbox" id="cm-sync"></div>
       <div class="lg-chips" id="cm-target">
@@ -1239,6 +1243,7 @@ const state = {
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
     cats: { cash: ['货物', '白色机器', '其他'], transfer: TX_CATS.slice() },
+    defcat: {},
     ver: 1, curDate: localDateStr(),
     form: { cash: { type: 'out', cat: '白色机器' }, transfer: { type: 'out', cat: '' } },
     editingId: null, editingCat: null
@@ -1290,6 +1295,8 @@ async function loadAll() {
     state.sumover = (await LedgerDB.get(state.db, 'sumover')) || {};
     if (typeof state.sumover !== 'object' || !state.sumover) state.sumover = {};
     const rawCats = await LedgerDB.get(state.db, 'cats');
+    const rawDef = await LedgerDB.get(state.db, 'defcat');
+    if (rawDef && typeof rawDef === 'object' && !Array.isArray(rawDef)) state.defcat = Object.assign({}, rawDef);
     const rawSync = await LedgerDB.get(state.db, 'catsync');
     const hasSync = !!(rawSync && typeof rawSync === 'object');
     if (hasSync) state.catsync = Object.assign({}, rawSync);
@@ -1304,8 +1311,8 @@ async function loadAll() {
         }
         else state.cats[b.id] = (rawCats && Array.isArray(rawCats[b.id]) && rawCats[b.id].length) ? rawCats[b.id].slice() : ['其他'];
         if (!state.form[b.id]) state.form[b.id] = { type: 'out', cat: state.cats[b.id][0] };
-        // 现金账:支出默认「货物」,收入默认「库存」
-        if (b.id === 'cash') state.form.cash.cat = defaultCatFor('cash', state.form.cash.type);
+        // 默认分类:用户自定义优先,其次现金账支出「货物」/收入「库存」,其余列表第一个
+        state.form[b.id].cat = defaultCatFor(b.id, state.form[b.id].type);
         if (state.cats[b.id].indexOf(state.form[b.id].cat) === -1) state.form[b.id].cat = state.cats[b.id][0] || '';
     });
     // 现金账收入默认「库存」:没有该分类时自动补上
@@ -1428,9 +1435,18 @@ async function onExportExternal() {
     if (btn) btn.addEventListener('click', onExportExternal);
 })();
 /* ================= 计算 ================= */
-// 某方向默认分类:现金账支出固定用「货物」(存在时),其余用列表第一个
+// 自定义默认分类:按「账本:方向」存,如 transfer:out → Vtpay(长按分类在菜单里设置)
+function defcatKey(book, type) { return book + ':' + (type || 'out'); }
+function customDefCat(book, type) {
+    const d = state.defcat ? state.defcat[defcatKey(book, type)] : '';
+    const list = state.cats[book] || [];
+    return (d && list.indexOf(d) !== -1) ? d : '';
+}
+// 某方向默认分类:用户自定义优先;现金账支出固定用「货物」、收入用「库存」(存在时),其余用列表第一个
 function defaultCatFor(book, type) {
     const list = state.cats[book] || [];
+    const custom = customDefCat(book, type);
+    if (custom) return custom;
     if (book === 'cash' && type === 'out' && list.indexOf('货物') !== -1) return '货物';
     if (book === 'cash' && type === 'in' && list.indexOf('库存') !== -1) return '库存';
     return list[0] || '';
@@ -1524,8 +1540,9 @@ function renderCats(book) {
     const box = $(eid(book, 'cats'));
     if (!box) return;
     const cats = state.cats[book] || [];
+    const def = customDefCat(book, state.form[book].type);
     let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + (c === def ? '<em class="lg-def">默认</em>' : '') + '</button>'; });
     html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
     box.innerHTML = html;
 }
@@ -1911,6 +1928,9 @@ function removeCat(book, cat) {
         state.cats[book] = state.cats[book].filter((c) => c !== cat);
         if (state.form[book].cat === cat) state.form[book].cat = state.cats[book][0] || '';
         await saveKey('cats');
+        let defChanged = false;
+        Object.keys(state.defcat || {}).forEach((k) => { if (k.indexOf(book + ':') === 0 && state.defcat[k] === cat) { delete state.defcat[k]; defChanged = true; } });
+        if (defChanged) await saveKey('defcat');
         if (book === 'transfer' && state.catsync && Object.prototype.hasOwnProperty.call(state.catsync, cat)) { delete state.catsync[cat]; await saveKey('catsync'); }
         if (book === 'cash') renderCash(); else { renderCats(book); renderList(book); }
         if (book === 'transfer') { renderTransfer(); renderSummary(); }
@@ -1932,8 +1952,11 @@ function renameCat(book, oldName) {
             state.catsync[newName] = state.catsync[oldName];
             delete state.catsync[oldName];
         }
+        let defChanged = false;
+        Object.keys(state.defcat || {}).forEach((k) => { if (k.indexOf(book + ':') === 0 && state.defcat[k] === oldName) { state.defcat[k] = newName; defChanged = true; } });
         await saveKey('cats'); await saveKey('entries');
         if (book === 'transfer') await saveKey('catsync');
+        if (defChanged) await saveKey('defcat');
         renderAll();
         showToast('已改名');
     });
@@ -2136,6 +2159,11 @@ function openCatMenu(book, cat) {
     if (!book || !cat) return;
     cmBook = book; cmCat = cat;
     if ($('cm-title')) $('cm-title').textContent = '分类:' + cat;
+    const dir = (state.form[book] && state.form[book].type) || 'out';
+    const dirName = dir === 'in' ? '收入' : '支出';
+    const curDef = customDefCat(book, dir);
+    if ($('cm-default')) $('cm-default').textContent = (curDef === cat) ? '取消默认' : '设为默认';
+    if ($('cm-def-note')) $('cm-def-note').textContent = '默认分类(' + dirName + '):' + (curDef || '无,按列表第一个') + '。打开记一笔、切换' + dirName + '时自动选中。';
     const wrap = $('cm-sync-wrap');
     if (wrap) wrap.style.display = (book === 'transfer') ? '' : 'none';
     if (book === 'transfer') {
@@ -2247,7 +2275,7 @@ function bindDyn() {
             return;
         }
         const typeBtn = e.target.closest('.lg-type');
-        if (typeBtn) { state.form[book].type = typeBtn.dataset.type; renderTypeButtons(book); return; }
+        if (typeBtn) { state.form[book].type = typeBtn.dataset.type; state.form[book].cat = defaultCatFor(book, state.form[book].type); renderCats(book); renderTypeButtons(book); return; }
         const sug = e.target.closest('.lg-sug');
         if (sug) {
             e.preventDefault();
@@ -2561,7 +2589,7 @@ function bind() {
         btn.addEventListener('click', () => {
             const bk = btn.dataset.book, t = btn.dataset.type;
             state.form[bk].type = t;
-            if (bk === 'cash') { state.form[bk].cat = defaultCatFor(bk, t); renderCats(bk); }
+            state.form[bk].cat = defaultCatFor(bk, t); renderCats(bk);
             renderTypeButtons(bk);
         });
     });
@@ -2646,6 +2674,16 @@ function bind() {
     if ($('lg-catmenu')) $('lg-catmenu').addEventListener('click', (e) => { if (e.target === $('lg-catmenu')) closeCatMenu(); });
     if ($('cm-rename')) $('cm-rename').addEventListener('click', () => { const b = cmBook, c = cmCat; if (!b || !c) return; closeCatMenu(); renameCat(b, c); });
     if ($('cm-delete')) $('cm-delete').addEventListener('click', () => { const b = cmBook, c = cmCat; if (!b || !c) return; closeCatMenu(); removeCat(b, c); });
+    if ($('cm-default')) $('cm-default').addEventListener('click', async () => {
+        const b = cmBook, c = cmCat; if (!b || !c) return;
+        const dir = (state.form[b] && state.form[b].type) || 'out';
+        if (!state.defcat) state.defcat = {};
+        const k = defcatKey(b, dir);
+        if (state.defcat[k] === c) { delete state.defcat[k]; await saveKey('defcat'); showToast('已取消默认分类'); }
+        else { state.defcat[k] = c; await saveKey('defcat'); state.form[b].cat = c; showToast('已设为默认:' + c); }
+        closeCatMenu();
+        if (b === 'cash') renderCash(); else if (b === 'transfer') renderTransfer(); else renderCats(b);
+    });
     if ($('cm-sync')) $('cm-sync').addEventListener('change', () => {
         const c = cmCat;
         if (!c) return;
