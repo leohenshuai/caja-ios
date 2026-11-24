@@ -506,7 +506,11 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
     func shareFile(_ id: String, _ p: [String: Any]) {
         let name = (p["name"] as? String ?? "export.json").replacingOccurrences(of: "/", with: "_")
-        guard let text = p["text"] as? String, let data = text.data(using: .utf8) else { return reply(id, ["ok": false, "error": "no data"]) }
+        // base64 优先:二进制文件(如 .xlsx)只能走 base64,走 text 会被 UTF-8 替换字符损坏;旧版网页的 text 字段继续兼容
+        let data: Data
+        if let b64 = p["base64"] as? String, let d = Data(base64Encoded: b64) { data = d }
+        else if let text = p["text"] as? String, let d = text.data(using: .utf8) { data = d }
+        else { return reply(id, ["ok": false, "error": "no data"]) }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do { try data.write(to: url, options: .atomic) } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
         present(share: [url]); reply(id, ["ok": true])
