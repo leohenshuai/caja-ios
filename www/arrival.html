@@ -146,6 +146,19 @@
 .dm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dm-grid .wide{grid-column:1/-1}
 .dm-grid button,.dm-card button,#dataClose{width:100%;min-height:44px;white-space:nowrap;display:flex !important;align-items:center !important;justify-content:center !important;text-align:center !important}
 .dm-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.035)}
+/* 历史归档区:覆盖 .dm-card button 的整行规则,改紧凑卡片布局(第一版在真机上按钮撑满整行、文字被挤成竖排) */
+.arch-del-row{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.arch-del-row label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;text-transform:none;letter-spacing:0}
+.arch-del-row input[type=date]{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border-radius:11px;margin:0 0 10px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink);color-scheme:dark}
+.arch-list{max-height:320px;overflow:auto;margin-top:8px}
+.arch-day{font-weight:800;font-size:13px;padding:12px 2px 2px}
+.arch-item{padding:10px 2px 12px;border-top:1px solid rgba(148,163,184,.15)}
+.arch-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.arch-amt{font-weight:800;font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap}
+.arch-meta{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.6;word-break:break-word}
+.arch-ops{display:flex;gap:8px;margin-top:9px}
+.arch-ops button{width:auto !important;min-height:34px !important;padding:6px 16px !important;font-size:13px;font-weight:700;border-radius:999px;display:inline-flex !important;flex:none;background:rgba(148,163,184,.16);color:var(--ink);border:1px solid rgba(148,163,184,.25)}
+.arch-ops button.del{color:#f87171}
 .dm-path{display:inline-block;margin:2px 0 0;padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.06);font-size:12px;line-height:1.4;color:#cbd5e1}
 .dm-last{margin:10px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
 </style>
@@ -181,9 +194,9 @@
 <div class="dm-card">
 <p id="archInfo" class="hint" style="margin:0 0 10px;line-height:1.6">暂无归档记录</p>
 <div class="dm-grid"><button class="secondary" id="archToggle" type="button">查看归档</button><button class="secondary" id="archClear" type="button" style="color:#f87171">清空归档</button></div>
-<div style="display:flex;gap:8px;margin-top:10px"><input type="date" id="archCutDate" style="flex:1;padding:10px;border-radius:10px;min-width:0"><button class="secondary" id="archDelBefore" type="button" style="flex:none">删除该日期前的归档</button></div>
-<p class="hint" style="margin:8px 0 0;line-height:1.6">超过 15 天的已到账记录会自动存入归档(不再直接删除),导出表格/JSON 时会包含归档,历史完整。归档永不自动清理;手动删除前会先自动导出一份完整 Excel 备份。</p>
-<div id="archList" hidden style="max-height:320px;overflow:auto;margin-top:6px"></div>
+<div class="arch-del-row"><label for="archCutDate">按交易日期清理</label><input type="date" id="archCutDate"><button class="secondary" id="archDelBefore" type="button">删除该日期前的归档</button></div>
+<p class="hint" style="margin:10px 0 0;line-height:1.6">超过 15 天的已到账记录会自动存入归档(不再直接删除),导出表格/JSON 时会包含归档,历史完整。归档永不自动清理;手动删除前会先自动导出一份完整 Excel 备份。</p>
+<div id="archList" class="arch-list" hidden></div>
 </div></div>
 <div id="watchBox" hidden style="margin-top:20px"><div class="dm-sec">自动</div>
 <div class="dm-card">
@@ -581,7 +594,7 @@ return `<section class="day-group${overdue}"><div class="day-head"><div class="d
     const groups=new Map();
     [...archive].sort((a,b)=>b.saleDate.localeCompare(a.saleDate)).forEach(x=>{if(!groups.has(x.saleDate))groups.set(x.saleDate,[]);groups.get(x.saleDate).push(x)});
     let html='';
-    groups.forEach((list,d)=>{html+=`<div style="padding:8px 4px 2px;font-weight:700;font-size:13px">${d}</div>`+list.map(x=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-top:1px solid rgba(148,163,184,.15)"><div style="flex:1;min-width:0"><b>${TYPE_TXT[x.type]||x.type}</b> ${money(x.amount,x.currency)}<br><small style="color:var(--muted)">到账 ${x.arrivalDate||'—'} · ${x.type==='short'?'已补':'已到'}${x.reference?' · 流水号 '+esc(x.reference):''}${x.note?' · '+esc(x.note):''}</small></div><button class="secondary" type="button" data-arch-restore="${x.id}" style="flex:none;padding:7px 10px">恢复</button><button class="secondary" type="button" data-arch-del="${x.id}" style="flex:none;padding:7px 10px;color:#f87171">删除</button></div>`).join('')});
+    groups.forEach((list,d)=>{html+=`<div class="arch-day">${d}</div>`+list.map(x=>`<div class="arch-item"><div class="arch-line"><span class="type ${x.type}">${TYPE_TXT[x.type]||x.type}</span><span class="arch-amt">${money(x.amount,x.currency)}</span></div><div class="arch-meta">到账 ${x.arrivalDate||'—'} · ${x.type==='short'?'已补':'已到'}${x.reference?' · 流水号 '+esc(x.reference):''}${x.note?' · '+esc(x.note):''}</div><div class="arch-ops"><button type="button" data-arch-restore="${x.id}">恢复</button><button type="button" class="del" data-arch-del="${x.id}">删除</button></div></div>`).join('')});
     $('archList').innerHTML=html;
   }
   $('archToggle').onclick=()=>{const el=$('archList');el.hidden=!el.hidden;$('archToggle').textContent=el.hidden?'查看归档':'收起归档';if(!el.hidden)renderArchive()};
