@@ -691,7 +691,7 @@ body {
 
 /* ================= 搜索页 ================= */
 #lg-search { align-items:stretch; justify-content:stretch; padding:0 !important; background:rgba(4,8,20,.88) !important; z-index:1400; }
-.sr-panel { width:100%; height:100%; display:flex; flex-direction:column; padding:calc(10px + env(safe-area-inset-top,0px)) 14px calc(10px + env(safe-area-inset-bottom,0px)); background:
+.sr-panel { width:100%; height:100%; max-height:100%; box-sizing:border-box; overflow:hidden; display:flex; flex-direction:column; padding:calc(10px + env(safe-area-inset-top,0px)) 14px calc(10px + env(safe-area-inset-bottom,0px)); background:
   radial-gradient(120% 40% at 10% 0%, rgba(56,189,248,.18), transparent 60%),
   radial-gradient(90% 40% at 100% 5%, rgba(168,85,247,.16), transparent 60%), #070b16; }
 .sr-top { display:flex; align-items:center; gap:10px; }
@@ -708,7 +708,7 @@ body {
 .sr-filters::-webkit-scrollbar { display:none; }
 .sr-filters button { flex:none; min-height:34px; padding:0 14px; border-radius:999px !important; background:rgba(255,255,255,.06) !important; border:1px solid rgba(255,255,255,.12) !important; box-shadow:none !important; color:var(--text); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
 .sr-filters button.on { background:linear-gradient(135deg,#38bdf8,#6366f1) !important; border-color:transparent !important; color:#fff; box-shadow:0 4px 12px rgba(99,102,241,.35) !important; }
-.sr-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; margin-top:8px; padding-bottom:20px; }
+.sr-body { flex:1 1 0; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; margin-top:8px; padding-bottom:calc(28px + env(safe-area-inset-bottom,0px)); }
 .sr-hint { text-align:center; color:var(--text-muted); padding:56px 20px; font-size:15px; }
 .sr-hint-ico { font-size:38px; margin-bottom:10px; opacity:.8; }
 .sr-hint small { display:block; margin-top:10px; font-size:12px; line-height:1.6; opacity:.8; }
