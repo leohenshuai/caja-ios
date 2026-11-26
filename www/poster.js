@@ -326,12 +326,14 @@
 
   /* ---------- 两种海报的数据组装 ---------- */
   // extra: { fiambreria, people }
-  function cashSpec(day, r, data, extra) {
+  function cashSpec(day, r, data, extra, hasReport = true) {
     var tiles = [];
-    tiles.push({ label: '总营业额', value: r.zRevenue });
-    tiles.push({ label: '现金', value: r.theoryX });
-    tiles.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
-    tiles.push({ label: '手机卡数', value: r.sNonCash });
+    if (hasReport) {
+      tiles.push({ label: '总营业额', value: r.zRevenue });
+      tiles.push({ label: '现金', value: r.theoryX });
+      tiles.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
+      tiles.push({ label: '手机卡数', value: r.sNonCash });
+    }
     if (nz(extra.fiambreria)) tiles.push({ label: 'Fiambreria', value: extra.fiambreria });
     if (nz(extra.people)) tiles.push({ label: '人数', text: String(Math.round(extra.people)) });
     return {

@@ -1265,6 +1265,7 @@
                 <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="选填" autocomplete="off"></label>
                 <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="选填" autocomplete="off"></label>
             </div>
+            <button type="button" id="pstSaveExtras" style="width:100%;min-height:44px;margin-top:12px">保存到所选日期</button>
             <div class="pst-entry-actions">
                 <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
                 <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
@@ -3127,16 +3128,20 @@ class FinanceApp {
         const ld = await P.loadLedgerDay(day);
         const n = (id) => { const el = $(id); return el ? (parseFloat(String(el.value).replace(/[^\d.-]/g, '')) || 0) : 0; };
         const spec = kind === 'cash'
-            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n('pstFiam'), people: n('pstPeople') })
+            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n('pstFiam'), people: n('pstPeople') }, !!fr)
             : P.transferSpec(day, r, fr ? fr.data : {});
         spec.list = kind === 'cash' ? ld.cash : ld.transfer;
-        if (!fr) { spec.tiles = []; spec.hero.text = '—'; }   // 无财务存档:指标区留空,Hero 显示占位
+        if (!fr) {
+            if (kind !== 'cash') spec.tiles = [];
+            else if (spec.tiles.length) spec.tilesTitle = '手填数据';
+            spec.hero.text = '—'; spec.hero.sub = null;
+        }
         P.draw($('pstCanvas'), spec);
         $('pstTitle').textContent = spec.title + ' · ' + day;
         const notes = [];
         notes.push(ld.ok ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录') : '⚠️ 记账系统该日无支出记录');
         if (fr) notes.push(day === todayStr() ? '指标取自当前数据' : '指标取自该日结转存档');
-        else notes.push('⚠️ 该日期无财务存档（未结转过），指标区留空');
+        else notes.push('该日期无财务存档，不显示财务指标');
         $('pstNote').textContent = notes.join('；');
         this._pstKind = kind; this._pstDay = day;
         try {   // 收起自制数字键盘,别占掉预览区

@@ -17,7 +17,7 @@
   return e&&e.date===day?e:{date:day,fiambreria:'',people:''};
  }
  function persist(){
-  if(!loadedDay||f.disabled)return queue;
+  if(!loadedDay||f.disabled||(date.value||today())!==loadedDay)return queue;
   const record={id:'poster-extra:'+loadedDay,date:loadedDay,fiambreria:f.value,people:p.value,updated_at:Date.now()};
   queue=queue.catch(()=>{}).then(async()=>{
    if(!await app._putDailyRecord(record))throw new Error('保存失败');
@@ -39,6 +39,18 @@
   loading.catch(()=>{if(ticket===serial)app.showToast('日期信息读取失败，请重新选择日期','error');});
   return loading;
  }
+ const save=document.getElementById('pstSaveExtras');
+ if(save)save.addEventListener('click',async()=>{
+  const day=date.value||today();
+  save.disabled=true;
+  try{
+   if(day!==loadedDay)await loading;
+   if(day!==loadedDay||f.disabled||(date.value||today())!==day)throw new Error('日期未就绪');
+   await persist();
+   app.showToast('已保存至 '+day,'success');
+  }catch(e){app.showToast('未保存，请确认海报日期后重试','error');}
+  finally{save.disabled=false;}
+ });
  f.addEventListener('input',persist);p.addEventListener('input',persist);
  f.addEventListener('change',persist);p.addEventListener('change',persist);
  date.addEventListener('change',load);
