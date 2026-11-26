@@ -7,8 +7,7 @@
     if (!h) return;
     var sp = document.createElement('div');
     h.parentNode.insertBefore(sp, h);
-    var matchPage = document.body.hasAttribute('data-match-nav-background');
-    var solidBackground = matchPage ? '' : 'background:#0f172a !important;';
+    var solidBackground = document.body.hasAttribute('data-translucent-nav') ? '' : 'background:#0f172a !important;';
     h.style.cssText += ';position:fixed !important;top:0;left:0;right:0;z-index:1000;box-sizing:border-box;' + solidBackground;
 
     // 页签栏也固定在页头正下方，并用占位撑开原本的高度
@@ -27,7 +26,6 @@
       sp.style.height = hh + 'px';
       if (t && tsp) {
         t.style.top = hh + 'px';
-        if (matchPage) t.style.setProperty('--finance-bg-y', -hh + 'px');
         tsp.style.height = t.offsetHeight + 'px';
       }
     }

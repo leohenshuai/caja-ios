@@ -857,30 +857,16 @@
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
 <style>
-    body[data-match-nav-background] {
-        --finance-surface: radial-gradient(60% 40% at 12% 0%, rgba(56,189,248,.22), transparent 70%),
-            radial-gradient(55% 40% at 95% 25%, rgba(139,92,246,.20), transparent 70%),
-            radial-gradient(60% 45% at 50% 105%, rgba(16,185,129,.14), transparent 70%);
-        background:transparent !important;
-        isolation:isolate;
-    }
-    /* 同一张视口渐变：导航保持不透明，滚动时不会透出底下账目。 */
-    body[data-match-nav-background]::before,
-    body[data-match-nav-background] .header,
-    body[data-match-nav-background] .tabs {
-        background-image:var(--finance-surface) !important;
-        background-color:#0a1020 !important;
-        background-size:100vw 100vh !important;
-        background-position:0 var(--finance-bg-y,0px) !important;
-        background-repeat:no-repeat !important;
-        background-origin:border-box !important;
+    /* 财务导航轻微透底，保留固定定位以及选中滑块。 */
+    body[data-translucent-nav] .header,
+    body[data-translucent-nav] .tabs {
+        background:rgba(15,23,42,.72) !important;
         -webkit-backdrop-filter:none !important;
         backdrop-filter:none !important;
     }
-    body[data-match-nav-background]::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; }
 </style>
 </head>
-<body data-match-nav-background>
+<body data-translucent-nav>
 <div class="header">
     <h1>🏦 财务联动系统 <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">[智能流转版]</span></h1>
     <div style="display:flex; align-items:center; gap:12px;">
@@ -1115,10 +1101,10 @@
     <div id="tab-platform" class="tab-content">
       <div class="platform-unified-panel">
         <div class="platform-dashboard-head">
-            <div class="platform-dashboard-title-row"><div class="platform-dashboard-title">🏪 平台项目 · <span id="platform-current-name">Orange</span></div><button class="platform-main-reset" onclick="app.resetActivePlatform()" title="重置当前平台" aria-label="重置当前平台"><span class="platform-trash-icon" aria-hidden="true">🗑️</span></button></div>
+            <div class="platform-dashboard-title-row"><div class="platform-dashboard-title">🏪 平台项目 · <span id="platform-current-name">pago24</span></div><button class="platform-main-reset" onclick="app.resetActivePlatform()" title="重置当前平台" aria-label="重置当前平台"><span class="platform-trash-icon" aria-hidden="true">🗑️</span></button></div>
         </div>
         <div class="platform-switch-zone"><div class="platform-dashboard-sub" id="platform-current-status">未录入</div><div class="platform-selector" id="platformSelector">
-            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.dismissPlatformInput();app.selectPlatformProject('orange')"><span>🍊 Orange</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
+            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.dismissPlatformInput();app.selectPlatformProject('orange')"><span>🍊 pago24</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-dni" onclick="app.dismissPlatformInput();app.selectPlatformProject('dni')"><span>🆔 DNI</span><span class="platform-chip-value" id="platform-chip-dni-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-vtpay" onclick="app.dismissPlatformInput();app.selectPlatformProject('vtpay')"><span>💳 Vtpay</span><span class="platform-chip-value" id="platform-chip-vtpay-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-mercado" onclick="app.dismissPlatformInput();app.selectPlatformProject('mercado')"><span>🛒 Mercado</span><span class="platform-chip-value" id="platform-chip-mercado-value">0</span></button>
@@ -1131,19 +1117,19 @@
             <div class="platform-header" onclick="app.togglePlatformCollapse('orange')">
                 <div style="flex:1; min-width:0;">
                     <div class="platform-title-row">
-                        <div class="platform-title">🍊 Orange</div>
+                        <div class="platform-title">🍊 pago24</div>
                         <span class="platform-toggle-arrow" id="platform-orange-arrow">▼</span>
                     </div>
                 </div>
                 <div class="platform-header-summary" id="platform-orange-summary">
                     <div class="platform-header-diff diff-zero" id="platform-orange-diff">0</div>
                 </div>
-                <button class="btn-reset-small" onclick="event.stopPropagation(); app.resetSection('orange')" title="重置Orange数据">🗑️</button>
+                <button class="btn-reset-small" onclick="event.stopPropagation(); app.resetSection('orange')" title="重置pago24数据">🗑️</button>
             </div>
             <div class="platform-body">
                 <div class="platform-preview">
                     <div class="preview-card orange">
-                        <div class="preview-card-title">[ 橙色项目 / Orange ]</div>
+                        <div class="preview-card-title">[ pago24 ]</div>
                         <div class="preview-row"><span>总余额 (f):</span><span id="preview_orange_f" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>今日收入 (e):</span><span id="preview_orange_e" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>软件收入值 (z):</span><span id="preview_orange_z" style="text-align: right; min-width: 120px;">0</span></div>
@@ -1358,7 +1344,7 @@
                 <button class="btn-reset-small" onclick="app.resetSection('coeff')" title="重置系数为默认值">🗑️ 重置</button>
             </div>
             <div class="form-grid">
-                <div class="form-item"><label>Orange 加权系数 (COEFF_ORANGE)</label><input type="text" id="coeff_orange_display" value="1.05" placeholder="支持算式: 1.05" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_ORANGE', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Orange 今日收入: e = (f - b + c) × 系数</div></div>
+                <div class="form-item"><label>pago24 加权系数 (COEFF_ORANGE)</label><input type="text" id="coeff_orange_display" value="1.05" placeholder="支持算式: 1.05" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_ORANGE', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Orange 今日收入: e = (f - b + c) × 系数</div></div>
                 <div class="form-item"><label>DNI 加权系数 (COEFF_DNI)</label><input type="text" id="coeff_dni_display" value="1.021" placeholder="支持算式: 1.021" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_DNI', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 DNI 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
                 <div class="form-item"><label>Vtpay 加权系数 (COEFF_VTPAY)</label><input type="text" id="coeff_vtpay_display" value="1.0097" placeholder="支持算式: 1.0097" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_VTPAY', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Vtpay 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
             </div>
@@ -1367,7 +1353,7 @@
             <div class="section-title">🔧 系统说明</div>
             <div style="font-size:12px; color:var(--text-muted); line-height:2;">
                 <p><strong>加权系数的作用：</strong>加权系数用于调整各平台的收入计算，反映实际运营成本。</p>
-                <p>• Orange 系数 (默认 1.05): 应用于 Orange 平台的收入计算 e = (f - b + c) × COEFF_ORANGE</p>
+                <p>• pago24 系数 (默认 1.05): 应用于 pago24 平台的收入计算 e = (f - b + c) × COEFF_ORANGE</p>
                 <p>• DNI 系数 (默认 1.021): 应用于 DNI 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_DNI</p>
                 <p>• Vtpay 系数 (默认 1.0097): 应用于 Vtpay 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_VTPAY</p>
                 <p style="margin-top:8px; color:var(--cyan);"><strong>💡 提示：</strong>支持在输入框中使用数学表达式，如 "1.05", "1+0.05", 或 "(100+5)/100"。</p>
@@ -2734,7 +2720,7 @@ class FinanceApp {
             if (card) { card.classList.toggle('platform-selected', name === projectName); card.classList.toggle('collapsed', name !== projectName); }
             if (chip) chip.classList.toggle('selected', name === projectName);
         });
-        const names = { orange: 'Orange', dni: 'DNI', vtpay: 'Vtpay', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
+        const names = { orange: 'pago24', dni: 'DNI', vtpay: 'Vtpay', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
         const title = $('platform-current-name'); if (title) title.textContent = names[projectName];
         const status = $('platform-current-status');
         if (status) {
@@ -2815,7 +2801,7 @@ class FinanceApp {
         this.updateCajaPreview(cajaIdx); this.updateSessionPanel(cajaIdx); this.debouncedSave(); this.showToast(`${CASH_LABELS[faceIdx]} 已彻底清空`, 'warning');
     }
     resetSection(sectionName) {
-        const names = { 'base': '基础账目', 'orange': 'Orange', 'dni': 'DNI', 'vtpay': 'Vtpay', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
+        const names = { 'base': '基础账目', 'orange': 'pago24', 'dni': 'DNI', 'vtpay': 'Vtpay', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
         this.customConfirm(`确定要重置 ${names[sectionName]} 的所有数据吗？`, () => {
             switch(sectionName) {
                 case 'base': this.data.f_exp = ''; this.data.b_last = ''; this.data.k_vault = ''; break;
@@ -3001,7 +2987,7 @@ class FinanceApp {
         if (claimed !== null && Number(o.seq) === Number(claimed)) return;
         try { localStorage.setItem('finance-ledger-claimed-seq', String(o.seq)); } catch (e) {}
         if (o.date !== todayStr()) { this.showToast('记账页同步的是 ' + o.date + ' 的数据,不是今天,已忽略', 'warning'); return; }
-        const names = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI支出', vtpay_c1: 'Vtpay支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
+        const names = { f_exp: '今日支出', orange_c: 'pago24 支出', dni_c1: 'DNI支出', vtpay_c1: 'Vtpay支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
         const vals = o.values || {};
         const done = [];
         Object.keys(names).forEach((key) => {
@@ -3210,7 +3196,7 @@ class FinanceApp {
             <div style="text-align:left; font-family:monospace; font-size:13px; line-height:2;">
                 <div>昨日库存 (k) ← 总现金库 (h): ${fmt(r.vaultH)}</div>
                 <div>昨日累计 (b) ← 累计余额 (l): ${fmt(r.accumL)}</div>
-                <div>Orange昨日 ← 今日: ${this.data.orange_f}</div>
+                <div>pago24 昨日 ← 今日: ${this.data.orange_f}</div>
                 <div>DNI昨日 ← 今日: ${this.data.dni_a1}</div>
                 <div>Vtpay昨日 ← 今日: ${this.data.vtpay_a1}</div>
                 <div>Mercado昨日 ← 今日: ${this.data.merc_f2}</div>
