@@ -360,7 +360,7 @@
     var white = listSum(data.white_list), black = listSum(data.black_k_list);
     var l3 = r.sNonCash - r.z3Ref;
     var tiles = [];                                    // 六项固定显示,值为 0 也照常显示
-    tiles.push({ label: '橙色机器', value: n('orange_z'), color: '#fbbf24' });
+    tiles.push({ label: 'pago24', value: n('orange_z'), color: '#fbbf24' });
     tiles.push({ label: 'DNI', value: n('dni_z1'), color: '#60a5fa' });
     tiles.push({ label: 'Mercado', value: mercE2, color: '#34d399' });
     tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
