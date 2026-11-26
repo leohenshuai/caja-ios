@@ -191,14 +191,14 @@
   // extra: { fiambreria, people }
   function cashSpec(day, r, data, extra) {
     var rows = [];
-    rows.push({ label: '总营业额 (z)', value: r.zRevenue });
-    rows.push({ label: '理论现金 (x)', value: r.theoryX });
-    rows.push({ label: '现金支出 (f)', value: data.f_exp, color: '#fda4af' });
-    rows.push({ label: '手机卡数 (s)', value: r.sNonCash });
+    rows.push({ label: '总营业额', value: r.zRevenue });
+    rows.push({ label: '现金', value: r.theoryX });
+    rows.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
+    rows.push({ label: '手机卡数', value: r.sNonCash });
     if (nz(extra.fiambreria)) rows.push({ label: 'Fiambreria', value: extra.fiambreria });
-    rows.push({ label: '今日余额 (y)', value: r.todayY, strong: true });
+    rows.push({ label: '今日余额', value: r.todayY, strong: true });
     if (nz(extra.people)) rows.push({ label: '人数', text: String(Math.round(extra.people)) });
-    rows.push({ label: '总现金 (h)', value: r.vaultH, strong: true });
+    rows.push({ label: '总现金', value: r.vaultH, strong: true });
     return {
       title: '现金账本日结', subtitle: '现金支出明细 · 实时报表',
       date: day, list: [], rows: rows, rowsTitle: '实时报表',
@@ -207,12 +207,8 @@
   }
   function transferSpec(day, r, data) {
     var rows = [];
-    var coeffO = Number(data.COEFF_ORANGE) || 1.05;
-    var coeffD = Number(data.COEFF_DNI) || 1.021;
     var n = function (k) { return Number(String(data[k] == null ? '' : data[k]).replace(/[^\d.-]/g, '')) || 0; };
-    // 今日收入值:橙色 e、DNI e1、Mercado e2;Vtpay 取本店收入值 z1
-    var orangeE = (n('orange_f') - n('orange_b') + n('orange_c')) * coeffO;
-    var dniE1 = (n('dni_a1') - n('dni_b1') + n('dni_c1')) * coeffD;
+    // Mercado 取今日收入 e2;橙色/DNI/Vtpay 取各自软件(本店)收入值
     var mercE2 = n('merc_f2') - n('merc_b2') + n('merc_c2') - n('merc_other');
     var vtZ1 = n('vtpay_z1');
     var listSum = function (v) {
@@ -221,15 +217,15 @@
     };
     var white = listSum(data.white_list), black = listSum(data.black_k_list);
     var l3 = r.sNonCash - r.z3Ref;
-    // 为零不显示
-    if (nz(orangeE)) rows.push({ label: '橙色机器 今日收入', value: orangeE });
-    if (nz(dniE1)) rows.push({ label: 'DNI 今日收入', value: dniE1 });
+    // 为零不显示;橙色与 DNI 取软件收入值(orange_z / dni_z1),Vtpay 取本店收入值 z1
+    if (nz(n('orange_z'))) rows.push({ label: '橙色机器 软件收入值', value: n('orange_z') });
+    if (nz(n('dni_z1'))) rows.push({ label: 'DNI 软件收入值', value: n('dni_z1') });
     if (nz(mercE2)) rows.push({ label: 'Mercado 今日收入', value: mercE2 });
-    if (nz(vtZ1)) rows.push({ label: 'Vtpay 本店收入值 (z1)', value: vtZ1 });
+    if (nz(vtZ1)) rows.push({ label: 'Vtpay 本店收入值', value: vtZ1 });
     if (nz(white)) rows.push({ label: '白色机器', value: white });
     if (nz(black)) rows.push({ label: '黑色机器', value: black });
-    if (nz(r.sNonCash)) rows.push({ label: '手机卡总数 (s)', value: r.sNonCash, strong: true });
-    if (nz(l3)) rows.push({ label: '非现金总数差额 (l3)', value: l3, strong: true, color: l3 >= 0 ? '#34d399' : '#fb7185' });
+    if (nz(r.sNonCash)) rows.push({ label: '手机卡总数', value: r.sNonCash, strong: true });
+    if (nz(l3)) rows.push({ label: '非现金总数差额', value: l3, strong: true, color: l3 >= 0 ? '#34d399' : '#fb7185' });
     return {
       title: '转账账本日结', subtitle: '转账支出明细 · 平台项目',
       date: day, list: [], rows: rows, rowsTitle: '平台项目与差额',
