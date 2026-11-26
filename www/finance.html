@@ -856,8 +856,31 @@
 <link rel="stylesheet" href="./ios26.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
+<style>
+    body[data-match-nav-background] {
+        --finance-surface: radial-gradient(60% 40% at 12% 0%, rgba(56,189,248,.22), transparent 70%),
+            radial-gradient(55% 40% at 95% 25%, rgba(139,92,246,.20), transparent 70%),
+            radial-gradient(60% 45% at 50% 105%, rgba(16,185,129,.14), transparent 70%);
+        background:transparent !important;
+        isolation:isolate;
+    }
+    /* 同一张视口渐变：导航保持不透明，滚动时不会透出底下账目。 */
+    body[data-match-nav-background]::before,
+    body[data-match-nav-background] .header,
+    body[data-match-nav-background] .tabs {
+        background-image:var(--finance-surface) !important;
+        background-color:#0a1020 !important;
+        background-size:100vw 100vh !important;
+        background-position:0 var(--finance-bg-y,0px) !important;
+        background-repeat:no-repeat !important;
+        background-origin:border-box !important;
+        -webkit-backdrop-filter:none !important;
+        backdrop-filter:none !important;
+    }
+    body[data-match-nav-background]::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; }
+</style>
 </head>
-<body>
+<body data-match-nav-background>
 <div class="header">
     <h1>🏦 财务联动系统 <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">[智能流转版]</span></h1>
     <div style="display:flex; align-items:center; gap:12px;">

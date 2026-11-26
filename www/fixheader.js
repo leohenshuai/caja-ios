@@ -7,7 +7,9 @@
     if (!h) return;
     var sp = document.createElement('div');
     h.parentNode.insertBefore(sp, h);
-    h.style.cssText += ';position:fixed !important;top:0;left:0;right:0;z-index:1000;box-sizing:border-box;background:#0f172a !important;';
+    var matchPage = document.body.hasAttribute('data-match-nav-background');
+    var solidBackground = matchPage ? '' : 'background:#0f172a !important;';
+    h.style.cssText += ';position:fixed !important;top:0;left:0;right:0;z-index:1000;box-sizing:border-box;' + solidBackground;
 
     // 页签栏也固定在页头正下方，并用占位撑开原本的高度
     var t = document.querySelector('.tabs');
@@ -16,7 +18,7 @@
       tsp = document.createElement('div');
       t.parentNode.insertBefore(tsp, t);
       t.style.cssText += ';position:fixed !important;left:0;right:0;z-index:999;box-sizing:border-box;' +
-        'margin:0 !important;padding:6px 12px 8px !important;background:#0f172a !important;' +
+        'margin:0 !important;padding:6px 12px 8px !important;' + solidBackground +
         'border-bottom:1px solid rgba(148,163,184,.18);';
     }
 
@@ -25,6 +27,7 @@
       sp.style.height = hh + 'px';
       if (t && tsp) {
         t.style.top = hh + 'px';
+        if (matchPage) t.style.setProperty('--finance-bg-y', -hh + 'px');
         tsp.style.height = t.offsetHeight + 'px';
       }
     }
