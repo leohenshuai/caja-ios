@@ -330,6 +330,20 @@
         .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; position: relative; }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        /* ===== 日结海报 ===== */
+        .pst-fields { display:flex; gap:10px; }
+        .pst-fields label { flex:1; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text-muted); font-weight:700; }
+        .pst-fields input { width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:rgba(15,23,42,.5); color:var(--text); font-size:16px; font-weight:700; }
+        #pstModal.show { display:flex !important; align-items:center; justify-content:center; }
+        .pst-modal { width:100%; max-width:560px; height:88vh; max-height:88vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+        .pst-head { flex:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:16px; }
+        .pst-x { min-width:36px; min-height:36px; border-radius:50% !important; border:none; background:rgba(255,255,255,.08); color:var(--text); }
+        .pst-canvas-wrap { flex:1 1 auto; min-height:120px; overflow-y:auto; -webkit-overflow-scrolling:touch; border-radius:14px; background:rgba(0,0,0,.25); }
+        .pst-canvas-wrap canvas { display:block; width:100%; border-radius:14px; }
+        .pst-note { flex:none; font-size:12px; color:var(--text-muted); margin:10px 0 0; line-height:1.6; }
+        .pst-btns { flex:none; display:flex; gap:10px; margin-top:12px; }
+        .pst-btns button { flex:1; min-height:46px; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
+        .pst-btns .primary { background:var(--cyan); border-color:transparent; color:#fff; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
         .form-item { display: flex; flex-direction: column; gap: 6px; }
         .form-item label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
@@ -1237,8 +1251,35 @@
     </div>
 
     <div id="tab-report" class="tab-content">
+        <div class="section" style="margin-bottom:14px">
+            <div class="section-title">🖼️ 日结海报导出</div>
+            <p style="color:var(--text-muted);font-size:13px;line-height:1.7;margin:8px 0 12px">
+                把当日「现金账本 / 转账账本」导成一张图：支出明细来自记账系统当天的记录，指标取自本页实时报表与平台项目。转账海报中值为 0 的项自动不显示。
+            </p>
+            <div class="pst-fields">
+                <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="手动填写" autocomplete="off"></label>
+                <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="手动填写" autocomplete="off"></label>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:12px">
+                <button class="primary" onclick="app.openPoster('cash')">💵 现金账本海报</button>
+                <button class="primary" onclick="app.openPoster('transfer')">🔁 转账账本海报</button>
+            </div>
+        </div>
         <div class="report" id="reportContent"></div>
         <div id="diffLog"></div>
+    </div>
+
+    <!-- 海报预览 -->
+    <div class="modal" id="pstModal" style="display:none">
+        <div class="modal-content pst-modal">
+            <div class="pst-head"><b id="pstTitle">海报预览</b><button class="pst-x" onclick="app.closePoster()">✕</button></div>
+            <div class="pst-canvas-wrap"><canvas id="pstCanvas"></canvas></div>
+            <div class="pst-note" id="pstNote"></div>
+            <div class="pst-btns">
+                <button onclick="app.closePoster()">关闭</button>
+                <button class="primary" onclick="app.savePoster()">保存 / 分享图片</button>
+            </div>
+        </div>
     </div>
 
     <div id="tab-carry" class="tab-content">
@@ -1254,9 +1295,12 @@
             <div class="section-title">⚡ 每日账目一键结转</div>
             <div class="auto-carry-status">
                 <div class="auto-carry-copy">
-                    <strong>✓ 自动结转已启用</strong>
+                    <strong id="autoCarryTitle">✓ 自动结转已启用</strong>
                     <span id="autoCarryStatus">正在读取结转状态…</span>
                 </div>
+                <label class="ac-chip" style="flex:none;padding:0 12px" for="autoCarryOn">
+                    <input type="checkbox" id="autoCarryOn" checked onchange="app.toggleAutoCarry(this.checked)">自动
+                </label>
                 <label class="auto-carry-time-field" for="autoCarryTime">
                     <span>每天结转时间</span>
                     <input type="time" id="autoCarryTime" value="01:00" aria-label="每天自动结转时间" onchange="app.updateAutoCarryTime(this.value)">
@@ -1713,6 +1757,7 @@ function getInitData() {
         caja_final_count_defaults: [2, 3, 3, 3], // 每台 Caja 默认第几次清点视为最后一次（可自定义）
         settleAccum: emptySettleAccum(),
         record_date: todayStr(),
+        auto_carryover_enabled: true,          // 定时自动转结总开关,默认开启
         auto_carryover_time: DEFAULT_AUTO_CARRY_TIME,
         last_auto_carryover_date: carryBoundaryDateStr(new Date(), DEFAULT_AUTO_CARRY_TIME),
         last_carryover_at: null,
@@ -1896,6 +1941,20 @@ class FinanceApp {
             : boundaryDate;
     }
     getAutoCarryTime() { return normalizeCarryTime(this.data && this.data.auto_carryover_time); }
+    isAutoCarryOn() { return this.data.auto_carryover_enabled !== false; }   // 未设置过视为开启
+    toggleAutoCarry(on) {
+        this.data.auto_carryover_enabled = !!on;
+        if (on) {
+            // 重新开启时,把基准推到当前边界,避免立刻补做一次历史结转
+            this.data.last_auto_carryover_date = carryBoundaryDateStr(new Date(), this.getAutoCarryTime());
+            this.scheduleNextAutoCarryOver();
+        } else if (this.autoCarryTimer) {
+            clearTimeout(this.autoCarryTimer); this.autoCarryTimer = null;
+        }
+        this.updateAutoCarryStatus();
+        this.saveToStorage({ silent: true });
+        this.showToast(on ? '定时自动结转已开启' : '定时自动结转已关闭,需手动结转', on ? 'success' : 'warning');
+    }
     getNextAutoCarryTime(now = new Date()) {
         const [hour, minute] = carryTimeParts(this.getAutoCarryTime());
         const next = new Date(now);
@@ -1905,7 +1964,14 @@ class FinanceApp {
     }
     updateAutoCarryStatus() {
         const status = $('autoCarryStatus');
+        const title = $('autoCarryTitle'), chk = $('autoCarryOn');
+        const on = this.isAutoCarryOn();
+        if (title) title.textContent = on ? '✓ 自动结转已启用' : '⏸ 自动结转已关闭';
+        if (chk && chk.checked !== on) chk.checked = on;
+        const row = document.querySelector('.auto-carry-status');
+        if (row) row.style.borderLeftColor = on ? 'var(--green)' : 'var(--text-muted)';
         if (!status) return;
+        if (!on) { status.textContent = '已关闭，只能手动点「确认结转」'; return; }
         const next = this.getNextAutoCarryTime();
         status.textContent = `下次：${next.toLocaleDateString('zh-CN')} ${this.getAutoCarryTime()}（本机时间）`;
     }
@@ -1921,6 +1987,8 @@ class FinanceApp {
     }
     scheduleNextAutoCarryOver() {
         if (this.autoCarryTimer) clearTimeout(this.autoCarryTimer);
+        this.autoCarryTimer = null;
+        if (!this.isAutoCarryOn()) { this.updateAutoCarryStatus(); return; }   // 关闭时不排程
         const delay = Math.max(1000, this.getNextAutoCarryTime().getTime() - Date.now());
         this.autoCarryTimer = setTimeout(async () => {
             await this.checkAndRunAutoCarryOver();
@@ -1941,6 +2009,7 @@ class FinanceApp {
     }
     async checkAndRunAutoCarryOver() {
         if (this.autoCarryRunning) return false;
+        if (!this.isAutoCarryOn()) { this.updateAutoCarryStatus(); return false; }   // 开关关闭:不自动结转,也不补做
         const boundaryDate = carryBoundaryDateStr(new Date(), this.getAutoCarryTime());
         if (this.data.last_auto_carryover_date && this.data.last_auto_carryover_date >= boundaryDate) {
             this.updateAutoCarryStatus();
@@ -3019,6 +3088,54 @@ class FinanceApp {
             </div>
         `;
     }
+    /* ================= 日结海报 ================= */
+    async openPoster(kind) {
+        if (!window.LedgerPoster) { this.showToast('海报模块未加载', 'error'); return; }
+        const P = window.LedgerPoster;
+        const day = P.localDateStr();
+        const r = Calc.getReportValues(this.data, this.cajaHistory);
+        const ld = await P.loadLedgerDay(day);
+        const n = (id) => { const el = $(id); return el ? (parseFloat(String(el.value).replace(/[^\d.-]/g, '')) || 0) : 0; };
+        const spec = kind === 'cash'
+            ? P.cashSpec(day, r, this.data, { fiambreria: n('pstFiam'), people: n('pstPeople') })
+            : P.transferSpec(day, r, this.data);
+        spec.list = kind === 'cash' ? ld.cash : ld.transfer;
+        P.draw($('pstCanvas'), spec);
+        $('pstTitle').textContent = spec.title + ' · ' + day;
+        $('pstNote').textContent = ld.ok
+            ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录')
+            : '⚠️ 没读到记账系统数据（记账页从未打开过？），本张只含指标部分';
+        this._pstKind = kind; this._pstDay = day;
+        try {   // 收起自制数字键盘,别占掉预览区
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            const kp = $('vk-keypad');
+            if (kp) kp.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+        } catch (_) {}
+        $('pstModal').classList.add('show');
+    }
+    closePoster() { $('pstModal').classList.remove('show'); }
+    savePoster() {
+        const canvas = $('pstCanvas');
+        const name = (this._pstKind === 'cash' ? '现金账本' : '转账账本') + '_' + (this._pstDay || '') + '.png';
+        canvas.toBlob((blob) => {
+            if (!blob) { this.showToast('图片生成失败', 'error'); return; }
+            const NB = window.NativeBridge;
+            if (NB && NB.available && NB.shareBlob) {       // 原生壳:走系统分享面板(可存相册/发微信)
+                NB.shareBlob(name, blob).then((res) => {
+                    if (res && res.ok) { this.showToast('已调用分享', 'success'); if (NB.haptic) NB.haptic('success'); }
+                    else this.showToast('分享未完成', 'warning');
+                });
+                return;
+            }
+            const url = URL.createObjectURL(blob);           // 浏览器:直接下载
+            const a = document.createElement('a');
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
+            this.showToast('图片已导出', 'success');
+        }, 'image/png');
+    }
     _setCarryUI(show) { $('carryPreview').style.display = show ? 'block' : 'none'; $('btnCarry').disabled = !show; }
     previewCarryOver() {
         if (!this.isNotCarriedOver()) { this.showToast('当前无数据或已结转，无需重复结转', 'warning'); this._setCarryUI(false); return; }
@@ -3869,6 +3986,7 @@ window.settleApp = new CashAllocationApp();
 </script>
     <script src="./fx.js"></script>
     <script src="./common.js"></script>
+    <script src="./poster.js"></script>
     <script src="./clipboard.js"></script>
 <script src="./keypad-extra.js"></script>
 <script src="./manual-log.js"></script>
