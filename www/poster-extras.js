@@ -18,8 +18,12 @@
  }
  function persist(){
   if(!loadedDay||f.disabled||(date.value||today())!==loadedDay)return queue;
-  const record={id:'poster-extra:'+loadedDay,date:loadedDay,fiambreria:f.value,people:p.value,updated_at:Date.now()};
+  const record={id:'poster-extra:'+loadedDay,date:loadedDay,fiambreria:f.value.trim(),people:p.value.trim(),updated_at:Date.now()};
   queue=queue.catch(()=>{}).then(async()=>{
+   // 空白表示不改已保存值；想设成零，明确输入 0。
+   const previous=await read(record.date);
+   if(!record.fiambreria)record.fiambreria=previous.fiambreria??'';
+   if(!record.people)record.people=previous.people??'';
    if(!await app._putDailyRecord(record))throw new Error('保存失败');
   });
   queue.catch(()=>app.showToast('海报手填信息保存失败，请稍后重试','error'));

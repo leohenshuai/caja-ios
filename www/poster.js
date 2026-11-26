@@ -58,7 +58,7 @@
 
   /* ---------- 工具 ---------- */
   function fmt(n) { return (Math.round(Number(n) || 0)).toLocaleString('en-US'); }
-  function nz(n) { return Math.abs(Number(n) || 0) >= 1; }     // 非零判定(四舍五入后)
+  function hasNumber(n) { return n != null && String(n).trim() !== '' && Number.isFinite(Number(n)); }
   function weekday(ds) {
     var p = String(ds).split('-').map(Number);
     if (p.length !== 3) return '';
@@ -336,8 +336,8 @@
       tiles.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
       tiles.push({ label: '手机卡数', value: r.sNonCash });
     }
-    if (nz(extra.fiambreria)) tiles.push({ label: 'Fiambreria', value: extra.fiambreria });
-    if (nz(extra.people)) tiles.push({ label: '人数', text: String(Math.round(extra.people)) });
+    if (hasNumber(extra.fiambreria)) tiles.push({ label: 'Fiambreria', value: extra.fiambreria });
+    if (hasNumber(extra.people)) tiles.push({ label: '人数', text: String(Math.round(extra.people)) });
     return {
       title: '现金日结', subtitle: 'CASH  ·  当日支出与实时报表', brand: '现金 · 每日结算',
       date: day, list: [], tiles: tiles,
@@ -366,12 +366,12 @@
     tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
     tiles.push({ label: 'Urbana', value: white });
     tiles.push({ label: 'Hipermay', value: black });
-    // 非现金总数差额为 0 时只在 Hero 卡隐藏,不做整行强调块
+    // 非现金总数差额只在主卡片显示，平账也显示 0。
     return {
       title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与手机卡收入', brand: '转账 · 每日结算',
       date: day, list: [], tiles: tiles,
       listTitle: '当日转账支出', tilesTitle: '手机卡收入', tilesEmpty: '手机卡收入',
-      hero: { label: '手机卡总数', value: r.sNonCash, sub: nz(l3) ? { label: '非现金总数差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } : null },
+      hero: { label: '手机卡总数', value: r.sNonCash, sub: { label: '非现金总数差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } },
       accent: '#a78bfa', accent2: '#38bdf8',
       heroFrom: 'rgba(167,139,250,.26)', heroTo: 'rgba(56,189,248,.15)',
       glow1: 'rgba(167,139,250,.16)', glow2: 'rgba(56,189,248,.12)'

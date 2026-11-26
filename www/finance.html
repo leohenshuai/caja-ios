@@ -1275,7 +1275,7 @@
                 <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="选填" autocomplete="off"></label>
             </div>
             <button type="button" id="pstSaveExtras" style="width:100%;min-height:44px;margin-top:12px">保存到所选日期</button>
-            <p style="margin:8px 0 0;color:var(--text-muted);font-size:12px">改动后请保存，现金海报使用该日期已保存的值。</p>
+            <p style="margin:8px 0 0;color:var(--text-muted);font-size:12px">改动后请保存；留空保留原值，设为零请填 0。</p>
             <div class="pst-entry-actions">
                 <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
                 <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
@@ -3141,7 +3141,11 @@ class FinanceApp {
             try { extra = await window.PosterExtras.readSaved(day); }
             catch (e) { this.showToast('无法读取该日期的已保存数据，请重试', 'error'); return; }
         }
-        const n = value => parseFloat(String(value ?? '').replace(/[^\d.-]/g, '')) || 0;
+        const n = value => {
+            const text = String(value ?? '').trim().replace(/,/g, '');
+            const parsed = Number(text);
+            return text && Number.isFinite(parsed) ? parsed : null;
+        };
         const spec = kind === 'cash'
             ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n(extra.fiambreria), people: n(extra.people) }, !!fr)
             : P.transferSpec(day, r, fr ? fr.data : {});
@@ -4039,8 +4043,8 @@ window.settleApp = new CashAllocationApp();
 </script>
     <script src="./fx.js"></script>
     <script src="./common.js"></script>
-    <script src="./poster.js"></script>
-    <script src="./poster-extras.js"></script>
+    <script src="./poster.js?v=zero-safe-save"></script>
+    <script src="./poster-extras.js?v=zero-safe-save"></script>
     <script src="./clipboard.js"></script>
 <script src="./keypad-extra.js"></script>
 <script src="./manual-log.js"></script>
