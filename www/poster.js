@@ -168,7 +168,7 @@
     // 卡内左侧竖条
     c.fillStyle = A; p.path(PAD + 34, y + 38, 5, 46, 3); c.fill();
     p.text(spec.hero.label, PAD + 54, y + 72, 'rgba(226,232,240,.9)', 'left', 26, 700);
-    p.text(fmt(spec.hero.value), PAD + 50, y + 158, '#ffffff', 'left', 78, 800);
+    p.text(spec.hero.text != null ? spec.hero.text : fmt(spec.hero.value), PAD + 50, y + 158, '#ffffff', 'left', 78, 800);
     // 右下角副指标
     if (spec.hero.sub) {
       p.text(spec.hero.sub.label, W - PAD - 40, y + 110, 'rgba(203,213,225,.75)', 'right', 22, 600);

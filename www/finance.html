@@ -1259,6 +1259,7 @@
             <div class="pst-fields">
                 <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="手动填写" autocomplete="off"></label>
                 <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="手动填写" autocomplete="off"></label>
+                <label>日期<input type="date" id="pstDate" aria-label="海报日期" autocomplete="off"></label>
             </div>
             <div style="display:flex;gap:10px;margin-top:12px">
                 <button class="primary" onclick="app.openPoster('cash')">💵 现金账本海报</button>
@@ -3089,22 +3090,50 @@ class FinanceApp {
         `;
     }
     /* ================= 日结海报 ================= */
+    // 取某天的财务数据:当天用当前数据;往日找该日最近一次结转存档(history:<date>:<ts>)
+    async getFinanceRecordFor(dateStr) {
+        if (dateStr === todayStr()) return { data: this.data, hist: this.cajaHistory, isToday: true };
+        if (!this.db) return null;
+        return new Promise((resolve) => {
+            try {
+                const tx = this.db.transaction(['dailyData'], 'readonly');
+                const req = tx.objectStore('dailyData').openCursor();
+                let best = null;
+                req.onsuccess = (e) => {
+                    const cur = e.target.result;
+                    if (!cur) { resolve(best ? { data: best, hist: best._cajaHistory, isToday: false } : null); return; }
+                    const v = cur.value;
+                    if (v && v.record_date === dateStr && String(cur.key).indexOf('history:') === 0) {
+                        if (!best || (v.archived_at || 0) > (best.archived_at || 0)) best = v;
+                    }
+                    cur.continue();
+                };
+                req.onerror = () => resolve(best ? { data: best, hist: best._cajaHistory, isToday: false } : null);
+            } catch (e) { resolve(null); }
+        });
+    }
     async openPoster(kind) {
         if (!window.LedgerPoster) { this.showToast('海报模块未加载', 'error'); return; }
         const P = window.LedgerPoster;
-        const day = P.localDateStr();
-        const r = Calc.getReportValues(this.data, this.cajaHistory);
+        const dEl = $('pstDate');
+        if (dEl && !dEl.value) dEl.value = P.localDateStr();
+        const day = (dEl && dEl.value) || P.localDateStr();
+        const fr = await this.getFinanceRecordFor(day);
+        const r = Calc.getReportValues(fr ? fr.data : getInitData(), fr ? (fr.hist || []) : []);
         const ld = await P.loadLedgerDay(day);
         const n = (id) => { const el = $(id); return el ? (parseFloat(String(el.value).replace(/[^\d.-]/g, '')) || 0) : 0; };
         const spec = kind === 'cash'
-            ? P.cashSpec(day, r, this.data, { fiambreria: n('pstFiam'), people: n('pstPeople') })
-            : P.transferSpec(day, r, this.data);
+            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n('pstFiam'), people: n('pstPeople') })
+            : P.transferSpec(day, r, fr ? fr.data : {});
         spec.list = kind === 'cash' ? ld.cash : ld.transfer;
+        if (!fr) { spec.tiles = []; spec.hero.text = '—'; }   // 无财务存档:指标区留空,Hero 显示占位
         P.draw($('pstCanvas'), spec);
         $('pstTitle').textContent = spec.title + ' · ' + day;
-        $('pstNote').textContent = ld.ok
-            ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录')
-            : '⚠️ 没读到记账系统数据（记账页从未打开过？），本张只含指标部分';
+        const notes = [];
+        notes.push(ld.ok ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录') : '⚠️ 记账系统该日无支出记录');
+        if (fr) notes.push(day === todayStr() ? '指标取自当前数据' : '指标取自该日结转存档');
+        else notes.push('⚠️ 该日期无财务存档（未结转过），指标区留空');
+        $('pstNote').textContent = notes.join('；');
         this._pstKind = kind; this._pstDay = day;
         try {   // 收起自制数字键盘,别占掉预览区
             if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
