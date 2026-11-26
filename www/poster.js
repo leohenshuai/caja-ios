@@ -218,10 +218,10 @@
     var white = listSum(data.white_list), black = listSum(data.black_k_list);
     var l3 = r.sNonCash - r.z3Ref;
     // 为零不显示;橙色与 DNI 取软件收入值(orange_z / dni_z1),Vtpay 取本店收入值 z1
-    if (nz(n('orange_z'))) rows.push({ label: '橙色机器 软件收入值', value: n('orange_z') });
-    if (nz(n('dni_z1'))) rows.push({ label: 'DNI 软件收入值', value: n('dni_z1') });
-    if (nz(mercE2)) rows.push({ label: 'Mercado 今日收入', value: mercE2 });
-    if (nz(vtZ1)) rows.push({ label: 'Vtpay 本店收入值', value: vtZ1 });
+    if (nz(n('orange_z'))) rows.push({ label: '橙色机器', value: n('orange_z') });
+    if (nz(n('dni_z1'))) rows.push({ label: 'DNI', value: n('dni_z1') });
+    if (nz(mercE2)) rows.push({ label: 'Mercado', value: mercE2 });
+    if (nz(vtZ1)) rows.push({ label: 'Vtpay', value: vtZ1 });
     if (nz(white)) rows.push({ label: '白色机器', value: white });
     if (nz(black)) rows.push({ label: '黑色机器', value: black });
     if (nz(r.sNonCash)) rows.push({ label: '手机卡总数', value: r.sNonCash, strong: true });
