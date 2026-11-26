@@ -284,14 +284,14 @@
     var vtZ1 = n('vtpay_z1');
     var white = listSum(data.white_list), black = listSum(data.black_k_list);
     var l3 = r.sNonCash - r.z3Ref;
-    var tiles = [];                                    // 为零不显示
-    if (nz(n('orange_z'))) tiles.push({ label: '橙色机器', value: n('orange_z'), color: '#fbbf24' });
-    if (nz(n('dni_z1'))) tiles.push({ label: 'DNI', value: n('dni_z1'), color: '#60a5fa' });
-    if (nz(mercE2)) tiles.push({ label: 'Mercado', value: mercE2, color: '#34d399' });
-    if (nz(vtZ1)) tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
-    if (nz(white)) tiles.push({ label: '白色机器', value: white });
-    if (nz(black)) tiles.push({ label: '黑色机器', value: black });
-    // 非现金总数差额只在 Hero 卡右侧显示一次,这里不再重复列出
+    var tiles = [];                                    // 六项固定显示,值为 0 也照常显示
+    tiles.push({ label: '橙色机器', value: n('orange_z'), color: '#fbbf24' });
+    tiles.push({ label: 'DNI', value: n('dni_z1'), color: '#60a5fa' });
+    tiles.push({ label: 'Mercado', value: mercE2, color: '#34d399' });
+    tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
+    tiles.push({ label: '白色机器', value: white });
+    tiles.push({ label: '黑色机器', value: black });
+    // 非现金总数差额为 0 时只在 Hero 卡隐藏,不做整行强调块
     return {
       title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与手机卡收入', brand: '转账 · 每日结算',
       date: day, list: [], tiles: tiles,
