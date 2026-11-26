@@ -66,6 +66,11 @@
             transition: all 0.2s;
         }
         .tab.active { background: var(--cyan); color: white; border-color: var(--cyan); }
+        /* 财务页七个入口全部露出，避免横向滚动裁掉页签。 */
+        .tabs.finance-tabs { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:4px !important; overflow:visible; border-radius:0 !important; border-inline:0 !important; }
+        .finance-tabs .tab { grid-column:span 3; min-width:0; min-height:34px; display:flex; align-items:center; justify-content:center; padding:5px 1px !important; font-size:13px; line-height:1.25; }
+        .finance-tabs .tab:nth-last-child(-n+3) { grid-column:span 4; }
+        .tabs.finance-tabs .tab.active { background:rgba(56,189,248,.2) !important; box-shadow:inset 0 0 0 1px rgba(125,211,252,.32) !important; color:#dff5ff !important; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -873,14 +878,14 @@
 
 <div class="container">
 
-    <div class="tabs">
-        <div class="tab active" onclick="app.switchTab('caja')">💰 Caja清点</div>
-        <div class="tab" onclick="app.switchTab('settle')">🧮 结算分配</div>
-        <div class="tab" onclick="app.switchTab('base')">📊 基础账目</div>
-        <div class="tab" onclick="app.switchTab('platform')">🏪 平台项目</div>
-        <div class="tab" onclick="app.switchTab('report')">📈 实时报表</div>
-        <div class="tab" onclick="app.switchTab('carry')">⚡ 一键结转</div>
-        <div class="tab" onclick="app.switchTab('coeff')">⚙️ 加权系数</div>
+    <div class="tabs finance-tabs" data-static-tabs>
+        <div class="tab active" onclick="app.switchTab('caja')">Caja清点</div>
+        <div class="tab" onclick="app.switchTab('settle')">结算分配</div>
+        <div class="tab" onclick="app.switchTab('base')">基础账目</div>
+        <div class="tab" onclick="app.switchTab('platform')">平台项目</div>
+        <div class="tab" onclick="app.switchTab('report')">实时报表</div>
+        <div class="tab" onclick="app.switchTab('carry')">一键结转</div>
+        <div class="tab" onclick="app.switchTab('coeff')">加权系数</div>
     </div>
 
     <div id="tab-caja" class="tab-content active">
@@ -1266,6 +1271,7 @@
                 <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="选填" autocomplete="off"></label>
             </div>
             <button type="button" id="pstSaveExtras" style="width:100%;min-height:44px;margin-top:12px">保存到所选日期</button>
+            <p style="margin:8px 0 0;color:var(--text-muted);font-size:12px">改动后请保存，现金海报使用该日期已保存的值。</p>
             <div class="pst-entry-actions">
                 <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
                 <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
@@ -3126,9 +3132,14 @@ class FinanceApp {
         const fr = await this.getFinanceRecordFor(day);
         const r = Calc.getReportValues(fr ? fr.data : getInitData(), fr ? (fr.hist || []) : []);
         const ld = await P.loadLedgerDay(day);
-        const n = (id) => { const el = $(id); return el ? (parseFloat(String(el.value).replace(/[^\d.-]/g, '')) || 0) : 0; };
+        let extra = {};
+        if (kind === 'cash') {
+            try { extra = await window.PosterExtras.readSaved(day); }
+            catch (e) { this.showToast('无法读取该日期的已保存数据，请重试', 'error'); return; }
+        }
+        const n = value => parseFloat(String(value ?? '').replace(/[^\d.-]/g, '')) || 0;
         const spec = kind === 'cash'
-            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n('pstFiam'), people: n('pstPeople') }, !!fr)
+            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n(extra.fiambreria), people: n(extra.people) }, !!fr)
             : P.transferSpec(day, r, fr ? fr.data : {});
         spec.list = kind === 'cash' ? ld.cash : ld.transfer;
         if (!fr) {

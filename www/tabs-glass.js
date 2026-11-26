@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   function setup(bar) {
-    if (bar.__glass) return; bar.__glass = true;
+    if (bar.__glass || bar.hasAttribute('data-static-tabs')) return; bar.__glass = true;
     bar.style.position = 'relative';
     var ind = document.createElement('div');
     ind.className = 'glass-ind';

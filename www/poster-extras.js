@@ -30,8 +30,7 @@
   const ticket=++serial;
   f.disabled=p.disabled=true;f.value=p.value='';loadedDay='';
   loading=(async()=>{
-   await queue;
-   const e=await read(day);
+   const e=await readSaved(day);
    if(ticket!==serial)return;
    f.value=e.fiambreria??'';p.value=e.people??'';loadedDay=day;
    f.disabled=p.disabled=false;
@@ -51,8 +50,6 @@
   }catch(e){app.showToast('未保存，请确认海报日期后重试','error');}
   finally{save.disabled=false;}
  });
- f.addEventListener('input',persist);p.addEventListener('input',persist);
- f.addEventListener('change',persist);p.addEventListener('change',persist);
  date.addEventListener('change',load);
  const archive=app.archiveCurrentDay.bind(app);
  app.archiveCurrentDay=async function(reason){
@@ -62,20 +59,16 @@
   this.data._posterExtras={date:day,fiambreria:e.fiambreria??'',people:e.people??''};
   return archive(reason);
  };
- const open=app.openPoster.bind(app);
- app.openPoster=async function(kind){
-  try{
-   if((date.value||today())!==loadedDay)await load();else await loading;
-   await persist();
-   return await open(kind);
-  }catch(e){this.showToast('海报信息读取或保存失败，请重试','error');}
- };
+ async function readSaved(day){
+  await queue.catch(()=>{}); // 写入失败时仍可读取上次成功保存的值
+  return read(day);
+ }
  const switchTab=app.switchTab.bind(app);
  app.switchTab=function(name){
   const result=switchTab(name);
   if(name==='report'&&!loadedDay&&this.db)load();
   return result;
  };
- window.PosterExtras={read,load,persist};
+ window.PosterExtras={readSaved};
  date.value=today();
 })();
