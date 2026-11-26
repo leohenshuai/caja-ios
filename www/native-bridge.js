@@ -136,11 +136,20 @@
   var origCreate = URL.createObjectURL.bind(URL);
   URL.createObjectURL = function (b) { var u = origCreate(b); if (b instanceof Blob) blobs[u] = b; return u; };
   function shareBlob(name, blob) {
+    /* 必须走 base64:以前用 readAsText 把 blob 当 UTF-8 文本传,二进制文件(如 .xlsx)
+       里不符合 UTF-8 的字节会被替换成 U+FFFD,文件直接损坏(2026-11-23 导出 Excel 实测)。
+       文本文件走 base64 也无损,原生端 shareFile 优先解 base64、兼容旧 text 字段 */
     return new Promise(function (resolve) {
       var fr = new FileReader();
-      fr.onload = function () { NB.call('shareFile', { name: name, text: String(fr.result) }, 60000).then(resolve); };
+      fr.onload = function () {
+        try {
+          var bytes = new Uint8Array(fr.result), bin = '';
+          for (var i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+          NB.call('shareFile', { name: name, base64: btoa(bin) }, 60000).then(resolve);
+        } catch (e) { resolve({ ok: false }); }
+      };
       fr.onerror = function () { resolve({ ok: false }); };
-      fr.readAsText(blob);
+      fr.readAsArrayBuffer(blob);
     });
   }
   NB.shareText = function (name, text) { return NB.call('shareFile', { name: name, text: text }, 60000); };
