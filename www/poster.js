@@ -218,9 +218,16 @@
     var full = W - PAD * 2;
     var halfW = (full - TILE_GAP) / 2;
     var col = 0;
-    spec.tiles.forEach(function (t) {
+    if (!spec.tiles.length) {          // 全部为 0:整块不显示,给一句说明
+      p.card(PAD, y, full, 92, 26, 'rgba(255,255,255,.035)', 'rgba(255,255,255,.08)');
+      p.text('当日无' + spec.tilesEmpty, W / 2, y + 56, 'rgba(148,163,184,.8)', 'center', 25, 600);
+      y += 92;
+    }
+    spec.tiles.forEach(function (t, ti) {
+      // 两列排到最后只剩一个非整行块时,让它独占整行,避免右边留空
+      var lastOdd = !t.wide && ti === spec.tiles.length - 1 && col === 0;
       var wide = !!t.wide;
-      var tw = wide ? full : halfW;
+      var tw = (wide || lastOdd) ? full : halfW;
       if (wide && col === 1) { y += TILE_H + TILE_GAP; col = 0; }       // 整行块另起一行
       var tx = PAD + (col === 1 ? halfW + TILE_GAP : 0);
       var fill = t.hl ? p.grad(tx, y, tx + tw, y + TILE_H, 'rgba(255,255,255,.12)', 'rgba(255,255,255,.045)') : 'rgba(255,255,255,.04)';
@@ -259,7 +266,7 @@
     return {
       title: '现金日结', subtitle: 'CASH  ·  当日支出与实时报表', brand: '现金 · 每日结算',
       date: day, list: [], tiles: tiles,
-      listTitle: '当日现金支出', tilesTitle: '实时报表',
+      listTitle: '当日现金支出', tilesTitle: '实时报表', tilesEmpty: '报表数据',
       hero: { label: '总现金', value: r.vaultH, sub: { label: '今日余额', value: r.todayY } },
       accent: '#38bdf8', accent2: '#818cf8',
       heroFrom: 'rgba(56,189,248,.26)', heroTo: 'rgba(99,102,241,.16)',
@@ -288,7 +295,7 @@
     return {
       title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与手机卡收入', brand: '转账 · 每日结算',
       date: day, list: [], tiles: tiles,
-      listTitle: '当日转账支出', tilesTitle: '手机卡收入',
+      listTitle: '当日转账支出', tilesTitle: '手机卡收入', tilesEmpty: '手机卡收入',
       hero: { label: '手机卡总数', value: r.sNonCash, sub: nz(l3) ? { label: '非现金总数差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } : null },
       accent: '#a78bfa', accent2: '#38bdf8',
       heroFrom: 'rgba(167,139,250,.26)', heroTo: 'rgba(56,189,248,.15)',
