@@ -117,23 +117,70 @@
     return this.c.measureText(str).width / this.s;
   };
 
+  // 按实际绘制字体换行；保留显式换行，不截断原始备注。
+  P.prototype.wrap = function (str, size, maxW, weight) {
+    this.font(size, weight);
+    var c = this.c, max = maxW * this.s, lines = [];
+    String(str).split(/\r\n|\r|\n/).forEach(function (paragraph) {
+      var line = '';
+      Array.from(paragraph).forEach(function (ch) {
+        if (line && c.measureText(line + ch).width > max) { lines.push(line); line = ''; }
+        line += ch;
+      });
+      lines.push(line);
+    });
+    return lines;
+  };
+
   /* ---------- 布局常量 ---------- */
-  var HEAD_H = 188, HERO_H = 214, SEC_GAP = 34, ROW_H = 70, SUM_H = 84, FOOT_H = 96;
+  var HEAD_H = 188, HERO_H = 214, SEC_GAP = 34, SUM_H = 84, FOOT_H = 96;
   var TILE_H = 116, TILE_GAP = 16;
 
+  // 只组织显示：分类按首次出现排序，组内保持原顺序，不修改或合并账目。
+  function detailLayout(p, list) {
+    var groups = [], byCat = new Map(), amountW = 0;
+    list.forEach(function (it, i) {
+      var cat = it.cat || '未分类', group = byCat.get(cat);
+      if (!group) { group = { cat: cat, rows: [] }; byCat.set(cat, group); groups.push(group); }
+      var amount = '-' + fmt(it.amount);
+      amountW = Math.max(amountW, p.wide(amount, 30, 800));
+      group.rows.push({ item: it, index: i + 1, amount: amount });
+    });
+    var contentW = W - PAD * 2 - 112;
+    // 异常长金额改放独立一行，避免挤占备注或彼此重叠。
+    var stacked = amountW > contentW * 0.45;
+    var noteW = stacked ? contentW : contentW - amountW - 28;
+    var height = 24;
+    groups.forEach(function (group) {
+      group.lines = p.wrap(group.cat, 23, W - PAD * 2 - 56, 700);
+      group.height = 20 + group.lines.length * 30;
+      height += group.height;
+      group.rows.forEach(function (row) {
+        row.lines = p.wrap(row.item.note || '（无备注）', 30, noteW, 700);
+        row.stacked = stacked;
+        row.amountSize = stacked ? Math.min(30, 30 * contentW / amountW) : 30;
+        row.height = Math.max(70, 24 + row.lines.length * 40 + (stacked ? 40 : 0));
+        height += row.height;
+      });
+    });
+    return { groups: groups, height: height + SUM_H };
+  }
+
   function tileRows(n) { return Math.ceil(n / 2); }
-  function layout(spec) {
+  function layout(spec, details) {
     var h = HEAD_H + HERO_H + SEC_GAP;
     h += 44;                                         // 明细小标题
-    h += spec.list.length ? (24 + spec.list.length * ROW_H + SUM_H) : 104;
+    h += spec.list.length ? details.height : 104;
     h += SEC_GAP + 44;                               // 指标小标题
-    h += tileRows(spec.tiles.length) * (TILE_H + TILE_GAP) + 12;
+    h += (spec.tiles.length ? tileRows(spec.tiles.length) * (TILE_H + TILE_GAP) : 92) + 12;
     h += FOOT_H;
     return Math.round(h);
   }
 
   function draw(canvas, spec) {
-    var dpr = 2, H = layout(spec);
+    var dpr = 2;
+    var details = detailLayout(new P(canvas.getContext('2d'), dpr), spec.list);
+    var H = layout(spec, details);
     canvas.width = W * dpr; canvas.height = H * dpr;
     canvas.style.width = '100%';
     var c = canvas.getContext('2d');
@@ -183,22 +230,30 @@
     y += 44;
 
     if (spec.list.length) {
-      var boxH = 24 + spec.list.length * ROW_H + SUM_H - 24;
+      var boxH = details.height;
       p.card(PAD, y, W - PAD * 2, boxH, 26, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.09)');
       var ry = y + 24, sum = 0;
-      spec.list.forEach(function (it, i) {
-        sum += it.amount;
-        var base = ry + ROW_H * i;
-        if (i) p.line(PAD + 28, base, W - PAD - 28, 'rgba(255,255,255,.055)');
-        var mid = base + ROW_H / 2 + 10;
-        // 序号圆点
-        p.card(PAD + 28, mid - 30, 38, 38, 12, 'rgba(255,255,255,.07)', null);
-        p.text(String(i + 1), PAD + 47, mid - 4, 'rgba(148,163,184,.9)', 'center', 20, 700);
-        p.text(p.clip(it.cat, 28, 250, 700), PAD + 84, mid, '#e8eefc', 'left', 28, 700);
-        if (it.note) p.text(p.clip(it.note, 22, 340, 500), PAD + 348, mid, 'rgba(148,163,184,.9)', 'left', 22, 500);
-        p.text('-' + fmt(it.amount), W - PAD - 28, mid, '#fda4af', 'right', 30, 800);
+      details.groups.forEach(function (group, gi) {
+        if (gi) p.line(PAD + 28, ry, W - PAD - 28, 'rgba(255,255,255,.14)');
+        group.lines.forEach(function (line, li) {
+          p.text(line, PAD + 28, ry + 28 + li * 30, 'rgba(148,163,184,.9)', 'left', 23, 700);
+        });
+        ry += group.height;
+        group.rows.forEach(function (row, ri) {
+          sum += row.item.amount;
+          if (ri) p.line(PAD + 84, ry, W - PAD - 28, 'rgba(255,255,255,.055)');
+          var mid = ry + 42;
+          p.card(PAD + 28, mid - 30, 38, 38, 12, 'rgba(255,255,255,.07)', null);
+          p.text(String(row.index), PAD + 47, mid - 4, 'rgba(148,163,184,.9)', 'center', 20, 700);
+          row.lines.forEach(function (line, li) {
+            p.text(line, PAD + 84, mid + li * 40, '#e8eefc', 'left', 30, 700);
+          });
+          var amountY = mid + (row.stacked ? row.lines.length * 40 : 0);
+          p.text(row.amount, W - PAD - 28, amountY, '#fda4af', 'right', row.amountSize, 800);
+          ry += row.height;
+        });
       });
-      var sy = ry + ROW_H * spec.list.length;
+      var sy = ry;
       p.line(PAD + 28, sy, W - PAD - 28, 'rgba(255,255,255,.14)');
       p.text('支出合计', PAD + 28, sy + 48, 'rgba(226,232,240,.92)', 'left', 27, 800);
       p.text('-' + fmt(sum), W - PAD - 28, sy + 50, '#fb7185', 'right', 36, 800);
