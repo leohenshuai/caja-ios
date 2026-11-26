@@ -146,7 +146,10 @@
       amountW = Math.max(amountW, p.wide(amount, 30, 800));
       group.rows.push({ item: it, index: i + 1, amount: amount });
     });
-    var contentW = W - PAD * 2 - 112;
+    // 超过 10 笔时在每个分类区域内双列，分类标题始终全宽且只出现一次。
+    var columns = list.length > 10 ? 2 : 1, gap = 28;
+    var cellW = (W - PAD * 2 - 56 - gap * (columns - 1)) / columns;
+    var contentW = cellW - 56;
     // 异常长金额改放独立一行，避免挤占备注或彼此重叠。
     var stacked = amountW > contentW * 0.45;
     var noteW = stacked ? contentW : contentW - amountW - 28;
@@ -154,16 +157,28 @@
     groups.forEach(function (group) {
       group.lines = p.wrap(group.cat, 23, W - PAD * 2 - 56, 700);
       group.height = 20 + group.lines.length * 30;
+      group.bodyHeight = 0;
       height += group.height;
       group.rows.forEach(function (row) {
         row.lines = p.wrap(row.item.note || '（无备注）', 30, noteW, 700);
         row.stacked = stacked;
         row.amountSize = stacked ? Math.min(30, 30 * contentW / amountW) : 30;
         row.height = Math.max(70, 24 + row.lines.length * 40 + (stacked ? 40 : 0));
-        height += row.height;
       });
+      // 每对记录共用行高；先左后右，下一对从最长备注下方开始。
+      for (var i = 0; i < group.rows.length; i += columns) {
+        var rowH = group.rows[i].height;
+        if (columns === 2 && group.rows[i + 1]) rowH = Math.max(rowH, group.rows[i + 1].height);
+        for (var col = 0; col < columns && group.rows[i + col]; col++) {
+          var row = group.rows[i + col];
+          row.x = PAD + 28 + col * (cellW + gap);
+          row.y = group.bodyHeight;
+        }
+        group.bodyHeight += rowH;
+      }
+      height += group.bodyHeight;
     });
-    return { groups: groups, height: height + SUM_H };
+    return { groups: groups, cellW: cellW, height: height + SUM_H };
   }
 
   function tileRows(n) { return Math.ceil(n / 2); }
@@ -239,19 +254,20 @@
           p.text(line, PAD + 28, ry + 28 + li * 30, 'rgba(148,163,184,.9)', 'left', 23, 700);
         });
         ry += group.height;
-        group.rows.forEach(function (row, ri) {
+        group.rows.forEach(function (row) {
           sum += row.item.amount;
-          if (ri) p.line(PAD + 84, ry, W - PAD - 28, 'rgba(255,255,255,.055)');
-          var mid = ry + 42;
-          p.card(PAD + 28, mid - 30, 38, 38, 12, 'rgba(255,255,255,.07)', null);
-          p.text(String(row.index), PAD + 47, mid - 4, 'rgba(148,163,184,.9)', 'center', 20, 700);
+          var x = row.x, top = ry + row.y, right = x + details.cellW;
+          if (row.y) p.line(x + 56, top, right, 'rgba(255,255,255,.055)');
+          var mid = top + 42;
+          p.card(x, mid - 30, 38, 38, 12, 'rgba(255,255,255,.07)', null);
+          p.text(String(row.index), x + 19, mid - 4, 'rgba(148,163,184,.9)', 'center', 20, 700);
           row.lines.forEach(function (line, li) {
-            p.text(line, PAD + 84, mid + li * 40, '#e8eefc', 'left', 30, 700);
+            p.text(line, x + 56, mid + li * 40, '#e8eefc', 'left', 30, 700);
           });
           var amountY = mid + (row.stacked ? row.lines.length * 40 : 0);
-          p.text(row.amount, W - PAD - 28, amountY, '#fda4af', 'right', row.amountSize, 800);
-          ry += row.height;
+          p.text(row.amount, right, amountY, '#fda4af', 'right', row.amountSize, 800);
         });
+        ry += group.bodyHeight;
       });
       var sy = ry;
       p.line(PAD + 28, sy, W - PAD - 28, 'rgba(255,255,255,.14)');

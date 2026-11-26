@@ -331,9 +331,15 @@
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
         /* ===== 日结海报 ===== */
-        .pst-fields { display:flex; gap:10px; }
-        .pst-fields label { flex:1; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text-muted); font-weight:700; }
-        .pst-fields input { width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:rgba(15,23,42,.5); color:var(--text); font-size:16px; font-weight:700; }
+        .pst-entry .section-title { margin-bottom:14px; }
+        .pst-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .pst-fields label { min-width:0; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text-muted); font-weight:700; }
+        .pst-fields .pst-date { grid-column:1 / -1; }
+        .pst-fields input { width:100%; min-width:0; max-width:100%; box-sizing:border-box; height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:rgba(15,23,42,.5); color:var(--text); font-size:16px; font-weight:700; }
+        .pst-fields input[type="date"] { display:block; -webkit-appearance:none; appearance:none; text-align:left; }
+        .pst-fields input[type="date"]::-webkit-date-and-time-value { text-align:left; min-width:0; }
+        .pst-entry-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+        .pst-entry-actions button { min-width:0; min-height:44px; padding:10px 6px; justify-content:center; font-size:13px; border-radius:12px; }
         #pstModal.show { display:flex !important; align-items:center; justify-content:center; }
         .pst-modal { width:100%; max-width:560px; height:88vh; max-height:88vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
         .pst-head { flex:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:16px; }
@@ -1251,19 +1257,16 @@
     </div>
 
     <div id="tab-report" class="tab-content">
-        <div class="section" style="margin-bottom:14px">
-            <div class="section-title">🖼️ 日结海报导出</div>
-            <p style="color:var(--text-muted);font-size:13px;line-height:1.7;margin:8px 0 12px">
-                把当日「现金账本 / 转账账本」导成一张图：支出明细来自记账系统当天的记录，指标取自本页实时报表与平台项目。转账海报中值为 0 的项自动不显示。
-            </p>
+        <div class="section pst-entry" style="margin-bottom:14px">
+            <div class="section-title">🖼️ 日结海报</div>
             <div class="pst-fields">
-                <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="手动填写" autocomplete="off"></label>
-                <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="手动填写" autocomplete="off"></label>
-                <label>日期<input type="date" id="pstDate" aria-label="海报日期" autocomplete="off"></label>
+                <label class="pst-date">海报日期<input type="date" id="pstDate" aria-label="海报日期" autocomplete="off"></label>
+                <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="选填" autocomplete="off"></label>
+                <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="选填" autocomplete="off"></label>
             </div>
-            <div style="display:flex;gap:10px;margin-top:12px">
-                <button class="primary" onclick="app.openPoster('cash')">💵 现金账本海报</button>
-                <button class="primary" onclick="app.openPoster('transfer')">🔁 转账账本海报</button>
+            <div class="pst-entry-actions">
+                <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
+                <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
             </div>
         </div>
         <div class="report" id="reportContent"></div>
