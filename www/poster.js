@@ -5,7 +5,7 @@
   'use strict';
 
   var LEDGER_DB = 'LedgerDB', LEDGER_STORE = 'data';
-  var W = 1080, PAD = 56;
+  var W = 1080, PAD = 64;
 
   /* ---------- 记账库读取(只读,不写) ---------- */
   function openLedger() {
@@ -54,24 +54,25 @@
     return out;
   }
 
-  /* ---------- 画布工具 ---------- */
-  function fmt(n) {
-    var v = Math.round(Number(n) || 0);
-    return v.toLocaleString('en-US');
-  }
+  /* ---------- 工具 ---------- */
+  function fmt(n) { return (Math.round(Number(n) || 0)).toLocaleString('en-US'); }
   function nz(n) { return Math.abs(Number(n) || 0) >= 1; }     // 非零判定(四舍五入后)
-
-  function Painter(ctx, scale) {
-    this.c = ctx; this.s = scale; this.y = 0;
+  function weekday(ds) {
+    var p = String(ds).split('-').map(Number);
+    if (p.length !== 3) return '';
+    return '周' + '日一二三四五六'.charAt(new Date(p[0], p[1] - 1, p[2]).getDay());
   }
-  Painter.prototype.font = function (size, weight) {
-    this.c.font = (weight || 600) + ' ' + (size * this.s) + 'px -apple-system, "PingFang SC", system-ui, sans-serif';
+
+  function P(ctx, s) { this.c = ctx; this.s = s; }
+  P.prototype.font = function (size, weight) {
+    this.c.font = (weight || 600) + ' ' + (size * this.s) + 'px -apple-system, "PingFang SC", "Helvetica Neue", system-ui, sans-serif';
   };
-  Painter.prototype.text = function (str, x, y, color, align) {
+  P.prototype.text = function (str, x, y, color, align, size, weight) {
+    if (size) this.font(size, weight);
     this.c.fillStyle = color; this.c.textAlign = align || 'left'; this.c.textBaseline = 'alphabetic';
     this.c.fillText(str, x * this.s, y * this.s);
   };
-  Painter.prototype.rrect = function (x, y, w, h, r, fill, stroke) {
+  P.prototype.path = function (x, y, w, h, r) {
     var c = this.c, s = this.s;
     x *= s; y *= s; w *= s; h *= s; r *= s;
     c.beginPath();
@@ -81,34 +82,54 @@
     c.arcTo(x, y + h, x, y, r);
     c.arcTo(x, y, x + w, y, r);
     c.closePath();
-    if (fill) { c.fillStyle = fill; c.fill(); }
-    if (stroke) { c.strokeStyle = stroke; c.lineWidth = Math.max(1, 1.2 * s); c.stroke(); }
   };
-  Painter.prototype.line = function (x1, y, x2, color) {
+  P.prototype.card = function (x, y, w, h, r, fill, stroke) {
+    this.path(x, y, w, h, r);
+    if (fill) { this.c.fillStyle = fill; this.c.fill(); }
+    if (stroke) { this.c.strokeStyle = stroke; this.c.lineWidth = Math.max(1, 1.4 * this.s); this.c.stroke(); }
+  };
+  P.prototype.grad = function (x1, y1, x2, y2, from, to) {
+    var g = this.c.createLinearGradient(x1 * this.s, y1 * this.s, x2 * this.s, y2 * this.s);
+    g.addColorStop(0, from); g.addColorStop(1, to);
+    return g;
+  };
+  P.prototype.glow = function (cx, cy, r, color) {
+    var c = this.c, s = this.s;
+    var g = c.createRadialGradient(cx * s, cy * s, 0, cx * s, cy * s, r * s);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+  };
+  P.prototype.line = function (x1, y, x2, color) {
     var c = this.c, s = this.s;
     c.strokeStyle = color; c.lineWidth = Math.max(1, s);
     c.beginPath(); c.moveTo(x1 * s, y * s); c.lineTo(x2 * s, y * s); c.stroke();
   };
-  // 超长文本截断加省略号
-  Painter.prototype.clip = function (str, size, maxW) {
-    this.font(size, 600);
-    var c = this.c, s = this.s, max = maxW * s;
+  P.prototype.clip = function (str, size, maxW, weight) {
+    this.font(size, weight || 600);
+    var c = this.c, max = maxW * this.s;
     if (c.measureText(str).width <= max) return str;
     var out = str;
     while (out.length > 1 && c.measureText(out + '…').width > max) out = out.slice(0, -1);
     return out + '…';
   };
+  P.prototype.wide = function (str, size, weight) {   // 量文字宽度(回 CSS px)
+    this.font(size, weight || 600);
+    return this.c.measureText(str).width / this.s;
+  };
 
-  /* ---------- 海报布局(先算高度再画,保证不截断) ---------- */
-  // rows: [{label, value, strong?, color?}] ; list: [{cat,note,amount}]
+  /* ---------- 布局常量 ---------- */
+  var HEAD_H = 188, HERO_H = 214, SEC_GAP = 34, ROW_H = 70, SUM_H = 84, FOOT_H = 96;
+  var TILE_H = 116, TILE_GAP = 16;
+
+  function tileRows(n) { return Math.ceil(n / 2); }
   function layout(spec) {
-    var h = 0;
-    h += 150;                                   // 头部
-    if (spec.list.length) h += 62 + spec.list.length * 58 + 56 + 30;   // 明细标题+行+合计+间隔
-    else h += 110;
-    h += 56 + spec.rows.length * 60 + 40;       // 指标区
-    h += 70;                                    // 页脚
-    return h;
+    var h = HEAD_H + HERO_H + SEC_GAP;
+    h += 44;                                         // 明细小标题
+    h += spec.list.length ? (24 + spec.list.length * ROW_H + SUM_H) : 104;
+    h += SEC_GAP + 44;                               // 指标小标题
+    h += tileRows(spec.tiles.length) * (TILE_H + TILE_GAP) + 12;
+    h += FOOT_H;
+    return Math.round(h);
   }
 
   function draw(canvas, spec) {
@@ -116,120 +137,162 @@
     canvas.width = W * dpr; canvas.height = H * dpr;
     canvas.style.width = '100%';
     var c = canvas.getContext('2d');
-    var p = new Painter(c, dpr);
+    var p = new P(c, dpr);
+    var A = spec.accent, A2 = spec.accent2;
 
-    // 背景
-    var g = c.createLinearGradient(0, 0, W * dpr, H * dpr);
-    g.addColorStop(0, '#0b1324'); g.addColorStop(0.55, '#0e1a30'); g.addColorStop(1, '#0a1020');
-    c.fillStyle = g; c.fillRect(0, 0, W * dpr, H * dpr);
-    // 顶部色条
-    var g2 = c.createLinearGradient(0, 0, W * dpr, 0);
-    g2.addColorStop(0, spec.accent); g2.addColorStop(1, spec.accent2);
-    c.fillStyle = g2; c.fillRect(0, 0, W * dpr, 10 * dpr);
+    /* 背景:深色渐变 + 两处柔光 */
+    var bg = c.createLinearGradient(0, 0, W * dpr, H * dpr);
+    bg.addColorStop(0, '#0a0f1f'); bg.addColorStop(0.5, '#0d1528'); bg.addColorStop(1, '#090d1a');
+    c.fillStyle = bg; c.fillRect(0, 0, W * dpr, H * dpr);
+    p.glow(130, 90, 620, spec.glow1);
+    p.glow(W - 80, 330, 560, spec.glow2);
 
-    var y = 86;
-    p.font(44, 800); p.text(spec.title, PAD, y, '#ffffff');
-    p.font(26, 600); p.text(spec.date, W - PAD, y, 'rgba(226,232,240,.75)', 'right');
-    y += 34;
-    p.font(22, 500); p.text(spec.subtitle, PAD, y, 'rgba(148,163,184,.9)');
+    /* ===== 头部 ===== */
+    // 左侧竖条
+    c.fillStyle = p.grad(0, 60, 0, 150, A, A2);
+    p.path(PAD, 62, 7, 86, 4); c.fill();
+
+    p.text(spec.title, PAD + 26, 104, '#ffffff', 'left', 50, 800);
+    p.text(spec.subtitle, PAD + 26, 140, 'rgba(148,163,184,.85)', 'left', 23, 500);
+
+    // 右上日期胶囊
+    var dLabel = spec.date + '  ' + weekday(spec.date);
+    var dw = p.wide(dLabel, 24, 700) + 44;
+    p.card(W - PAD - dw, 72, dw, 54, 27, 'rgba(255,255,255,.07)', 'rgba(255,255,255,.14)');
+    p.text(dLabel, W - PAD - dw / 2, 106, 'rgba(226,232,240,.95)', 'center', 24, 700);
+
+    var y = HEAD_H;
+
+    /* ===== Hero 大数字卡 ===== */
+    p.card(PAD, y, W - PAD * 2, HERO_H - 24, 30, p.grad(PAD, y, W - PAD, y + HERO_H, spec.heroFrom, spec.heroTo), 'rgba(255,255,255,.16)');
+    // 卡内左侧竖条
+    c.fillStyle = A; p.path(PAD + 34, y + 38, 5, 46, 3); c.fill();
+    p.text(spec.hero.label, PAD + 54, y + 72, 'rgba(226,232,240,.9)', 'left', 26, 700);
+    p.text(fmt(spec.hero.value), PAD + 50, y + 158, '#ffffff', 'left', 78, 800);
+    // 右下角副指标
+    if (spec.hero.sub) {
+      p.text(spec.hero.sub.label, W - PAD - 40, y + 110, 'rgba(203,213,225,.75)', 'right', 22, 600);
+      p.text(spec.hero.sub.text || fmt(spec.hero.sub.value), W - PAD - 40, y + 156, spec.hero.sub.color || A, 'right', 40, 800);
+    }
+    y += HERO_H + SEC_GAP - 24;
+
+    /* ===== 支出明细 ===== */
+    p.text('●', PAD, y + 24, A, 'left', 16, 800);
+    p.text(spec.listTitle, PAD + 24, y + 26, '#e8eefc', 'left', 27, 800);
+    p.text(spec.list.length ? (spec.list.length + ' 笔') : '', W - PAD, y + 26, 'rgba(148,163,184,.8)', 'right', 22, 600);
     y += 44;
 
-    // 明细
     if (spec.list.length) {
-      p.font(26, 800); p.text('当日支出明细', PAD, y, spec.accent);
-      y += 34;
-      var cardTop = y, rowH = 58;
-      p.rrect(PAD - 16, cardTop - 12, W - (PAD - 16) * 2, spec.list.length * rowH + 56 + 20, 24, 'rgba(255,255,255,.045)', 'rgba(255,255,255,.1)');
-      y += 28;
-      var sum = 0;
+      var boxH = 24 + spec.list.length * ROW_H + SUM_H - 24;
+      p.card(PAD, y, W - PAD * 2, boxH, 26, 'rgba(255,255,255,.04)', 'rgba(255,255,255,.09)');
+      var ry = y + 24, sum = 0;
       spec.list.forEach(function (it, i) {
         sum += it.amount;
-        if (i) p.line(PAD, y - 34, W - PAD, 'rgba(255,255,255,.06)');
-        p.font(27, 700);
-        p.text(p.clip(it.cat, 27, 300), PAD, y, '#e8eefc');
-        if (it.note) {
-          p.font(21, 500);
-          p.text(p.clip(it.note, 21, 330), PAD + 310, y, 'rgba(148,163,184,.95)');
-        }
-        p.font(29, 800);
-        p.text('-' + fmt(it.amount), W - PAD, y, '#fda4af', 'right');
-        y += rowH;
+        var base = ry + ROW_H * i;
+        if (i) p.line(PAD + 28, base, W - PAD - 28, 'rgba(255,255,255,.055)');
+        var mid = base + ROW_H / 2 + 10;
+        // 序号圆点
+        p.card(PAD + 28, mid - 30, 38, 38, 12, 'rgba(255,255,255,.07)', null);
+        p.text(String(i + 1), PAD + 47, mid - 4, 'rgba(148,163,184,.9)', 'center', 20, 700);
+        p.text(p.clip(it.cat, 28, 250, 700), PAD + 84, mid, '#e8eefc', 'left', 28, 700);
+        if (it.note) p.text(p.clip(it.note, 22, 340, 500), PAD + 348, mid, 'rgba(148,163,184,.9)', 'left', 22, 500);
+        p.text('-' + fmt(it.amount), W - PAD - 28, mid, '#fda4af', 'right', 30, 800);
       });
-      p.line(PAD, y - 30, W - PAD, 'rgba(255,255,255,.14)');
-      y += 12;
-      p.font(27, 800); p.text('支出合计', PAD, y, 'rgba(226,232,240,.9)');
-      p.font(33, 800); p.text('-' + fmt(sum), W - PAD, y, '#fb7185', 'right');
-      y += 60;
+      var sy = ry + ROW_H * spec.list.length;
+      p.line(PAD + 28, sy, W - PAD - 28, 'rgba(255,255,255,.14)');
+      p.text('支出合计', PAD + 28, sy + 48, 'rgba(226,232,240,.92)', 'left', 27, 800);
+      p.text('-' + fmt(sum), W - PAD - 28, sy + 50, '#fb7185', 'right', 36, 800);
+      y += boxH;
     } else {
-      p.rrect(PAD - 16, y - 12, W - (PAD - 16) * 2, 86, 24, 'rgba(255,255,255,.045)', 'rgba(255,255,255,.1)');
-      p.font(25, 600); p.text('当日无支出记录', W / 2, y + 42, 'rgba(148,163,184,.85)', 'center');
-      y += 118;
+      p.card(PAD, y, W - PAD * 2, 92, 26, 'rgba(255,255,255,.035)', 'rgba(255,255,255,.08)');
+      p.text('当日无支出记录', W / 2, y + 56, 'rgba(148,163,184,.8)', 'center', 25, 600);
+      y += 92;
     }
+    y += SEC_GAP;
 
-    // 指标
-    p.font(26, 800); p.text(spec.rowsTitle, PAD, y, spec.accent);
-    y += 30;
-    var mTop = y;
-    p.rrect(PAD - 16, mTop - 10, W - (PAD - 16) * 2, spec.rows.length * 60 + 30, 24, 'rgba(255,255,255,.045)', 'rgba(255,255,255,.1)');
-    y += 42;
-    spec.rows.forEach(function (r, i) {
-      if (i) p.line(PAD, y - 36, W - PAD, 'rgba(255,255,255,.06)');
-      p.font(r.strong ? 29 : 26, r.strong ? 800 : 600);
-      p.text(r.label, PAD, y, r.strong ? '#ffffff' : 'rgba(203,213,225,.95)');
-      p.font(r.strong ? 34 : 29, 800);
-      p.text(r.text != null ? r.text : fmt(r.value), W - PAD, y, r.color || (r.strong ? spec.accent : '#e8eefc'), 'right');
-      y += 60;
+    /* ===== 指标两列网格 ===== */
+    p.text('●', PAD, y + 24, A2, 'left', 16, 800);
+    p.text(spec.tilesTitle, PAD + 24, y + 26, '#e8eefc', 'left', 27, 800);
+    y += 44;
+
+    var full = W - PAD * 2;
+    var halfW = (full - TILE_GAP) / 2;
+    var col = 0;
+    spec.tiles.forEach(function (t) {
+      var wide = !!t.wide;
+      var tw = wide ? full : halfW;
+      if (wide && col === 1) { y += TILE_H + TILE_GAP; col = 0; }       // 整行块另起一行
+      var tx = PAD + (col === 1 ? halfW + TILE_GAP : 0);
+      var fill = t.hl ? p.grad(tx, y, tx + tw, y + TILE_H, 'rgba(255,255,255,.12)', 'rgba(255,255,255,.045)') : 'rgba(255,255,255,.04)';
+      p.card(tx, y, tw, TILE_H, 24, fill, t.hl ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.085)');
+      // 顶部小色条
+      c.fillStyle = t.color || (t.hl ? A : 'rgba(148,163,184,.45)');
+      p.path(tx + 26, y + 26, 4, 26, 2); c.fill();
+      p.text(p.clip(t.label, 23, tw - 76, 600), tx + 42, y + 48, 'rgba(203,213,225,.88)', 'left', 23, 600);
+      var vText = t.text != null ? t.text : fmt(t.value);
+      var vSize = vText.length > 11 ? 34 : 40;
+      p.text(vText, tx + 26, y + 95, t.color || (t.hl ? '#ffffff' : '#e8eefc'), 'left', vSize, 800);
+      col = wide ? 0 : (col === 1 ? 0 : 1);
+      if (col === 0) y += TILE_H + TILE_GAP;
     });
+    if (col === 1) y += TILE_H + TILE_GAP;
 
-    y += 34;
-    p.font(20, 500);
-    p.text('由管理系统生成 · ' + new Date().toLocaleString('zh-CN'), W / 2, y, 'rgba(100,116,139,.8)', 'center');
+    /* ===== 页脚 ===== */
+    y += 16;
+    p.line(PAD, y, W - PAD, 'rgba(255,255,255,.08)');
+    y += 42;
+    p.text(spec.brand, PAD, y, 'rgba(148,163,184,.7)', 'left', 21, 700);
+    p.text(new Date().toLocaleString('zh-CN'), W - PAD, y, 'rgba(100,116,139,.75)', 'right', 20, 500);
     return canvas;
   }
 
   /* ---------- 两种海报的数据组装 ---------- */
   // extra: { fiambreria, people }
   function cashSpec(day, r, data, extra) {
-    var rows = [];
-    rows.push({ label: '总营业额', value: r.zRevenue });
-    rows.push({ label: '现金', value: r.theoryX });
-    rows.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
-    rows.push({ label: '手机卡数', value: r.sNonCash });
-    if (nz(extra.fiambreria)) rows.push({ label: 'Fiambreria', value: extra.fiambreria });
-    rows.push({ label: '今日余额', value: r.todayY, strong: true });
-    if (nz(extra.people)) rows.push({ label: '人数', text: String(Math.round(extra.people)) });
-    rows.push({ label: '总现金', value: r.vaultH, strong: true });
+    var tiles = [];
+    tiles.push({ label: '总营业额', value: r.zRevenue });
+    tiles.push({ label: '现金', value: r.theoryX });
+    tiles.push({ label: '现金支出', value: data.f_exp, color: '#fda4af' });
+    tiles.push({ label: '手机卡数', value: r.sNonCash });
+    if (nz(extra.fiambreria)) tiles.push({ label: 'Fiambreria', value: extra.fiambreria });
+    if (nz(extra.people)) tiles.push({ label: '人数', text: String(Math.round(extra.people)) });
     return {
-      title: '现金账本日结', subtitle: '现金支出明细 · 实时报表',
-      date: day, list: [], rows: rows, rowsTitle: '实时报表',
-      accent: '#38bdf8', accent2: '#6366f1'
+      title: '现金账本日结', subtitle: 'CASH  ·  当日支出与实时报表', brand: '现金账本 · 每日结算',
+      date: day, list: [], tiles: tiles,
+      listTitle: '当日现金支出', tilesTitle: '实时报表',
+      hero: { label: '总现金', value: r.vaultH, sub: { label: '今日余额', value: r.todayY } },
+      accent: '#38bdf8', accent2: '#818cf8',
+      heroFrom: 'rgba(56,189,248,.26)', heroTo: 'rgba(99,102,241,.16)',
+      glow1: 'rgba(56,189,248,.16)', glow2: 'rgba(99,102,241,.13)'
     };
   }
   function transferSpec(day, r, data) {
-    var rows = [];
     var n = function (k) { return Number(String(data[k] == null ? '' : data[k]).replace(/[^\d.-]/g, '')) || 0; };
-    // Mercado 取今日收入 e2;橙色/DNI/Vtpay 取各自软件(本店)收入值
-    var mercE2 = n('merc_f2') - n('merc_b2') + n('merc_c2') - n('merc_other');
-    var vtZ1 = n('vtpay_z1');
     var listSum = function (v) {
       if (Array.isArray(v)) return v.reduce(function (a, x) { return a + (Number(x) || 0); }, 0);
       return Number(v) || 0;
     };
+    // Mercado 取今日收入 e2;橙色/DNI/Vtpay 取各自软件(本店)收入值
+    var mercE2 = n('merc_f2') - n('merc_b2') + n('merc_c2') - n('merc_other');
+    var vtZ1 = n('vtpay_z1');
     var white = listSum(data.white_list), black = listSum(data.black_k_list);
     var l3 = r.sNonCash - r.z3Ref;
-    // 为零不显示;橙色与 DNI 取软件收入值(orange_z / dni_z1),Vtpay 取本店收入值 z1
-    if (nz(n('orange_z'))) rows.push({ label: '橙色机器', value: n('orange_z') });
-    if (nz(n('dni_z1'))) rows.push({ label: 'DNI', value: n('dni_z1') });
-    if (nz(mercE2)) rows.push({ label: 'Mercado', value: mercE2 });
-    if (nz(vtZ1)) rows.push({ label: 'Vtpay', value: vtZ1 });
-    if (nz(white)) rows.push({ label: '白色机器', value: white });
-    if (nz(black)) rows.push({ label: '黑色机器', value: black });
-    if (nz(r.sNonCash)) rows.push({ label: '手机卡总数', value: r.sNonCash, strong: true });
-    if (nz(l3)) rows.push({ label: '非现金总数差额', value: l3, strong: true, color: l3 >= 0 ? '#34d399' : '#fb7185' });
+    var tiles = [];                                    // 为零不显示
+    if (nz(n('orange_z'))) tiles.push({ label: '橙色机器', value: n('orange_z'), color: '#fbbf24' });
+    if (nz(n('dni_z1'))) tiles.push({ label: 'DNI', value: n('dni_z1'), color: '#60a5fa' });
+    if (nz(mercE2)) tiles.push({ label: 'Mercado', value: mercE2, color: '#34d399' });
+    if (nz(vtZ1)) tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
+    if (nz(white)) tiles.push({ label: '白色机器', value: white });
+    if (nz(black)) tiles.push({ label: '黑色机器', value: black });
+    if (nz(l3)) tiles.push({ label: '非现金总数差额', value: l3, hl: true, wide: true, color: l3 >= 0 ? '#34d399' : '#fb7185' });
     return {
-      title: '转账账本日结', subtitle: '转账支出明细 · 平台项目',
-      date: day, list: [], rows: rows, rowsTitle: '平台项目与差额',
-      accent: '#a78bfa', accent2: '#38bdf8'
+      title: '转账账本日结', subtitle: 'TRANSFER  ·  当日支出与平台项目', brand: '转账账本 · 每日结算',
+      date: day, list: [], tiles: tiles,
+      listTitle: '当日转账支出', tilesTitle: '平台项目',
+      hero: { label: '手机卡总数', value: r.sNonCash, sub: nz(l3) ? { label: '非现金差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } : null },
+      accent: '#a78bfa', accent2: '#38bdf8',
+      heroFrom: 'rgba(167,139,250,.26)', heroTo: 'rgba(56,189,248,.15)',
+      glow1: 'rgba(167,139,250,.16)', glow2: 'rgba(56,189,248,.12)'
     };
   }
 
