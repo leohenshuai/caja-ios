@@ -286,9 +286,9 @@
     if (nz(black)) tiles.push({ label: '黑色机器', value: black });
     // 非现金总数差额只在 Hero 卡右侧显示一次,这里不再重复列出
     return {
-      title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与平台项目', brand: '转账 · 每日结算',
+      title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与手机卡收入', brand: '转账 · 每日结算',
       date: day, list: [], tiles: tiles,
-      listTitle: '当日转账支出', tilesTitle: '平台项目',
+      listTitle: '当日转账支出', tilesTitle: '手机卡收入',
       hero: { label: '手机卡总数', value: r.sNonCash, sub: nz(l3) ? { label: '非现金总数差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } : null },
       accent: '#a78bfa', accent2: '#38bdf8',
       heroFrom: 'rgba(167,139,250,.26)', heroTo: 'rgba(56,189,248,.15)',
