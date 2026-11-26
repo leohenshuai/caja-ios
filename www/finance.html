@@ -66,11 +66,6 @@
             transition: all 0.2s;
         }
         .tab.active { background: var(--cyan); color: white; border-color: var(--cyan); }
-        /* 财务页七个入口全部露出，避免横向滚动裁掉页签。 */
-        .tabs.finance-tabs { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:4px !important; overflow:visible; border-radius:0 !important; border-inline:0 !important; }
-        .finance-tabs .tab { grid-column:span 3; min-width:0; min-height:34px; display:flex; align-items:center; justify-content:center; padding:5px 1px !important; font-size:13px; line-height:1.25; }
-        .finance-tabs .tab:nth-last-child(-n+3) { grid-column:span 4; }
-        .tabs.finance-tabs .tab.active { background:rgba(56,189,248,.2) !important; box-shadow:inset 0 0 0 1px rgba(125,211,252,.32) !important; color:#dff5ff !important; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -878,14 +873,14 @@
 
 <div class="container">
 
-    <div class="tabs finance-tabs" data-static-tabs>
-        <div class="tab active" onclick="app.switchTab('caja')">Caja清点</div>
-        <div class="tab" onclick="app.switchTab('settle')">结算分配</div>
-        <div class="tab" onclick="app.switchTab('base')">基础账目</div>
-        <div class="tab" onclick="app.switchTab('platform')">平台项目</div>
-        <div class="tab" onclick="app.switchTab('report')">实时报表</div>
-        <div class="tab" onclick="app.switchTab('carry')">一键结转</div>
-        <div class="tab" onclick="app.switchTab('coeff')">加权系数</div>
+    <div class="tabs">
+        <div class="tab active" onclick="app.switchTab('caja')">💰 Caja清点</div>
+        <div class="tab" onclick="app.switchTab('settle')">🧮 结算分配</div>
+        <div class="tab" onclick="app.switchTab('base')">📊 基础账目</div>
+        <div class="tab" onclick="app.switchTab('platform')">🏪 平台项目</div>
+        <div class="tab" onclick="app.switchTab('report')">📈 实时报表</div>
+        <div class="tab" onclick="app.switchTab('carry')">⚡ 一键结转</div>
+        <div class="tab" onclick="app.switchTab('coeff')">⚙️ 加权系数</div>
     </div>
 
     <div id="tab-caja" class="tab-content active">
@@ -1226,12 +1221,12 @@
             <div class="platform-body">
                 <div style="display:flex; flex-direction:column; gap:24px;">
                     <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">白色机器列表 (white_list)</label><span id="whiteSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">Urbana</label><span id="whiteSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
                         <div class="form-item"><input type="text" id="whiteInput" placeholder="支持空格求和: 500 400 300" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updateListSum('white', this.value)" onkeydown="app.handlePlatformNav(event, 'white_list')"></div>
                         <div class="list-items" id="whiteList"></div>
                     </div>
                     <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">黑色机器列表 (black_k_list)</label><span id="blackSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">Hipermay</label><span id="blackSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
                         <div class="form-item"><input type="text" id="blackInput" placeholder="支持空格求和: 500 400 300" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updateListSum('black', this.value)" onkeydown="app.handlePlatformNav(event, 'black_k_list')"></div>
                         <div class="list-items" id="blackList"></div>
                     </div>
@@ -1866,7 +1861,7 @@ class FinanceApp {
             } catch (error) { reject(error); }
         });
     }
-    /* 白色机器有数值 → 推送给资金到账系统(为 0 或无数据绝不覆盖;值相同不重复写) */
+    /* Urbana 有数值 → 推送给资金到账系统(为 0 或无数据绝不覆盖;值相同不重复写) */
     pushWhiteToArrival() {
         try {
             const v = Math.round(listSum(this.data.white_list) * 100) / 100;

@@ -45,7 +45,7 @@
     out.ok = true;
     entries.forEach(function (e) {
       if (!e || e.date !== dateStr || e.type !== 'out') return;
-      var row = { cat: e.cat || '未分类', note: e.note || '', amount: Number(e.amount) || 0, ts: e.ts || 0 };
+      var row = { cat: machineLabel(e.cat) || '未分类', note: e.note || '', amount: Number(e.amount) || 0, ts: e.ts || 0 };
       if (e.book === 'cash') out.cash.push(row);
       else if (e.book === 'transfer') out.transfer.push(row);
     });
@@ -53,6 +53,8 @@
     out.transfer.sort(function (a, b) { return a.ts - b.ts; });
     return out;
   }
+
+  function machineLabel(cat) { return cat === '白色机器' ? 'Urbana' : cat === '黑色机器' ? 'Hipermay' : cat; }
 
   /* ---------- 工具 ---------- */
   function fmt(n) { return (Math.round(Number(n) || 0)).toLocaleString('en-US'); }
@@ -362,8 +364,8 @@
     tiles.push({ label: 'DNI', value: n('dni_z1'), color: '#60a5fa' });
     tiles.push({ label: 'Mercado', value: mercE2, color: '#34d399' });
     tiles.push({ label: 'Vtpay', value: vtZ1, color: '#a78bfa' });
-    tiles.push({ label: '白色机器', value: white });
-    tiles.push({ label: '黑色机器', value: black });
+    tiles.push({ label: 'Urbana', value: white });
+    tiles.push({ label: 'Hipermay', value: black });
     // 非现金总数差额为 0 时只在 Hero 卡隐藏,不做整行强调块
     return {
       title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与手机卡收入', brand: '转账 · 每日结算',

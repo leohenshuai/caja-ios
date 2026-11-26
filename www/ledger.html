@@ -1271,6 +1271,8 @@ function localDateStr(date = new Date()) {
 function fmtNum(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 function round2(n) { return Math.round(Number(n || 0) * 100) / 100; }
 function shiftDate(ds, delta) { const p = String(ds).split('-').map(Number); const dt = new Date(p[0], p[1] - 1, p[2]); dt.setDate(dt.getDate() + delta); return localDateStr(dt); }
+// 只换显示名，不改分类键、默认分类和历史记录。
+function machineCatLabel(cat) { return cat === '白色机器' ? 'Urbana' : cat === '黑色机器' ? 'Hipermay' : cat; }
 function escHtml(s) { return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function showToast(message, type = 'success', duration = 2000) {
     const toast = document.getElementById('toast');
@@ -1542,7 +1544,7 @@ function renderCats(book) {
     const cats = state.cats[book] || [];
     const def = customDefCat(book, state.form[book].type);
     let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(c) + (c === def ? '<em class="lg-def">默认</em>' : '') + '</button>'; });
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (state.form[book].cat === c ? ' on' : '') + '" data-cat="' + escHtml(c) + '">' + escHtml(machineCatLabel(c)) + (c === def ? '<em class="lg-def">默认</em>' : '') + '</button>'; });
     html += '<button type="button" class="lg-chip add" data-add="1">＋</button>';
     box.innerHTML = html;
 }
@@ -1564,7 +1566,7 @@ function renderTransfer() {
     if (box) {
         const cats = state.cats.transfer || [];
         let html = '';
-        cats.forEach((c) => { const sv = sumTransferCat(d, c); html += '<div class="lg-stat"><div class="k">' + escHtml(c) + '</div><div class="v lg-out"' + (sv ? '' : ' data-zero="1"') + '>' + fmtNum(sv) + '</div></div>'; });
+        cats.forEach((c) => { const sv = sumTransferCat(d, c); html += '<div class="lg-stat"><div class="k">' + escHtml(machineCatLabel(c)) + '</div><div class="v lg-out"' + (sv ? '' : ' data-zero="1"') + '>' + fmtNum(sv) + '</div></div>'; });
         if (!cats.length) html = '<div class="lg-stat"><div class="k">暂无分类</div><div class="v">—</div></div>';
         box.innerHTML = html;
     }
@@ -1618,7 +1620,7 @@ function renderSummary() {
     const noteEl = $('sync-rule-note');
     if (noteEl) {
         const namesOf = (t) => Object.keys(state.catsync || {}).filter((c) => state.catsync[c] === t);
-        const showNames = (t) => { const a = namesOf(t); return a.length ? a.join('、') : '无'; };
+        const showNames = (t) => { const a = namesOf(t); return a.length ? a.map(machineCatLabel).join('、') : '无'; };
         noteEl.textContent = '转账分类同步设置:橙色格 = ' + showNames('orange_c') + ';DNI 格 = ' + showNames('dni_c1') + ';Vtpay 格 = ' + showNames('vtpay_c1') + ';Mercado 格 = ' + showNames('merc_c2') + '(长按分类可修改)';
     }
     renderSyncState();
@@ -1668,7 +1670,7 @@ function sdGroup(book, rows, type) {
         if (!list.length) return;
         const csum = round2(list.reduce((a, e) => a + Number(e.amount || 0), 0));
         const pct = total > 0 ? Math.max(3, Math.round(csum / total * 100)) : 0;
-        html += '<div class="sd-row"><span class="sd-name">' + escHtml(cat || '未分类') + (list.length > 1 ? '<small class="sd-x">×' + list.length + '</small>' : '') + '</span>' +
+        html += '<div class="sd-row"><span class="sd-name">' + escHtml(machineCatLabel(cat) || '未分类') + (list.length > 1 ? '<small class="sd-x">×' + list.length + '</small>' : '') + '</span>' +
             '<span class="sd-amt ' + cls + '">' + sign + fmtNum(csum) + '</span>' +
             '<i class="sd-bar ' + type + '"><b style="width:' + pct + '%"></b></i></div>';
     });
@@ -1749,7 +1751,7 @@ function renderList(book) {
         const hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
         html += '<div class="lg-row" data-id="' + e.id + '"><span class="t">' + hh + '</span>' +
-            '<div class="mid"><div class="c">' + escHtml(e.cat || '未分类') + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
+            '<div class="mid"><div class="c">' + escHtml(machineCatLabel(e.cat) || '未分类') + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
             '<span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span>' +
             '<button class="lg-more" data-more="' + e.id + '">⋯</button></div>' +
             '<div class="lg-acts" data-acts="' + e.id + '"><button data-act="edit" data-id="' + e.id + '">编辑</button>' +
@@ -1923,7 +1925,7 @@ function addCat(book) {
     });
 }
 function removeCat(book, cat) {
-    askConfirm('删除分类「' + cat + '」?已有账目不会被删除。', async () => {
+    askConfirm('删除分类「' + machineCatLabel(cat) + '」?已有账目不会被删除。', async () => {
         if (!state.cats[book]) state.cats[book] = [];
         state.cats[book] = state.cats[book].filter((c) => c !== cat);
         if (state.form[book].cat === cat) state.form[book].cat = state.cats[book][0] || '';
@@ -2018,7 +2020,7 @@ function renderMdCats() {
     const cats = (state.cats[state.editingBook] || []).slice();
     if (state.editingCat && cats.indexOf(state.editingCat) === -1) cats.push(state.editingCat);
     let html = '';
-    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === state.editingCat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(c) + '</button>'; });
+    cats.forEach((c) => { html += '<button type="button" class="lg-chip' + (c === state.editingCat ? ' on' : '') + '" data-mdcat="' + escHtml(c) + '">' + escHtml(machineCatLabel(c)) + '</button>'; });
     $('md-cats').innerHTML = html;
 }
 async function saveEdit() {
@@ -2158,7 +2160,7 @@ function defaultTargetFor() {
 function openCatMenu(book, cat) {
     if (!book || !cat) return;
     cmBook = book; cmCat = cat;
-    if ($('cm-title')) $('cm-title').textContent = '分类:' + cat;
+    if ($('cm-title')) $('cm-title').textContent = '分类:' + machineCatLabel(cat);
     const dir = (state.form[book] && state.form[book].type) || 'out';
     const dirName = dir === 'in' ? '收入' : '支出';
     const curDef = customDefCat(book, dir);
@@ -2320,7 +2322,7 @@ function runSearch() {
         if (range && (e.date < range[0] || e.date > range[1])) return false;
         if (!terms.length) return true;
         const amt = srNorm(e.amount) + ' ' + srNorm(fmtNum(e.amount));
-        const hay = srNorm(e.cat) + ' ' + srNorm(e.note) + ' ' + srNorm(bookName(e.book)) + ' ' + amt + ' ' + srNorm(e.date);
+        const hay = srNorm(e.cat) + ' ' + srNorm(machineCatLabel(e.cat)) + ' ' + srNorm(e.note) + ' ' + srNorm(bookName(e.book)) + ' ' + amt + ' ' + srNorm(e.date);
         return terms.every((t) => hay.indexOf(t.replace(/,/g, '')) > -1 || hay.indexOf(t) > -1);
     });
     res.sort((a, b) => (a.date === b.date ? b.ts - a.ts : (a.date < b.date ? 1 : -1)));
@@ -2379,7 +2381,7 @@ function renderSearch() {
             const o = byCat[k], tot = o.out + o.in, pct = Math.max(4, Math.round(tot / max * 100));
             const val = o.out && o.in ? (fmtNum(round2(o.in - o.out))) : (o.out ? '−' + fmtNum(round2(o.out)) : '+' + fmtNum(round2(o.in)));
             const cls = o.out && !o.in ? 'lg-out' : (o.in && !o.out ? 'lg-in' : '');
-            html += '<div class="sr-agg-row"><span class="sr-agg-name">' + srHi(k) + '<small class="sd-x">×' + o.n + '</small></span><span class="sr-agg-amt ' + cls + '">' + val + '</span>' +
+            html += '<div class="sr-agg-row"><span class="sr-agg-name">' + srHi(k.replace(/(?:^| · )(白色机器|黑色机器)$/, (m,c) => m.slice(0,-c.length) + machineCatLabel(c))) + '<small class="sd-x">×' + o.n + '</small></span><span class="sr-agg-amt ' + cls + '">' + val + '</span>' +
                 '<i class="sd-bar ' + (o.out >= o.in ? 'out' : 'in') + '"><b style="width:' + pct + '%"></b></i></div>';
         });
         html += '</div>';
@@ -2392,7 +2394,7 @@ function renderSearch() {
         const dt = new Date(e.ts), hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '−' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
         html += '<div class="sr-row" data-date="' + e.date + '" data-book="' + escHtml(e.book) + '"><div class="sr-row-main">' +
-            '<div class="sr-row-c">' + srHi(e.cat || '未分类') + (search.scope === 'all' ? '<span class="sr-bk">' + escHtml(bookName(e.book)) + '</span>' : '') + '</div>' +
+            '<div class="sr-row-c">' + srHi(machineCatLabel(e.cat) || '未分类') + (search.scope === 'all' ? '<span class="sr-bk">' + escHtml(bookName(e.book)) + '</span>' : '') + '</div>' +
             (e.note ? '<div class="sr-row-n">' + srHi(e.note) + '</div>' : '') + '</div>' +
             '<div class="sr-row-r"><span class="sr-amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span><small>' + hh + '</small></div></div>';
     });
