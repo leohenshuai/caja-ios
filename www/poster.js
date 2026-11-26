@@ -257,7 +257,7 @@
     if (nz(extra.fiambreria)) tiles.push({ label: 'Fiambreria', value: extra.fiambreria });
     if (nz(extra.people)) tiles.push({ label: '人数', text: String(Math.round(extra.people)) });
     return {
-      title: '现金账本日结', subtitle: 'CASH  ·  当日支出与实时报表', brand: '现金账本 · 每日结算',
+      title: '现金日结', subtitle: 'CASH  ·  当日支出与实时报表', brand: '现金 · 每日结算',
       date: day, list: [], tiles: tiles,
       listTitle: '当日现金支出', tilesTitle: '实时报表',
       hero: { label: '总现金', value: r.vaultH, sub: { label: '今日余额', value: r.todayY } },
@@ -286,7 +286,7 @@
     if (nz(black)) tiles.push({ label: '黑色机器', value: black });
     // 非现金总数差额只在 Hero 卡右侧显示一次,这里不再重复列出
     return {
-      title: '转账账本日结', subtitle: 'TRANSFER  ·  当日支出与平台项目', brand: '转账账本 · 每日结算',
+      title: '转账日结', subtitle: 'TRANSFER  ·  当日支出与平台项目', brand: '转账 · 每日结算',
       date: day, list: [], tiles: tiles,
       listTitle: '当日转账支出', tilesTitle: '平台项目',
       hero: { label: '手机卡总数', value: r.sNonCash, sub: nz(l3) ? { label: '非现金总数差额', value: l3, color: l3 >= 0 ? '#34d399' : '#fb7185' } : null },
