@@ -341,6 +341,7 @@
         .pst-fields input[type="date"]::-webkit-datetime-edit { padding:0; line-height:24px; }
         .pst-entry-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
         .pst-entry-actions button { min-width:0; min-height:44px; padding:10px 6px; justify-content:center; font-size:13px; border-radius:12px; }
+        .pst-entry-actions .pst-export-both { grid-column:1 / -1; }
         #pstModal.show { display:flex !important; align-items:center; justify-content:center; }
         .pst-modal { width:100%; max-width:560px; height:88vh; max-height:88vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
         .pst-head { flex:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:16px; }
@@ -1279,6 +1280,7 @@
             <div class="pst-entry-actions">
                 <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
                 <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
+                <button type="button" id="pstExportBoth" class="success pst-export-both" onclick="app.exportBothPosters()">📤 一键导出两张海报</button>
             </div>
         </div>
         <div class="report" id="reportContent"></div>
@@ -3127,7 +3129,7 @@ class FinanceApp {
             } catch (e) { resolve(null); }
         });
     }
-    async openPoster(kind) {
+    async makePosterData(kinds) {
         if (!window.LedgerPoster) { this.showToast('海报模块未加载', 'error'); return; }
         const P = window.LedgerPoster;
         const dEl = $('pstDate');
@@ -3137,7 +3139,7 @@ class FinanceApp {
         const r = Calc.getReportValues(fr ? fr.data : getInitData(), fr ? (fr.hist || []) : []);
         const ld = await P.loadLedgerDay(day);
         let extra = {};
-        if (kind === 'cash') {
+        if (kinds.includes('cash')) {
             try { extra = await window.PosterExtras.readSaved(day); }
             catch (e) { this.showToast('无法读取该日期的已保存数据，请重试', 'error'); return; }
         }
@@ -3146,6 +3148,7 @@ class FinanceApp {
             const parsed = Number(text);
             return text && Number.isFinite(parsed) ? parsed : null;
         };
+        const specs = kinds.map(kind => {
         const spec = kind === 'cash'
             ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n(extra.fiambreria), people: n(extra.people) }, !!fr)
             : P.transferSpec(day, r, fr ? fr.data : {});
@@ -3155,7 +3158,15 @@ class FinanceApp {
             else if (spec.tiles.length) spec.tilesTitle = '手填数据';
             spec.hero.text = '—'; spec.hero.sub = null;
         }
-        P.draw($('pstCanvas'), spec);
+        return spec;
+        });
+        return { day, fr, ld, specs };
+    }
+    async openPoster(kind) {
+        const result = await this.makePosterData([kind]);
+        if (!result) return;
+        const {day, fr, ld, specs:[spec]} = result;
+        LedgerPoster.draw($('pstCanvas'), spec);
         $('pstTitle').textContent = spec.title + ' · ' + day;
         const notes = [];
         notes.push(ld.ok ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录') : '⚠️ 记账系统该日无支出记录');
@@ -3170,6 +3181,38 @@ class FinanceApp {
             document.body.classList.remove('vk-open');
         } catch (_) {}
         $('pstModal').classList.add('show');
+    }
+    async exportBothPosters() {
+        const button = $('pstExportBoth');
+        if (button.disabled) return;
+        button.disabled = true;
+        this.dismissPlatformInput();
+        const canvas = document.createElement('canvas');
+        try {
+            const result = await this.makePosterData(['cash', 'transfer']);
+            if (!result) return;
+            const files = [];
+            for (const [i, spec] of result.specs.entries()) {
+                LedgerPoster.draw(canvas, spec);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                canvas.width = canvas.height = 1;
+                if (!blob) throw new Error('图片生成失败');
+                files.push({name: `${i === 0 ? '现金' : '转账'}日结_${result.day}.png`, blob});
+            }
+            const bridge = window.NativeBridge;
+            if (bridge && bridge.available) {
+                const res = await bridge.shareImages(files);
+                if (!res || !res.ok) throw new Error('未能打开分享');
+            } else {
+                for (const {name, blob} of files) {
+                    const url = URL.createObjectURL(blob), a = document.createElement('a');
+                    a.href = url; a.download = name;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 3000);
+                }
+            }
+        } catch (e) { this.showToast('两张海报导出失败，请重试', 'error'); }
+        finally { canvas.width = canvas.height = 1; button.disabled = false; }
     }
     closePoster() { $('pstModal').classList.remove('show'); }
     savePoster() {

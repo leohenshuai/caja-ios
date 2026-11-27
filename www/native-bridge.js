@@ -152,6 +152,19 @@
       fr.readAsArrayBuffer(blob);
     });
   }
+  NB.shareImages = async function (files) {
+    var payload = [];
+    for (const file of files) {
+      const url = await new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(reader.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file.blob);
+      });
+      payload.push({ name: file.name, base64: url.slice(url.indexOf(',') + 1) });
+    }
+    return NB.call('shareImages', { files: payload }, 60000);
+  };
   NB.shareText = function (name, text) { return NB.call('shareFile', { name: name, text: text }, 60000); };
   var origClick = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {

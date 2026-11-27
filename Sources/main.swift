@@ -169,6 +169,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
         case "shareFile": shareFile(id, p)
+        case "shareImages": shareImages(id, p)
         case "backupWrite": backupWrite(id, p)
         case "backupList": backupList(id)
         case "backupRead": backupRead(id, p)
@@ -495,8 +496,11 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     // ---- 系统分享 ----
-    func present(share items: [Any]) {
+    func present(share items: [Any], cleanup: (() -> Void)? = nil) {
         let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let cleanup = cleanup {
+            vc.completionWithItemsHandler = { _, _, _, _ in cleanup() }
+        }
         if let pop = vc.popoverPresentationController {
             pop.sourceView = view
             pop.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
@@ -514,6 +518,36 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do { try data.write(to: url, options: .atomic) } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
         present(share: [url]); reply(id, ["ok": true])
+    }
+
+    func shareImages(_ id: String, _ p: [String: Any]) {
+        guard let files = p["files"] as? [[String: String]], files.count == 2 else {
+            return reply(id, ["ok": false, "error": "bad args"])
+        }
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let cleanup: () -> Void = { try? fm.removeItem(at: dir) }
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: false)
+            var urls: [URL] = []
+            for (index, file) in files.enumerated() {
+                guard let b64 = file["base64"], let data = Data(base64Encoded: b64),
+                      data.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) else {
+                    cleanup(); return reply(id, ["ok": false, "error": "invalid PNG"])
+                }
+                let name = file["name"] ?? "poster.png"
+                let prefix = index == 0 ? "现金日结_" : "转账日结_"
+                let day = name.hasPrefix(prefix) ? String(name.dropFirst(prefix.count).prefix(10)) : ""
+                let validDay = day.count == 10 && day.allSatisfy { "0123456789-".contains($0) }
+                let url = dir.appendingPathComponent(prefix + (validDay ? day : "海报") + ".png")
+                try data.write(to: url, options: .atomic)
+                urls.append(url)
+            }
+            present(share: urls, cleanup: cleanup)
+            reply(id, ["ok": true])
+        } catch {
+            cleanup(); reply(id, ["ok": false, "error": "could not save images"])
+        }
     }
 
     // ---- 备份保险箱 ----

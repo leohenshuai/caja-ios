@@ -43,14 +43,39 @@
     }
     return null;
   }
+  var fittedModal = null;
+  function fitModal(el) {
+    var modal = el && el.closest('[data-keyboard-fit].show');
+    var vv = window.visualViewport;
+    var bottom = vv ? Math.max(0, document.documentElement.clientHeight - vv.offsetTop - vv.height) : 0;
+    // 只在系统键盘压缩视口时限高；数字键盘继续使用 vk-open 的原布局。
+    if (fittedModal && (fittedModal !== modal || bottom < 40 || keypadTop() !== Infinity || !el.matches('[data-vk-skip]'))) {
+      fittedModal.removeAttribute('data-system-keyboard');
+      fittedModal = null;
+    }
+    if (modal && bottom >= 40 && keypadTop() === Infinity && el.matches('[data-vk-skip]')) {
+      modal.style.setProperty('--edit-kb-top', vv.offsetTop + 'px');
+      modal.style.setProperty('--edit-kb-bottom', bottom + 'px');
+      modal.setAttribute('data-system-keyboard', '');
+      fittedModal = modal;
+    }
+    return modal;
+  }
   function reveal(el, smooth) {
     if (!el || !document.contains(el)) return;
+    var modal = fitModal(el);
+    var sp = scrollParent(el);
     var vb = visibleBottom(), vt = visibleTop();
+    if (modal && (fittedModal === modal || keypadTop() !== Infinity)) {
+      var box = (sp || modal).getBoundingClientRect();
+      vb = Math.min(vb, box.bottom - 8);
+      vt = Math.max(window.visualViewport ? window.visualViewport.offsetTop : 0, box.top) + 8;
+    }
     var r = el.getBoundingClientRect(), dy = 0;
     if (r.bottom > vb) dy = r.bottom - vb;
     else if (r.top < vt) dy = r.top - vt;
     if (!dy) return;
-    var sp = scrollParent(el);
+    if (modal && (fittedModal === modal || keypadTop() !== Infinity)) { if (sp) sp.scrollTop += dy; return; }
     var beh = smooth ? 'smooth' : 'auto';
     if (sp) {
       var before = sp.scrollTop;
@@ -92,7 +117,7 @@
     active = e.target; schedule(active, true);
   }, true);
   document.addEventListener('focusout', function () {
-    setTimeout(function () { if (!isField(document.activeElement)) { active = null; setRoom(0); } }, 80);
+    setTimeout(function () { if (!isField(document.activeElement)) { active = null; fitModal(null); setRoom(0); } }, 80);
   }, true);
   if (window.visualViewport) {
     ['resize', 'scroll'].forEach(function (ev) {

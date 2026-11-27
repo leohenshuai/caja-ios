@@ -132,7 +132,14 @@ body.vk-open #lg-modal.show {
     box-sizing:border-box;
     padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px !important;
 }
-body.vk-open #lg-modal.show .modal-content {
+#lg-modal.show[data-system-keyboard] {
+    top:var(--edit-kb-top,0px);
+    bottom:var(--edit-kb-bottom,0px);
+    box-sizing:border-box;
+    padding:10px 12px !important;
+}
+body.vk-open #lg-modal.show .modal-content,
+#lg-modal.show[data-system-keyboard] .modal-content {
     box-sizing:border-box;
     max-height:100% !important;
     margin-bottom:0;
@@ -1123,7 +1130,7 @@ body { padding-bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important; }
     <div class="sr-body" id="sr-body"></div>
   </div>
 </div>
-<div class="modal" id="lg-modal">
+<div class="modal" id="lg-modal" data-keyboard-fit>
   <div class="modal-content">
     <h3>编辑账目</h3>
     <div class="lg-field">
