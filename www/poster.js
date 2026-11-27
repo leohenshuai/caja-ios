@@ -125,11 +125,21 @@
     var c = this.c, max = maxW * this.s, lines = [];
     String(str).split(/\r\n|\r|\n/).forEach(function (paragraph) {
       var line = '';
-      Array.from(paragraph).forEach(function (ch) {
-        if (line && c.measureText(line + ch).width > max) { lines.push(line); line = ''; }
-        line += ch;
+      // 完整括号和英文单词优先作为整体；超宽的单个词才逐字拆分。
+      var tokens = paragraph.match(/[（(][^()（）]*[）)]|[A-Za-zÀ-ž0-9]+(?:[-'’][A-Za-zÀ-ž0-9]+)*|\s+|[^]/gu) || [];
+      tokens.forEach(function (token) {
+        if (/^\s+$/.test(token)) {
+          if (line && c.measureText(line + token).width <= max) line += token;
+          return;
+        }
+        if (line && c.measureText(line + token).width > max) { lines.push(line.trimEnd()); line = ''; }
+        if (c.measureText(token).width <= max) { line += token; return; }
+        Array.from(token).forEach(function (ch) {
+          if (line && c.measureText(line + ch).width > max) { lines.push(line.trimEnd()); line = ''; }
+          line += ch;
+        });
       });
-      lines.push(line);
+      lines.push(line.trimEnd());
     });
     return lines;
   };
@@ -167,7 +177,10 @@
     var noteW = stacked ? contentW : contentW - amountW - 28;
     var height = 24;
     groups.forEach(function (group) {
-      group.lines = p.wrap(group.cat, 23, W - PAD * 2 - 56, 700);
+      group.countLabel = group.rows.length + ' 笔';
+      var countWidth = p.wide(group.countLabel, 21, 600) + 24;
+      group.lines = p.wrap(group.cat, 23, W - PAD * 2 - 56 - countWidth, 700);
+      group.total = group.rows.reduce(function (sum, row) { return sum + Number(row.item.amount || 0); }, 0);
       group.height = 20 + group.lines.length * 30;
       group.bodyHeight = 0;
       height += group.height;
@@ -187,7 +200,7 @@
         columnHeights[col] += row.height;
       });
       group.bodyHeight = Math.max.apply(null, columnHeights);
-      height += group.bodyHeight;
+      height += group.bodyHeight + 66; // 本组小计与下一个分组留白
     });
     return { groups: groups, cellW: cellW, height: height + SUM_H };
   }
@@ -264,6 +277,7 @@
         group.lines.forEach(function (line, li) {
           p.text(line, PAD + 28, ry + 28 + li * 30, 'rgba(148,163,184,.9)', 'left', 23, 700);
         });
+        p.text(group.countLabel, W - PAD - 28, ry + 28, 'rgba(148,163,184,.9)', 'right', 21, 600);
         ry += group.height;
         group.rows.forEach(function (row) {
           sum += row.item.amount;
@@ -279,6 +293,10 @@
           p.text(row.amount, right, amountY, '#fda4af', 'right', row.amountSize, 800);
         });
         ry += group.bodyHeight;
+        p.line(PAD + 28, ry, W - PAD - 28, 'rgba(255,255,255,.08)');
+        p.text('本组支出', PAD + 28, ry + 34, 'rgba(203,213,225,.85)', 'left', 23, 600);
+        p.text('-' + fmt(group.total), W - PAD - 28, ry + 34, '#fda4af', 'right', 28, 800);
+        ry += 66;
       });
       var sy = ry;
       p.line(PAD + 28, sy, W - PAD - 28, 'rgba(255,255,255,.14)');
