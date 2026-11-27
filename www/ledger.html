@@ -605,6 +605,8 @@ body {
 .lg-list .lg-row:last-child { border-bottom:none !important; }
 .lg-list .lg-row .t { width:auto !important; font-size:11px !important; opacity:.75; flex:none; padding:3px 7px; border-radius:8px; background:rgba(255,255,255,.06); }
 .lg-list .lg-row .mid { padding-left:0; }
+.lg-row-index { flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.lg-order { flex:none; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-width:26px; height:26px; padding:0 5px; border-radius:8px; background:rgba(6,182,212,.12); border:1px solid rgba(6,182,212,.2); color:#81ddec; font-size:12px; line-height:1; font-weight:800; font-variant-numeric:tabular-nums; }
 .lg-list .lg-row .lg-more { display:flex !important; align-items:center !important; justify-content:center !important; line-height:1 !important; min-width:36px !important; min-height:36px !important; width:36px; height:36px; padding:0 !important; border-radius:50% !important; font-size:16px !important; letter-spacing:1px; background:rgba(255,255,255,.05) !important; border:none !important; box-shadow:none !important; }
 .lg-acts { padding-left:0 !important; }
 /* ---- 转账分类统计块 ---- */
@@ -1770,11 +1772,11 @@ function renderList(book) {
     const list = dayEntries(book, state.curDate).sort((a, b) => b.ts - a.ts);
     if (!list.length) { box.innerHTML = '<div class="lg-empty">当日无记录</div>'; return; }
     let html = '';
-    list.forEach((e) => {
+    list.forEach((e, index) => {
         const dt = new Date(e.ts);
         const hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
-        html += '<div class="lg-row" data-id="' + e.id + '"><span class="t">' + hh + '</span>' +
+        html += '<div class="lg-row" data-id="' + e.id + '"><div class="lg-row-index"><span class="lg-order" aria-label="第' + (index + 1) + '笔">' + (index + 1) + '</span><span class="t">' + hh + '</span></div>' +
             '<div class="mid"><div class="c">' + escHtml(machineCatLabel(e.cat) || '未分类') + '</div>' + (e.note ? '<div class="nt">' + escHtml(e.note) + '</div>' : '') + '</div>' +
             '<span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span>' +
             '<button class="lg-more" data-more="' + e.id + '">⋯</button></div>' +
@@ -2414,11 +2416,11 @@ function renderSearch() {
     html += '<div class="sr-sec">明细</div>';
     const LIMIT = 200;
     let lastDate = '';
-    res.slice(0, LIMIT).forEach((e) => {
+    res.slice(0, LIMIT).forEach((e, index) => {
         if (e.date !== lastDate) { lastDate = e.date; html += '<div class="sr-day"><span>' + e.date + '</span><small>周' + srWeekday(e.date) + '</small></div>'; }
         const dt = new Date(e.ts), hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '−' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
-        html += '<div class="sr-row" data-date="' + e.date + '" data-book="' + escHtml(e.book) + '"><div class="sr-row-main">' +
+        html += '<div class="sr-row" data-date="' + e.date + '" data-book="' + escHtml(e.book) + '"><span class="lg-order" aria-label="第' + (index + 1) + '笔">' + (index + 1) + '</span><div class="sr-row-main">' +
             '<div class="sr-row-c">' + srHi(machineCatLabel(e.cat) || '未分类') + (search.scope === 'all' ? '<span class="sr-bk">' + escHtml(bookName(e.book)) + '</span>' : '') + '</div>' +
             (e.note ? '<div class="sr-row-n">' + srHi(e.note) + '</div>' : '') + '</div>' +
             '<div class="sr-row-r"><span class="sr-amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span><small>' + hh + '</small></div></div>';
