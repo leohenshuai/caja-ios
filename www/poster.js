@@ -154,7 +154,7 @@
       var displayNote = canuelas ? note.normalize('NFC').replace(/[（(]\s*ca(?:n|ñ)uelas\s*[）)]/gi, '').trim() : note;
       var amount = '-' + fmt(it.amount);
       amountW = Math.max(amountW, p.wide(amount, 30, 800));
-      group.rows.push({ item: it, note: displayNote, index: i + 1, amount: amount });
+      group.rows.push({ item: it, note: displayNote, index: group.rows.length + 1, amount: amount });
     });
     // 普通记录在前，Cañuelas 单独列在后面；组内保留原时间顺序。
     groups.sort(function (a, b) { return Number(a.canuelas) - Number(b.canuelas); });
@@ -177,17 +177,16 @@
         row.amountSize = stacked ? Math.min(30, 30 * contentW / amountW) : 30;
         row.height = Math.max(70, 24 + row.lines.length * 40 + (stacked ? 40 : 0));
       });
-      // 每对记录共用行高；先左后右，下一对从最长备注下方开始。
-      for (var i = 0; i < group.rows.length; i += columns) {
-        var rowH = group.rows[i].height;
-        if (columns === 2 && group.rows[i + 1]) rowH = Math.max(rowH, group.rows[i + 1].height);
-        for (var col = 0; col < columns && group.rows[i + col]; col++) {
-          var row = group.rows[i + col];
-          row.x = PAD + 28 + col * (cellW + gap);
-          row.y = group.bodyHeight;
-        }
-        group.bodyHeight += rowH;
-      }
+      // 按列阅读：先排满左列（从上到下），再排右列；每列独立累计行高。
+      var leftCount = Math.ceil(group.rows.length / columns);
+      var columnHeights = [0, 0];
+      group.rows.forEach(function (row, index) {
+        var col = columns === 2 && index >= leftCount ? 1 : 0;
+        row.x = PAD + 28 + col * (cellW + gap);
+        row.y = columnHeights[col];
+        columnHeights[col] += row.height;
+      });
+      group.bodyHeight = Math.max.apply(null, columnHeights);
       height += group.bodyHeight;
     });
     return { groups: groups, cellW: cellW, height: height + SUM_H };
