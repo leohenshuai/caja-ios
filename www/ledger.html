@@ -610,6 +610,11 @@ body {
 .lg-detail-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; font-size:14px; font-weight:800; }
 .lg-detail-heading small { margin-left:6px; font-size:11px; color:var(--text-muted); font-weight:500; }
 .lg-detail-heading b { font-variant-numeric:tabular-nums; }
+.lg-detail-sort { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0; color:var(--text-muted); font-size:12px; }
+.lg-detail-sort select { min-width:0; max-width:65%; height:36px; padding:0 8px; color:var(--text); }
+.lg-detail-move { display:flex; justify-content:flex-end; gap:8px; margin:2px 0 10px; }
+.lg-detail-move button { min-height:36px; padding:4px 12px; justify-content:center; }
+.lg-detail-move button:disabled { opacity:.35; }
 .lg-order { flex:none; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-width:26px; height:26px; padding:0 5px; border-radius:8px; background:rgba(6,182,212,.12); border:1px solid rgba(6,182,212,.2); color:#81ddec; font-size:12px; line-height:1; font-weight:800; font-variant-numeric:tabular-nums; }
 .lg-list .lg-row .lg-more { display:flex !important; align-items:center !important; justify-content:center !important; line-height:1 !important; min-width:36px !important; min-height:36px !important; width:36px; height:36px; padding:0 !important; border-radius:50% !important; font-size:16px !important; letter-spacing:1px; background:rgba(255,255,255,.05) !important; border:none !important; box-shadow:none !important; }
 .lg-acts { padding-left:0 !important; }
@@ -1269,7 +1274,7 @@ class LedgerDB {
 const TX_CATS = ['橙色', 'DNI', 'Vtpay', 'Mercado'];
 const DEFAULT_BOOKS = [{ id: 'cash', name: '现金账', type: 'cash' }, { id: 'transfer', name: '转账账', type: 'transfer' }];
 const state = {
-    db: null, entries: [], opening: {}, sumover: {}, notehide: [],
+    db: null, entries: [], detailSort: {}, opening: {}, sumover: {}, notehide: [],
     books: DEFAULT_BOOKS.map((b) => ({ id: b.id, name: b.name, type: b.type })),
     tab: 'cash',
     cats: { cash: ['货物', '白色机器', '其他'], transfer: TX_CATS.slice() },
@@ -1317,6 +1322,8 @@ async function loadAll() {
     state.db = await LedgerDB.init();
     state.entries = (await LedgerDB.get(state.db, 'entries')) || [];
     if (!Array.isArray(state.entries)) state.entries = [];
+    state.detailSort = (await LedgerDB.get(state.db, 'detailSort')) || {};
+    if (!state.detailSort || typeof state.detailSort !== 'object' || Array.isArray(state.detailSort)) state.detailSort = {};
     state.opening = (await LedgerDB.get(state.db, 'opening')) || {};
     {   // 旧版按账本存({book:[词]}),合并成一份共用列表
         const raw = await LedgerDB.get(state.db, 'notehide'), set = new Set();
@@ -1773,17 +1780,22 @@ function renderAll() {
 function renderList(book) {
     const box = $(eid(book, 'list'));
     if (!box) return;
-    const list = dayEntries(book, state.curDate).sort((a, b) => b.ts - a.ts);
+    const list = dayEntries(book, state.curDate).sort(detailTimeCompare);
     if (!list.length) { box.innerHTML = '<div class="lg-empty">当日无记录</div>'; return; }
     let html = '';
     ['out', 'in'].forEach((type) => {
-    const rows = list.filter(e => e.type === type);
+    const chronological = list.filter(e => e.type === type);
+    const rank = new Map(chronological.map((e, i) => [e.id, i + 1]));
+    const config = getDetailSort(book, type);
+    const rows = sortDetailRows(chronological, config);
     const title = type === 'out' ? '支出明细' : '收入明细';
     const color = type === 'out' ? 'lg-out' : 'lg-in';
     const total = round2(rows.reduce((sum, e) => sum + Number(e.amount || 0), 0));
     html += '<section class="lg-detail-group"><div class="lg-detail-heading"><span class="' + color + '">' + title + ' <small>' + rows.length + ' 笔</small></span><b class="' + color + '">' + fmtNum(total) + '</b></div>';
+    if (rows.length) html += detailSortControls(book, type, config.mode);
     if (!rows.length) html += '<div class="lg-empty">当日无' + (type === 'out' ? '支出' : '收入') + '记录</div>';
-    rows.forEach((e, index) => {
+    rows.forEach((e, position) => {
+        const index = rank.get(e.id) - 1;
         const dt = new Date(e.ts);
         const hh = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
         const sign = e.type === 'out' ? '-' : '+', cls = e.type === 'out' ? 'lg-out' : 'lg-in';
@@ -1792,7 +1804,8 @@ function renderList(book) {
             '<span class="amt ' + cls + '">' + sign + fmtNum(e.amount) + '</span>' +
             '<button class="lg-more" data-more="' + e.id + '">⋯</button></div>' +
             '<div class="lg-acts" data-acts="' + e.id + '"><button data-act="edit" data-id="' + e.id + '">编辑</button>' +
-            '<button class="danger" data-act="del" data-id="' + e.id + '">删除</button></div>';
+            '<button class="danger" data-act="del" data-id="' + e.id + '">删除</button></div>' +
+            (config.mode === 'manual' ? detailMoveControls(e, book, type, position, rows.length) : '');
     });
     html += '</section>';
     });
@@ -2365,7 +2378,7 @@ function runSearch() {
         const hay = srNorm(e.cat) + ' ' + srNorm(machineCatLabel(e.cat)) + ' ' + srNorm(e.note) + ' ' + srNorm(bookName(e.book)) + ' ' + amt + ' ' + srNorm(e.date);
         return terms.every((t) => hay.indexOf(t.replace(/,/g, '')) > -1 || hay.indexOf(t) > -1);
     });
-    res.sort((a, b) => (a.date === b.date ? b.ts - a.ts : (a.date < b.date ? 1 : -1)));
+    res.sort((a, b) => (a.date === b.date ? detailTimeCompare(a, b) : (a.date < b.date ? -1 : 1)));
     return res;
 }
 function srHi(text) {
@@ -2955,6 +2968,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 <script src="./fx.js"></script>
 <script src="./common.js"></script>
 <script src="./keyboard-avoid.js"></script>
+<script src="./ledger-sort.js"></script>
 <script src="./tabs-glass.js"></script>
 <script src="./bottom-bar.js"></script>
 </body>
