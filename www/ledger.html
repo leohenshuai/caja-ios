@@ -125,6 +125,21 @@
 #lg-prompt, #lg-confirm { z-index:1300; }
 .modal-content { width:100%; max-width:420px; background:#131c2b; border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:16px; }
 .modal-content h3 { font-size:16px; margin-bottom:12px; }
+/* 记账编辑：数字键盘打开时，弹窗只占键盘上方；内容较长时滚动弹窗本身。 */
+body.vk-open #lg-modal.show {
+    bottom:var(--vk-h,460px);
+    bottom:max(var(--vk-h,460px), calc(var(--kb-room,0px) - 24px));
+    box-sizing:border-box;
+    padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px !important;
+}
+body.vk-open #lg-modal.show .modal-content {
+    box-sizing:border-box;
+    max-height:100% !important;
+    margin-bottom:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+}
 .lg-modal-btns { display:flex; gap:10px; margin-top:6px; }
 .lg-modal-btns button { flex:1; min-height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06); color:var(--text); font-size:15px; font-weight:700; }
 .lg-modal-btns .primary { background:linear-gradient(180deg,#38bdf8,#0284c7); color:#03121c; border-color:transparent; }
@@ -2815,7 +2830,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         keypad.classList.add('vk-show');
         document.body.classList.add('vk-open');
         document.documentElement.style.setProperty('--vk-h', (keypad.offsetHeight || 460) + 'px');
-        setTimeout(() => { try { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 60);
+        setTimeout(() => {
+            const input = e.target;
+            if (document.activeElement !== input) return;
+            const panel = input.id === 'md-amt' && input.closest('.modal-content');
+            if (panel) {
+                const r = input.getBoundingClientRect(), box = panel.getBoundingClientRect();
+                if (r.top < box.top + 8 || r.bottom > box.bottom - 8) {
+                    panel.scrollTop += (r.top + r.bottom - box.top - box.bottom) / 2;
+                }
+                return;
+            }
+            try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+        }, 60);
     });
     document.addEventListener('focusout', () => {
         setTimeout(() => {
