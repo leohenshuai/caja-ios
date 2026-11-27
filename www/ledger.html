@@ -1591,9 +1591,9 @@ function renderTransfer() {
     const box = $('tr-stats');
     if (box) {
         const cats = state.cats.transfer || [];
-        let html = '';
+        let html = '<div class="lg-stat"><div class="k">支出合计</div><div class="v lg-out" id="tr-total-out">' + fmtNum(sumBook('transfer', d, 'out')) + '</div></div>' +
+            '<div class="lg-stat"><div class="k">收入合计</div><div class="v lg-in" id="tr-total-in">' + fmtNum(sumBook('transfer', d, 'in')) + '</div></div>';
         cats.forEach((c) => { const sv = sumTransferCat(d, c); html += '<div class="lg-stat"><div class="k">' + escHtml(machineCatLabel(c)) + '</div><div class="v lg-out"' + (sv ? '' : ' data-zero="1"') + '>' + fmtNum(sv) + '</div></div>'; });
-        if (!cats.length) html = '<div class="lg-stat"><div class="k">暂无分类</div><div class="v">—</div></div>';
         box.innerHTML = html;
     }
     renderCats('transfer'); renderTypeButtons('transfer'); renderList('transfer');
