@@ -3182,59 +3182,78 @@ class FinanceApp {
         } catch (_) {}
         $('pstModal').classList.add('show');
     }
+    posterJPEG(canvas) {
+        return new Promise((resolve, reject) => canvas.toBlob(blob => {
+            if (blob && blob.size && blob.type === 'image/jpeg') resolve(blob);
+            else reject(new Error('JPEG 图片生成失败'));
+        }, 'image/jpeg', 0.94));
+    }
     async exportBothPosters() {
         const button = $('pstExportBoth');
         if (button.disabled) return;
+        const label = button.textContent;
         button.disabled = true;
-        this.dismissPlatformInput();
+        button.textContent = '正在生成两张海报…';
         const canvas = document.createElement('canvas');
+        const bridge = window.NativeBridge;
+        const native = bridge && bridge.available;
+        let batch = null, stage = '读取数据';
         try {
+            this.dismissPlatformInput();
             const result = await this.makePosterData(['cash', 'transfer']);
             if (!result) return;
             const files = [];
             for (const [i, spec] of result.specs.entries()) {
+                const kind = i === 0 ? '现金' : '转账';
+                stage = '生成' + kind + '海报';
                 LedgerPoster.draw(canvas, spec);
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const blob = await this.posterJPEG(canvas);
                 canvas.width = canvas.height = 1;
-                if (!blob) throw new Error('图片生成失败');
-                files.push({name: `${i === 0 ? '现金' : '转账'}日结_${result.day}.png`, blob});
+                const name = `${kind}日结_${result.day}.jpg`;
+                if (native) {
+                    stage = i === 0 ? '传输现金海报' : '传输转账海报并打开分享';
+                    const res = await bridge.sharePosterImage(name, blob, batch);
+                    if (!res || !res.ok) throw new Error(res?.error || '没有收到确认');
+                    if (i === 0) {
+                        if (!res.batch) throw new Error('请更新到支持双图分享的 App 版本');
+                        batch = res.batch;
+                    } else batch = null;
+                } else files.push({name, blob});
             }
-            const bridge = window.NativeBridge;
-            if (bridge && bridge.available) {
-                const res = await bridge.shareImages(files);
-                if (!res || !res.ok) throw new Error('未能打开分享');
-            } else {
-                for (const {name, blob} of files) {
-                    const url = URL.createObjectURL(blob), a = document.createElement('a');
-                    a.href = url; a.download = name;
-                    document.body.appendChild(a); a.click(); a.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 3000);
-                }
+            for (const {name, blob} of files) {
+                const url = URL.createObjectURL(blob), a = document.createElement('a');
+                a.href = url; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 3000);
             }
-        } catch (e) { this.showToast('两张海报导出失败，请重试', 'error'); }
-        finally { canvas.width = canvas.height = 1; button.disabled = false; }
+        } catch (e) {
+            if (batch && native) bridge.call('shareImages', {batch, cancel:true});
+            this.showToast(`${stage}失败：${e.message || '请重试'}`, 'error');
+        } finally {
+            canvas.width = canvas.height = 1;
+            button.disabled = false;
+            button.textContent = label;
+        }
     }
     closePoster() { $('pstModal').classList.remove('show'); }
-    savePoster() {
+    async savePoster() {
         const canvas = $('pstCanvas');
-        const name = (this._pstKind === 'cash' ? '现金账本' : '转账账本') + '_' + (this._pstDay || '') + '.png';
-        canvas.toBlob((blob) => {
-            if (!blob) { this.showToast('图片生成失败', 'error'); return; }
-            const NB = window.NativeBridge;
-            if (NB && NB.available && NB.shareBlob) {       // 原生壳:走系统分享面板(可存相册/发微信)
-                NB.shareBlob(name, blob).then((res) => {
-                    if (res && res.ok) { this.showToast('已调用分享', 'success'); if (NB.haptic) NB.haptic('success'); }
-                    else this.showToast('分享未完成', 'warning');
-                });
-                return;
-            }
-            const url = URL.createObjectURL(blob);           // 浏览器:直接下载
-            const a = document.createElement('a');
-            a.href = url; a.download = name;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 3000);
-            this.showToast('图片已导出', 'success');
-        }, 'image/png');
+        const name = (this._pstKind === 'cash' ? '现金账本' : '转账账本') + '_' + (this._pstDay || '') + '.jpg';
+        let blob;
+        try { blob = await this.posterJPEG(canvas); }
+        catch (e) { this.showToast('JPEG 图片生成失败', 'error'); return; }
+        const NB = window.NativeBridge;
+        if (NB && NB.available && NB.shareBlob) {
+            const res = await NB.shareBlob(name, blob);
+            if (res && res.ok) { this.showToast('已调用分享', 'success'); if (NB.haptic) NB.haptic('success'); }
+            else this.showToast('分享未完成', 'warning');
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
     }
     _setCarryUI(show) { $('carryPreview').style.display = show ? 'block' : 'none'; $('btnCarry').disabled = !show; }
     previewCarryOver() {

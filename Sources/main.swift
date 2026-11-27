@@ -520,34 +520,61 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         present(share: [url]); reply(id, ["ok": true])
     }
 
+    private var pendingPoster: (id: String, dir: URL, cash: URL)?
+
     func shareImages(_ id: String, _ p: [String: Any]) {
-        guard let files = p["files"] as? [[String: String]], files.count == 2 else {
-            return reply(id, ["ok": false, "error": "bad args"])
-        }
         let fm = FileManager.default
-        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let cleanup: () -> Void = { try? fm.removeItem(at: dir) }
-        do {
-            try fm.createDirectory(at: dir, withIntermediateDirectories: false)
-            var urls: [URL] = []
-            for (index, file) in files.enumerated() {
-                guard let b64 = file["base64"], let data = Data(base64Encoded: b64),
-                      data.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) else {
-                    cleanup(); return reply(id, ["ok": false, "error": "invalid PNG"])
-                }
-                let name = file["name"] ?? "poster.png"
-                let prefix = index == 0 ? "现金日结_" : "转账日结_"
-                let day = name.hasPrefix(prefix) ? String(name.dropFirst(prefix.count).prefix(10)) : ""
-                let validDay = day.count == 10 && day.allSatisfy { "0123456789-".contains($0) }
-                let url = dir.appendingPathComponent(prefix + (validDay ? day : "海报") + ".png")
-                try data.write(to: url, options: .atomic)
-                urls.append(url)
+        let batch = p["batch"] as? String ?? ""
+        if p["cancel"] as? Bool == true {
+            if let old = pendingPoster, old.id == batch {
+                pendingPoster = nil
+                try? fm.removeItem(at: old.dir)
             }
-            present(share: urls, cleanup: cleanup)
-            reply(id, ["ok": true])
-        } catch {
-            cleanup(); reply(id, ["ok": false, "error": "could not save images"])
+            return reply(id, ["ok": true])
         }
+        guard let b64 = p["base64"] as? String, let data = Data(base64Encoded: b64),
+              data.starts(with: [0xff, 0xd8, 0xff]) else {
+            return reply(id, ["ok": false, "error": "收到的图片不是 JPEG"])
+        }
+        let first = batch.isEmpty
+        let prefix = first ? "现金日结_" : "转账日结_"
+        let name = p["name"] as? String ?? ""
+        let day = name.hasPrefix(prefix) ? String(name.dropFirst(prefix.count).prefix(10)) : ""
+        let validDay = day.count == 10 && day.allSatisfy { "0123456789-".contains($0) }
+        guard validDay, name == prefix + day + ".jpg" else {
+            return reply(id, ["ok": false, "error": "海报文件名无效"])
+        }
+        if first {
+            if let old = pendingPoster { try? fm.removeItem(at: old.dir); pendingPoster = nil }
+            let token = UUID().uuidString
+            let dir = fm.temporaryDirectory.appendingPathComponent(token, isDirectory: true)
+            let cash = dir.appendingPathComponent(name)
+            do {
+                try fm.createDirectory(at: dir, withIntermediateDirectories: false)
+                try data.write(to: cash, options: .atomic)
+                pendingPoster = (token, dir, cash)
+                reply(id, ["ok": true, "batch": token])
+            } catch {
+                try? fm.removeItem(at: dir)
+                reply(id, ["ok": false, "error": "无法暂存现金海报"])
+            }
+            return
+        }
+        guard let saved = pendingPoster, saved.id == batch,
+              saved.cash.lastPathComponent == "现金日结_" + day + ".jpg" else {
+            return reply(id, ["ok": false, "error": "找不到同日期的现金海报"])
+        }
+        let presenter = presentedViewController ?? self
+        guard presenter.viewIfLoaded?.window != nil, !presenter.isBeingDismissed,
+              !presenter.isBeingPresented, !(presenter is UIActivityViewController) else {
+            return reply(id, ["ok": false, "error": "分享窗口暂不可用，请关闭其他弹窗后重试"])
+        }
+        let transfer = saved.dir.appendingPathComponent(name)
+        do { try data.write(to: transfer, options: .atomic) }
+        catch { return reply(id, ["ok": false, "error": "无法暂存转账海报"]) }
+        pendingPoster = nil
+        present(share: [saved.cash, transfer], cleanup: { try? fm.removeItem(at: saved.dir) })
+        reply(id, ["ok": true])
     }
 
     // ---- 备份保险箱 ----
