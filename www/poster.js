@@ -142,12 +142,22 @@
   function detailLayout(p, list) {
     var groups = [], byCat = new Map(), amountW = 0;
     list.forEach(function (it, i) {
-      var cat = it.cat || '未分类', group = byCat.get(cat);
-      if (!group) { group = { cat: cat, rows: [] }; byCat.set(cat, group); groups.push(group); }
+      var cat = it.cat || '未分类';
+      var note = String(it.note || '');
+      var marker = /[（(]\s*ca(?:n|ñ|n\u0303)uelas\s*[）)]/gi;
+      var canuelas = marker.test(note.normalize('NFC'));
+      var key = JSON.stringify([canuelas, cat]), group = byCat.get(key);
+      if (!group) {
+        group = { cat: canuelas ? 'Cañuelas · ' + cat : cat, canuelas: canuelas, rows: [] };
+        byCat.set(key, group); groups.push(group);
+      }
+      var displayNote = canuelas ? note.normalize('NFC').replace(/[（(]\s*ca(?:n|ñ)uelas\s*[）)]/gi, '').trim() : note;
       var amount = '-' + fmt(it.amount);
       amountW = Math.max(amountW, p.wide(amount, 30, 800));
-      group.rows.push({ item: it, index: i + 1, amount: amount });
+      group.rows.push({ item: it, note: displayNote, index: i + 1, amount: amount });
     });
+    // 普通记录在前，Cañuelas 单独列在后面；组内保留原时间顺序。
+    groups.sort(function (a, b) { return Number(a.canuelas) - Number(b.canuelas); });
     // 超过 10 笔时在每个分类区域内双列，分类标题始终全宽且只出现一次。
     var columns = list.length > 10 ? 2 : 1, gap = 28;
     var cellW = (W - PAD * 2 - 56 - gap * (columns - 1)) / columns;
@@ -162,7 +172,7 @@
       group.bodyHeight = 0;
       height += group.height;
       group.rows.forEach(function (row) {
-        row.lines = p.wrap(row.item.note || '（无备注）', 30, noteW, 700);
+        row.lines = p.wrap(row.note || '（无备注）', 30, noteW, 700);
         row.stacked = stacked;
         row.amountSize = stacked ? Math.min(30, 30 * contentW / amountW) : 30;
         row.height = Math.max(70, 24 + row.lines.length * 40 + (stacked ? 40 : 0));
