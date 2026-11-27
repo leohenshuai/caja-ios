@@ -1785,6 +1785,7 @@ function renderList(book) {
     let html = '';
     ['out', 'in'].forEach((type) => {
     const chronological = list.filter(e => e.type === type);
+    if (type === 'in' && !chronological.length) return; // 当日无收入时隐藏整块收入明细
     const rank = new Map(chronological.map((e, i) => [e.id, i + 1]));
     const config = getDetailSort(book, type);
     const rows = sortDetailRows(chronological, config);
