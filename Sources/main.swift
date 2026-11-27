@@ -169,7 +169,6 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
         case "shareFile": shareFile(id, p)
-        case "shareImages": shareImages(id, p)
         case "backupWrite": backupWrite(id, p)
         case "backupList": backupList(id)
         case "backupRead": backupRead(id, p)
@@ -496,11 +495,8 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
     }
 
     // ---- 系统分享 ----
-    func present(share items: [Any], cleanup: (() -> Void)? = nil) {
+    func present(share items: [Any]) {
         let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        if let cleanup = cleanup {
-            vc.completionWithItemsHandler = { _, _, _, _ in cleanup() }
-        }
         if let pop = vc.popoverPresentationController {
             pop.sourceView = view
             pop.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
@@ -518,63 +514,6 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do { try data.write(to: url, options: .atomic) } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
         present(share: [url]); reply(id, ["ok": true])
-    }
-
-    private var pendingPoster: (id: String, dir: URL, cash: URL)?
-
-    func shareImages(_ id: String, _ p: [String: Any]) {
-        let fm = FileManager.default
-        let batch = p["batch"] as? String ?? ""
-        if p["cancel"] as? Bool == true {
-            if let old = pendingPoster, old.id == batch {
-                pendingPoster = nil
-                try? fm.removeItem(at: old.dir)
-            }
-            return reply(id, ["ok": true])
-        }
-        guard let b64 = p["base64"] as? String, let data = Data(base64Encoded: b64),
-              data.starts(with: [0xff, 0xd8, 0xff]) else {
-            return reply(id, ["ok": false, "error": "收到的图片不是 JPEG"])
-        }
-        let first = batch.isEmpty
-        let prefix = first ? "现金日结_" : "转账日结_"
-        let name = p["name"] as? String ?? ""
-        let day = name.hasPrefix(prefix) ? String(name.dropFirst(prefix.count).prefix(10)) : ""
-        let validDay = day.count == 10 && day.allSatisfy { "0123456789-".contains($0) }
-        guard validDay, name == prefix + day + ".jpg" else {
-            return reply(id, ["ok": false, "error": "海报文件名无效"])
-        }
-        if first {
-            if let old = pendingPoster { try? fm.removeItem(at: old.dir); pendingPoster = nil }
-            let token = UUID().uuidString
-            let dir = fm.temporaryDirectory.appendingPathComponent(token, isDirectory: true)
-            let cash = dir.appendingPathComponent(name)
-            do {
-                try fm.createDirectory(at: dir, withIntermediateDirectories: false)
-                try data.write(to: cash, options: .atomic)
-                pendingPoster = (token, dir, cash)
-                reply(id, ["ok": true, "batch": token])
-            } catch {
-                try? fm.removeItem(at: dir)
-                reply(id, ["ok": false, "error": "无法暂存现金海报"])
-            }
-            return
-        }
-        guard let saved = pendingPoster, saved.id == batch,
-              saved.cash.lastPathComponent == "现金日结_" + day + ".jpg" else {
-            return reply(id, ["ok": false, "error": "找不到同日期的现金海报"])
-        }
-        let presenter = presentedViewController ?? self
-        guard presenter.viewIfLoaded?.window != nil, !presenter.isBeingDismissed,
-              !presenter.isBeingPresented, !(presenter is UIActivityViewController) else {
-            return reply(id, ["ok": false, "error": "分享窗口暂不可用，请关闭其他弹窗后重试"])
-        }
-        let transfer = saved.dir.appendingPathComponent(name)
-        do { try data.write(to: transfer, options: .atomic) }
-        catch { return reply(id, ["ok": false, "error": "无法暂存转账海报"]) }
-        pendingPoster = nil
-        present(share: [saved.cash, transfer], cleanup: { try? fm.removeItem(at: saved.dir) })
-        reply(id, ["ok": true])
     }
 
     // ---- 备份保险箱 ----

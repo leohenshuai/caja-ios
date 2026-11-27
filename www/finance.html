@@ -331,7 +331,14 @@
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
         /* ===== 日结海报 ===== */
-        .pst-entry .section-title { margin-bottom:14px; }
+        .section.pst-entry { padding:0; margin-bottom:14px; }
+        .pst-entry > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:50px; padding:0 16px; list-style:none; cursor:pointer; }
+        .pst-entry > summary::-webkit-details-marker { display:none; }
+        .pst-entry > summary::marker { content:""; }
+        .pst-entry > summary:focus-visible { outline:2px solid var(--cyan); outline-offset:-3px; border-radius:12px; }
+        .pst-entry .pst-chevron { flex:none; width:9px; height:9px; margin-right:4px; border:solid var(--text-muted); border-width:0 2px 2px 0; transform:rotate(45deg); }
+        .pst-entry[open] .pst-chevron { transform:rotate(225deg); }
+        .pst-entry-body { border-top:1px solid var(--border); padding:14px 16px 16px; }
         .pst-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
         .pst-fields label { min-width:0; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text-muted); font-weight:700; }
         .pst-fields .pst-date { grid-column:1 / -1; }
@@ -341,7 +348,6 @@
         .pst-fields input[type="date"]::-webkit-datetime-edit { padding:0; line-height:24px; }
         .pst-entry-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
         .pst-entry-actions button { min-width:0; min-height:44px; padding:10px 6px; justify-content:center; font-size:13px; border-radius:12px; }
-        .pst-entry-actions .pst-export-both { grid-column:1 / -1; }
         #pstModal.show { display:flex !important; align-items:center; justify-content:center; }
         .pst-modal { width:100%; max-width:560px; height:88vh; max-height:88vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
         .pst-head { flex:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:16px; }
@@ -1268,8 +1274,9 @@
     </div>
 
     <div id="tab-report" class="tab-content">
-        <div class="section pst-entry" style="margin-bottom:14px">
-            <div class="section-title">🖼️ 日结海报</div>
+        <details class="section pst-entry">
+            <summary class="section-title"><span>🖼️ 日结海报</span><span class="pst-chevron" aria-hidden="true"></span></summary>
+            <div class="pst-entry-body">
             <div class="pst-fields">
                 <label class="pst-date">海报日期<input type="date" id="pstDate" aria-label="海报日期" autocomplete="off"></label>
                 <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="选填" autocomplete="off"></label>
@@ -1280,9 +1287,9 @@
             <div class="pst-entry-actions">
                 <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
                 <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
-                <button type="button" id="pstExportBoth" class="success pst-export-both" onclick="app.exportBothPosters()">📤 一键导出两张海报</button>
             </div>
-        </div>
+            </div>
+        </details>
         <div class="report" id="reportContent"></div>
         <div id="diffLog"></div>
     </div>
@@ -3187,53 +3194,6 @@ class FinanceApp {
             if (blob && blob.size && blob.type === 'image/jpeg') resolve(blob);
             else reject(new Error('JPEG 图片生成失败'));
         }, 'image/jpeg', 0.94));
-    }
-    async exportBothPosters() {
-        const button = $('pstExportBoth');
-        if (button.disabled) return;
-        const label = button.textContent;
-        button.disabled = true;
-        button.textContent = '正在生成两张海报…';
-        const canvas = document.createElement('canvas');
-        const bridge = window.NativeBridge;
-        const native = bridge && bridge.available;
-        let batch = null, stage = '读取数据';
-        try {
-            this.dismissPlatformInput();
-            const result = await this.makePosterData(['cash', 'transfer']);
-            if (!result) return;
-            const files = [];
-            for (const [i, spec] of result.specs.entries()) {
-                const kind = i === 0 ? '现金' : '转账';
-                stage = '生成' + kind + '海报';
-                LedgerPoster.draw(canvas, spec);
-                const blob = await this.posterJPEG(canvas);
-                canvas.width = canvas.height = 1;
-                const name = `${kind}日结_${result.day}.jpg`;
-                if (native) {
-                    stage = i === 0 ? '传输现金海报' : '传输转账海报并打开分享';
-                    const res = await bridge.sharePosterImage(name, blob, batch);
-                    if (!res || !res.ok) throw new Error(res?.error || '没有收到确认');
-                    if (i === 0) {
-                        if (!res.batch) throw new Error('请更新到支持双图分享的 App 版本');
-                        batch = res.batch;
-                    } else batch = null;
-                } else files.push({name, blob});
-            }
-            for (const {name, blob} of files) {
-                const url = URL.createObjectURL(blob), a = document.createElement('a');
-                a.href = url; a.download = name;
-                document.body.appendChild(a); a.click(); a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 3000);
-            }
-        } catch (e) {
-            if (batch && native) bridge.call('shareImages', {batch, cancel:true});
-            this.showToast(`${stage}失败：${e.message || '请重试'}`, 'error');
-        } finally {
-            canvas.width = canvas.height = 1;
-            button.disabled = false;
-            button.textContent = label;
-        }
     }
     closePoster() { $('pstModal').classList.remove('show'); }
     async savePoster() {
