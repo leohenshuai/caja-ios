@@ -3,6 +3,7 @@ import WebKit
 import AVFoundation
 import AudioToolbox
 import UniformTypeIdentifiers
+import Photos
 
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
     let root: URL
@@ -169,6 +170,7 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
             UIPasteboard.general.string = p["text"] as? String ?? ""; reply(id, ["ok": true])
         case "clipboardRead": reply(id, ["ok": true, "text": UIPasteboard.general.string ?? ""])
         case "shareFile": shareFile(id, p)
+        case "savePosterToPhotos": savePosterToPhotos(id, p)
         case "backupWrite": backupWrite(id, p)
         case "backupList": backupList(id)
         case "backupRead": backupRead(id, p)
@@ -514,6 +516,39 @@ final class VC: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMe
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do { try data.write(to: url, options: .atomic) } catch { return reply(id, ["ok": false, "error": "\(error)"]) }
         present(share: [url]); reply(id, ["ok": true])
+    }
+
+    private var savingPosterToPhotos = false
+    func savePosterToPhotos(_ id: String, _ p: [String: Any]) {
+        guard !savingPosterToPhotos else { return reply(id, ["ok": false, "error": "busy"]) }
+        guard let b64 = p["base64"] as? String, let data = Data(base64Encoded: b64),
+              data.starts(with: [0xff, 0xd8, 0xff]), UIImage(data: data) != nil else {
+            return reply(id, ["ok": false, "error": "invalid-image"])
+        }
+        savingPosterToPhotos = true
+        let finish: (Bool, String) -> Void = { ok, error in
+            DispatchQueue.main.async {
+                self.savingPosterToPhotos = false
+                self.reply(id, ["ok": ok, "error": error])
+            }
+        }
+        let write: (PHAuthorizationStatus) -> Void = { status in
+            guard status == .authorized || status == .limited else {
+                finish(false, status == .restricted ? "restricted" : "denied")
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                let request = PHAssetCreationRequest.forAsset()
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = "Caja-海报.jpg"
+                request.addResource(with: .photo, data: data, options: options)
+            }, completionHandler: { success, error in
+                finish(success, success ? "" : (error?.localizedDescription ?? "write-failed"))
+            })
+        }
+        let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+        if status == .notDetermined { PHPhotoLibrary.requestAuthorization(for: .addOnly, handler: write) }
+        else { write(status) }
     }
 
     // ---- 备份保险箱 ----

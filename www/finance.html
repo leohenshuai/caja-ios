@@ -1302,7 +1302,8 @@
             <div class="pst-note" id="pstNote"></div>
             <div class="pst-btns">
                 <button onclick="app.closePoster()">关闭</button>
-                <button class="primary" onclick="app.savePoster()">保存 / 分享图片</button>
+                <button id="pstSavePhotos" class="primary" onclick="app.savePosterToAlbum()">保存到相册</button>
+                <button onclick="app.savePoster()">分享</button>
             </div>
         </div>
     </div>
@@ -3194,6 +3195,27 @@ class FinanceApp {
             if (blob && blob.size && blob.type === 'image/jpeg') resolve(blob);
             else reject(new Error('JPEG 图片生成失败'));
         }, 'image/jpeg', 0.94));
+    }
+    async savePosterToAlbum() {
+        const button = $('pstSavePhotos');
+        if (button.disabled) return;
+        const bridge = window.NativeBridge;
+        if (!bridge?.available || !bridge.savePosterToPhotos) {
+            this.showToast('请在新版 Caja App 内保存到相册；浏览器可使用分享导出', 'warning');
+            return;
+        }
+        const label = button.textContent;
+        button.disabled = true; button.textContent = '保存中…';
+        try {
+            const blob = await this.posterJPEG($('pstCanvas'));
+            const result = await bridge.savePosterToPhotos(blob);
+            if (result?.ok) this.showToast('已保存到相册', 'success');
+            else if (result?.error === 'denied') this.showToast('相册权限未开启，请到系统设置 → Caja → 照片中允许添加照片', 'warning');
+            else if (result?.error === 'restricted') this.showToast('系统限制了相册权限，无法保存', 'error');
+            else if (result?.error === 'timeout') this.showToast('保存结果尚未确认，请先查看相册，避免重复保存', 'warning');
+            else this.showToast('保存到相册失败：' + (result?.error || '请重试'), 'error');
+        } catch (e) { this.showToast('保存到相册失败，请重试', 'error'); }
+        finally { button.disabled = false; button.textContent = label; }
     }
     closePoster() { $('pstModal').classList.remove('show'); }
     async savePoster() {
