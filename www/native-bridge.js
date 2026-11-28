@@ -152,6 +152,15 @@
       fr.readAsArrayBuffer(blob);
     });
   }
+  NB.savePosterToPhotos = async function (blob) {
+    const url = await new Promise(function(resolve,reject) {
+      const reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = function() { reject(new Error('无法读取图片')); };
+      reader.readAsDataURL(blob);
+    });
+    return NB.call('savePosterToPhotos', { base64: url.slice(url.indexOf(',') + 1) }, 120000);
+  };
   NB.shareText = function (name, text) { return NB.call('shareFile', { name: name, text: text }, 60000); };
   var origClick = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {

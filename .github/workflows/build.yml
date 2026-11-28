@@ -20,7 +20,7 @@ jobs:
           set -e
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p build/Payload/Caja.app
-          xcrun -sdk iphoneos swiftc -target arm64-apple-ios14.0 -sdk "$SDK" -O -o build/Payload/Caja.app/Caja Sources/main.swift
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios14.0 -sdk "$SDK" -O -framework Photos -o build/Payload/Caja.app/Caja Sources/main.swift
           cp Info.plist build/Payload/Caja.app/
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" build/Payload/Caja.app/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.${{ github.run_number }}" build/Payload/Caja.app/Info.plist

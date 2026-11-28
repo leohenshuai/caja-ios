@@ -330,6 +330,35 @@
         .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; position: relative; }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        /* ===== 日结海报 ===== */
+        .section.pst-entry { padding:0; margin-bottom:14px; }
+        .pst-entry > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:50px; padding:0 16px; list-style:none; cursor:pointer; }
+        .pst-entry > summary::-webkit-details-marker { display:none; }
+        .pst-entry > summary::marker { content:""; }
+        .pst-entry > summary:focus-visible { outline:2px solid var(--cyan); outline-offset:-3px; border-radius:12px; }
+        .pst-entry .pst-chevron { flex:none; width:9px; height:9px; margin-right:4px; border:solid var(--text-muted); border-width:0 2px 2px 0; transform:rotate(45deg); }
+        .pst-entry[open] .pst-chevron { transform:rotate(225deg); }
+        .pst-entry-body { border-top:1px solid var(--border); padding:14px 16px 16px; }
+        .pst-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .pst-fields label { min-width:0; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--text-muted); font-weight:700; }
+        .pst-fields .pst-date { grid-column:1 / -1; }
+        .pst-fields input { width:100%; min-width:0; max-width:100%; box-sizing:border-box; height:44px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:rgba(15,23,42,.5); color:var(--text); font-size:16px; font-weight:700; }
+        .pst-fields input[type="date"] { display:flex; align-items:center; -webkit-appearance:none; appearance:none; height:46px; min-height:46px; padding:10px 14px; line-height:24px; text-align:center; font-size:16px; }
+        .pst-fields input[type="date"]::-webkit-date-and-time-value { display:block; margin:0 auto; padding:0; line-height:24px; text-align:center; min-width:0; }
+        .pst-fields input[type="date"]::-webkit-datetime-edit { padding:0; line-height:24px; }
+        .pst-entry-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+        .pst-entry-actions button { min-width:0; min-height:44px; padding:10px 6px; justify-content:center; font-size:13px; border-radius:12px; }
+        #pstModal.show { display:flex !important; align-items:center; justify-content:center; }
+        .pst-modal { width:100%; max-width:560px; height:88vh; max-height:88vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+        .pst-head { flex:none; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:16px; }
+        .pst-x { min-width:36px; min-height:36px; border-radius:50% !important; border:none; background:rgba(255,255,255,.08); color:var(--text); }
+        .pst-canvas-wrap { flex:1 1 auto; min-height:120px; overflow-y:auto; -webkit-overflow-scrolling:touch; border-radius:14px; background:rgba(0,0,0,.25); }
+        .pst-canvas-wrap canvas { display:block; width:100%; border-radius:14px; }
+        .pst-note { flex:none; font-size:12px; color:var(--text-muted); margin:10px 0 0; line-height:1.6; }
+        .pst-btns { flex:none; display:flex; gap:8px; margin-top:12px; }
+        .pst-btns button { flex:1 1 0; min-width:0; min-height:46px; padding:8px 3px; display:flex; align-items:center; justify-content:center; text-align:center; white-space:nowrap; line-height:1.2; border-radius:12px; border:1px solid var(--border); background:rgba(255,255,255,.06); color:var(--text); font-size:clamp(12px,3.5vw,15px); font-weight:700; }
+        .pst-btns #pstSavePhotos { flex:1.55 1 0; }
+        .pst-btns .primary { background:var(--cyan); border-color:transparent; color:#fff; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
         .form-item { display: flex; flex-direction: column; gap: 6px; }
         .form-item label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
@@ -835,8 +864,17 @@
 <link rel="stylesheet" href="./ios26.css">
 <script src="./native-bridge.js"></script>
 <script src="./backup-core.js"></script>
+<style>
+    /* 财务导航轻微透底，保留固定定位以及选中滑块。 */
+    body[data-translucent-nav] .header,
+    body[data-translucent-nav] .tabs {
+        background:rgba(15,23,42,.72) !important;
+        -webkit-backdrop-filter:none !important;
+        backdrop-filter:none !important;
+    }
+</style>
 </head>
-<body>
+<body data-translucent-nav>
 <div class="header">
     <h1>🏦 财务联动系统 <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">[智能流转版]</span></h1>
     <div style="display:flex; align-items:center; gap:12px;">
@@ -1071,10 +1109,10 @@
     <div id="tab-platform" class="tab-content">
       <div class="platform-unified-panel">
         <div class="platform-dashboard-head">
-            <div class="platform-dashboard-title-row"><div class="platform-dashboard-title">🏪 平台项目 · <span id="platform-current-name">Orange</span></div><button class="platform-main-reset" onclick="app.resetActivePlatform()" title="重置当前平台" aria-label="重置当前平台"><span class="platform-trash-icon" aria-hidden="true">🗑️</span></button></div>
+            <div class="platform-dashboard-title-row"><div class="platform-dashboard-title">🏪 平台项目 · <span id="platform-current-name">pago24</span></div><button class="platform-main-reset" onclick="app.resetActivePlatform()" title="重置当前平台" aria-label="重置当前平台"><span class="platform-trash-icon" aria-hidden="true">🗑️</span></button></div>
         </div>
         <div class="platform-switch-zone"><div class="platform-dashboard-sub" id="platform-current-status">未录入</div><div class="platform-selector" id="platformSelector">
-            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.dismissPlatformInput();app.selectPlatformProject('orange')"><span>🍊 Orange</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
+            <button class="platform-select-chip selected" id="platform-chip-orange" onclick="app.dismissPlatformInput();app.selectPlatformProject('orange')"><span>🍊 pago24</span><span class="platform-chip-value" id="platform-chip-orange-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-dni" onclick="app.dismissPlatformInput();app.selectPlatformProject('dni')"><span>🆔 DNI</span><span class="platform-chip-value" id="platform-chip-dni-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-vtpay" onclick="app.dismissPlatformInput();app.selectPlatformProject('vtpay')"><span>💳 Vtpay</span><span class="platform-chip-value" id="platform-chip-vtpay-value">0</span></button>
             <button class="platform-select-chip" id="platform-chip-mercado" onclick="app.dismissPlatformInput();app.selectPlatformProject('mercado')"><span>🛒 Mercado</span><span class="platform-chip-value" id="platform-chip-mercado-value">0</span></button>
@@ -1087,19 +1125,19 @@
             <div class="platform-header" onclick="app.togglePlatformCollapse('orange')">
                 <div style="flex:1; min-width:0;">
                     <div class="platform-title-row">
-                        <div class="platform-title">🍊 Orange</div>
+                        <div class="platform-title">🍊 pago24</div>
                         <span class="platform-toggle-arrow" id="platform-orange-arrow">▼</span>
                     </div>
                 </div>
                 <div class="platform-header-summary" id="platform-orange-summary">
                     <div class="platform-header-diff diff-zero" id="platform-orange-diff">0</div>
                 </div>
-                <button class="btn-reset-small" onclick="event.stopPropagation(); app.resetSection('orange')" title="重置Orange数据">🗑️</button>
+                <button class="btn-reset-small" onclick="event.stopPropagation(); app.resetSection('orange')" title="重置pago24数据">🗑️</button>
             </div>
             <div class="platform-body">
                 <div class="platform-preview">
                     <div class="preview-card orange">
-                        <div class="preview-card-title">[ 橙色项目 / Orange ]</div>
+                        <div class="preview-card-title">[ pago24 ]</div>
                         <div class="preview-row"><span>总余额 (f):</span><span id="preview_orange_f" style="text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>今日收入 (e):</span><span id="preview_orange_e" style="color: var(--yellow); text-align: right; min-width: 120px;">0</span></div>
                         <div class="preview-row"><span>软件收入值 (z):</span><span id="preview_orange_z" style="text-align: right; min-width: 120px;">0</span></div>
@@ -1200,12 +1238,12 @@
             <div class="platform-body">
                 <div style="display:flex; flex-direction:column; gap:24px;">
                     <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">白色机器列表 (white_list)</label><span id="whiteSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">Urbana</label><span id="whiteSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
                         <div class="form-item"><input type="text" id="whiteInput" placeholder="支持空格求和: 500 400 300" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updateListSum('white', this.value)" onkeydown="app.handlePlatformNav(event, 'white_list')"></div>
                         <div class="list-items" id="whiteList"></div>
                     </div>
                     <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">黑色机器列表 (black_k_list)</label><span id="blackSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><label style="font-size:12px; color:var(--text-muted);">Hipermay</label><span id="blackSum" style="font-size:12px; color:var(--green); font-weight:600;">合计: 0</span></div>
                         <div class="form-item"><input type="text" id="blackInput" placeholder="支持空格求和: 500 400 300" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onblur="app.updateListSum('black', this.value)" onkeydown="app.handlePlatformNav(event, 'black_k_list')"></div>
                         <div class="list-items" id="blackList"></div>
                     </div>
@@ -1237,8 +1275,38 @@
     </div>
 
     <div id="tab-report" class="tab-content">
+        <details class="section pst-entry">
+            <summary class="section-title"><span>🖼️ 日结海报</span><span class="pst-chevron" aria-hidden="true"></span></summary>
+            <div class="pst-entry-body">
+            <div class="pst-fields">
+                <label class="pst-date">海报日期<input type="date" id="pstDate" aria-label="海报日期" autocomplete="off"></label>
+                <label>Fiambreria<input type="text" id="pstFiam" data-vk-raw inputmode="decimal" placeholder="选填" autocomplete="off"></label>
+                <label>人数<input type="text" id="pstPeople" data-vk-raw inputmode="numeric" placeholder="选填" autocomplete="off"></label>
+            </div>
+            <button type="button" id="pstSaveExtras" style="width:100%;min-height:44px;margin-top:12px">保存到所选日期</button>
+            <p style="margin:8px 0 0;color:var(--text-muted);font-size:12px">改动后请保存；留空保留原值，设为零请填 0。</p>
+            <div class="pst-entry-actions">
+                <button class="primary" onclick="app.openPoster('cash')">💵 导出现金海报</button>
+                <button class="primary" onclick="app.openPoster('transfer')">🔁 导出转账海报</button>
+            </div>
+            </div>
+        </details>
         <div class="report" id="reportContent"></div>
         <div id="diffLog"></div>
+    </div>
+
+    <!-- 海报预览 -->
+    <div class="modal" id="pstModal" style="display:none">
+        <div class="modal-content pst-modal">
+            <div class="pst-head"><b id="pstTitle">海报预览</b><button class="pst-x" onclick="app.closePoster()">✕</button></div>
+            <div class="pst-canvas-wrap"><canvas id="pstCanvas"></canvas></div>
+            <div class="pst-note" id="pstNote"></div>
+            <div class="pst-btns">
+                <button onclick="app.closePoster()">关闭</button>
+                <button id="pstSavePhotos" class="primary" onclick="app.savePosterToAlbum()">保存到相册</button>
+                <button onclick="app.savePoster()">分享</button>
+            </div>
+        </div>
     </div>
 
     <div id="tab-carry" class="tab-content">
@@ -1254,9 +1322,12 @@
             <div class="section-title">⚡ 每日账目一键结转</div>
             <div class="auto-carry-status">
                 <div class="auto-carry-copy">
-                    <strong>✓ 自动结转已启用</strong>
+                    <strong id="autoCarryTitle">✓ 自动结转已启用</strong>
                     <span id="autoCarryStatus">正在读取结转状态…</span>
                 </div>
+                <label class="ac-chip" style="flex:none;padding:0 12px" for="autoCarryOn">
+                    <input type="checkbox" id="autoCarryOn" checked onchange="app.toggleAutoCarry(this.checked)">自动
+                </label>
                 <label class="auto-carry-time-field" for="autoCarryTime">
                     <span>每天结转时间</span>
                     <input type="time" id="autoCarryTime" value="01:00" aria-label="每天自动结转时间" onchange="app.updateAutoCarryTime(this.value)">
@@ -1284,7 +1355,7 @@
                 <button class="btn-reset-small" onclick="app.resetSection('coeff')" title="重置系数为默认值">🗑️ 重置</button>
             </div>
             <div class="form-grid">
-                <div class="form-item"><label>Orange 加权系数 (COEFF_ORANGE)</label><input type="text" id="coeff_orange_display" value="1.05" placeholder="支持算式: 1.05" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_ORANGE', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Orange 今日收入: e = (f - b + c) × 系数</div></div>
+                <div class="form-item"><label>pago24 加权系数 (COEFF_ORANGE)</label><input type="text" id="coeff_orange_display" value="1.05" placeholder="支持算式: 1.05" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_ORANGE', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Orange 今日收入: e = (f - b + c) × 系数</div></div>
                 <div class="form-item"><label>DNI 加权系数 (COEFF_DNI)</label><input type="text" id="coeff_dni_display" value="1.021" placeholder="支持算式: 1.021" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_DNI', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 DNI 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
                 <div class="form-item"><label>Vtpay 加权系数 (COEFF_VTPAY)</label><input type="text" id="coeff_vtpay_display" value="1.0097" placeholder="支持算式: 1.0097" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" onchange="app.updateCoeff('COEFF_VTPAY', this.value)"><div style="font-size:11px; color:var(--text-muted); margin-top:4px;">用于计算 Vtpay 今日收入: e1 = (a1 - b1 + c1) × 系数</div></div>
             </div>
@@ -1293,7 +1364,7 @@
             <div class="section-title">🔧 系统说明</div>
             <div style="font-size:12px; color:var(--text-muted); line-height:2;">
                 <p><strong>加权系数的作用：</strong>加权系数用于调整各平台的收入计算，反映实际运营成本。</p>
-                <p>• Orange 系数 (默认 1.05): 应用于 Orange 平台的收入计算 e = (f - b + c) × COEFF_ORANGE</p>
+                <p>• pago24 系数 (默认 1.05): 应用于 pago24 平台的收入计算 e = (f - b + c) × COEFF_ORANGE</p>
                 <p>• DNI 系数 (默认 1.021): 应用于 DNI 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_DNI</p>
                 <p>• Vtpay 系数 (默认 1.0097): 应用于 Vtpay 平台的收入计算 e1 = (a1 - b1 + c1) × COEFF_VTPAY</p>
                 <p style="margin-top:8px; color:var(--cyan);"><strong>💡 提示：</strong>支持在输入框中使用数学表达式，如 "1.05", "1+0.05", 或 "(100+5)/100"。</p>
@@ -1713,6 +1784,7 @@ function getInitData() {
         caja_final_count_defaults: [2, 3, 3, 3], // 每台 Caja 默认第几次清点视为最后一次（可自定义）
         settleAccum: emptySettleAccum(),
         record_date: todayStr(),
+        auto_carryover_enabled: true,          // 定时自动转结总开关,默认开启
         auto_carryover_time: DEFAULT_AUTO_CARRY_TIME,
         last_auto_carryover_date: carryBoundaryDateStr(new Date(), DEFAULT_AUTO_CARRY_TIME),
         last_carryover_at: null,
@@ -1809,7 +1881,7 @@ class FinanceApp {
             } catch (error) { reject(error); }
         });
     }
-    /* 白色机器有数值 → 推送给资金到账系统(为 0 或无数据绝不覆盖;值相同不重复写) */
+    /* Urbana 有数值 → 推送给资金到账系统(为 0 或无数据绝不覆盖;值相同不重复写) */
     pushWhiteToArrival() {
         try {
             const v = Math.round(listSum(this.data.white_list) * 100) / 100;
@@ -1896,6 +1968,20 @@ class FinanceApp {
             : boundaryDate;
     }
     getAutoCarryTime() { return normalizeCarryTime(this.data && this.data.auto_carryover_time); }
+    isAutoCarryOn() { return this.data.auto_carryover_enabled !== false; }   // 未设置过视为开启
+    toggleAutoCarry(on) {
+        this.data.auto_carryover_enabled = !!on;
+        if (on) {
+            // 重新开启时,把基准推到当前边界,避免立刻补做一次历史结转
+            this.data.last_auto_carryover_date = carryBoundaryDateStr(new Date(), this.getAutoCarryTime());
+            this.scheduleNextAutoCarryOver();
+        } else if (this.autoCarryTimer) {
+            clearTimeout(this.autoCarryTimer); this.autoCarryTimer = null;
+        }
+        this.updateAutoCarryStatus();
+        this.saveToStorage({ silent: true });
+        this.showToast(on ? '定时自动结转已开启' : '定时自动结转已关闭,需手动结转', on ? 'success' : 'warning');
+    }
     getNextAutoCarryTime(now = new Date()) {
         const [hour, minute] = carryTimeParts(this.getAutoCarryTime());
         const next = new Date(now);
@@ -1905,7 +1991,14 @@ class FinanceApp {
     }
     updateAutoCarryStatus() {
         const status = $('autoCarryStatus');
+        const title = $('autoCarryTitle'), chk = $('autoCarryOn');
+        const on = this.isAutoCarryOn();
+        if (title) title.textContent = on ? '✓ 自动结转已启用' : '⏸ 自动结转已关闭';
+        if (chk && chk.checked !== on) chk.checked = on;
+        const row = document.querySelector('.auto-carry-status');
+        if (row) row.style.borderLeftColor = on ? 'var(--green)' : 'var(--text-muted)';
         if (!status) return;
+        if (!on) { status.textContent = '已关闭，只能手动点「确认结转」'; return; }
         const next = this.getNextAutoCarryTime();
         status.textContent = `下次：${next.toLocaleDateString('zh-CN')} ${this.getAutoCarryTime()}（本机时间）`;
     }
@@ -1921,6 +2014,8 @@ class FinanceApp {
     }
     scheduleNextAutoCarryOver() {
         if (this.autoCarryTimer) clearTimeout(this.autoCarryTimer);
+        this.autoCarryTimer = null;
+        if (!this.isAutoCarryOn()) { this.updateAutoCarryStatus(); return; }   // 关闭时不排程
         const delay = Math.max(1000, this.getNextAutoCarryTime().getTime() - Date.now());
         this.autoCarryTimer = setTimeout(async () => {
             await this.checkAndRunAutoCarryOver();
@@ -1941,6 +2036,7 @@ class FinanceApp {
     }
     async checkAndRunAutoCarryOver() {
         if (this.autoCarryRunning) return false;
+        if (!this.isAutoCarryOn()) { this.updateAutoCarryStatus(); return false; }   // 开关关闭:不自动结转,也不补做
         const boundaryDate = carryBoundaryDateStr(new Date(), this.getAutoCarryTime());
         if (this.data.last_auto_carryover_date && this.data.last_auto_carryover_date >= boundaryDate) {
             this.updateAutoCarryStatus();
@@ -2635,7 +2731,7 @@ class FinanceApp {
             if (card) { card.classList.toggle('platform-selected', name === projectName); card.classList.toggle('collapsed', name !== projectName); }
             if (chip) chip.classList.toggle('selected', name === projectName);
         });
-        const names = { orange: 'Orange', dni: 'DNI', vtpay: 'Vtpay', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
+        const names = { orange: 'pago24', dni: 'DNI', vtpay: 'Vtpay', mercado: 'Mercado', machines: '机器列表', z3: 'Z3' };
         const title = $('platform-current-name'); if (title) title.textContent = names[projectName];
         const status = $('platform-current-status');
         if (status) {
@@ -2716,7 +2812,7 @@ class FinanceApp {
         this.updateCajaPreview(cajaIdx); this.updateSessionPanel(cajaIdx); this.debouncedSave(); this.showToast(`${CASH_LABELS[faceIdx]} 已彻底清空`, 'warning');
     }
     resetSection(sectionName) {
-        const names = { 'base': '基础账目', 'orange': 'Orange', 'dni': 'DNI', 'vtpay': 'Vtpay', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
+        const names = { 'base': '基础账目', 'orange': 'pago24', 'dni': 'DNI', 'vtpay': 'Vtpay', 'mercado': 'Mercado', 'coeff': '加权系数', 'machines': '机器列表', 'z3': 'z3电脑非现金总值' };
         this.customConfirm(`确定要重置 ${names[sectionName]} 的所有数据吗？`, () => {
             switch(sectionName) {
                 case 'base': this.data.f_exp = ''; this.data.b_last = ''; this.data.k_vault = ''; break;
@@ -2902,7 +2998,7 @@ class FinanceApp {
         if (claimed !== null && Number(o.seq) === Number(claimed)) return;
         try { localStorage.setItem('finance-ledger-claimed-seq', String(o.seq)); } catch (e) {}
         if (o.date !== todayStr()) { this.showToast('记账页同步的是 ' + o.date + ' 的数据,不是今天,已忽略', 'warning'); return; }
-        const names = { f_exp: '今日支出', orange_c: '橙色支出', dni_c1: 'DNI支出', vtpay_c1: 'Vtpay支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
+        const names = { f_exp: '今日支出', orange_c: 'pago24 支出', dni_c1: 'DNI支出', vtpay_c1: 'Vtpay支出', merc_c2: 'Mercado支出', actual_stock: '实际库余' };
         const vals = o.values || {};
         const done = [];
         Object.keys(names).forEach((key) => {
@@ -3019,6 +3115,129 @@ class FinanceApp {
             </div>
         `;
     }
+    /* ================= 日结海报 ================= */
+    // 取某天的财务数据:当天用当前数据;往日找该日最近一次结转存档(history:<date>:<ts>)
+    async getFinanceRecordFor(dateStr) {
+        if (dateStr === todayStr()) return { data: this.data, hist: this.cajaHistory, isToday: true };
+        if (!this.db) return null;
+        return new Promise((resolve) => {
+            try {
+                const tx = this.db.transaction(['dailyData'], 'readonly');
+                const req = tx.objectStore('dailyData').openCursor();
+                let best = null;
+                req.onsuccess = (e) => {
+                    const cur = e.target.result;
+                    if (!cur) { resolve(best ? { data: best, hist: best._cajaHistory, isToday: false } : null); return; }
+                    const v = cur.value;
+                    if (v && v.record_date === dateStr && String(cur.key).indexOf('history:') === 0) {
+                        if (!best || (v.archived_at || 0) > (best.archived_at || 0)) best = v;
+                    }
+                    cur.continue();
+                };
+                req.onerror = () => resolve(best ? { data: best, hist: best._cajaHistory, isToday: false } : null);
+            } catch (e) { resolve(null); }
+        });
+    }
+    async makePosterData(kinds) {
+        if (!window.LedgerPoster) { this.showToast('海报模块未加载', 'error'); return; }
+        const P = window.LedgerPoster;
+        const dEl = $('pstDate');
+        if (dEl && !dEl.value) dEl.value = P.localDateStr();
+        const day = (dEl && dEl.value) || P.localDateStr();
+        const fr = await this.getFinanceRecordFor(day);
+        const r = Calc.getReportValues(fr ? fr.data : getInitData(), fr ? (fr.hist || []) : []);
+        const ld = await P.loadLedgerDay(day);
+        let extra = {};
+        if (kinds.includes('cash')) {
+            try { extra = await window.PosterExtras.readSaved(day); }
+            catch (e) { this.showToast('无法读取该日期的已保存数据，请重试', 'error'); return; }
+        }
+        const n = value => {
+            const text = String(value ?? '').trim().replace(/,/g, '');
+            const parsed = Number(text);
+            return text && Number.isFinite(parsed) ? parsed : null;
+        };
+        const specs = kinds.map(kind => {
+        const spec = kind === 'cash'
+            ? P.cashSpec(day, r, fr ? fr.data : {}, { fiambreria: n(extra.fiambreria), people: n(extra.people) }, !!fr)
+            : P.transferSpec(day, r, fr ? fr.data : {});
+        spec.list = kind === 'cash' ? ld.cash : ld.transfer;
+        if (!fr) {
+            if (kind !== 'cash') spec.tiles = [];
+            else if (spec.tiles.length) spec.tilesTitle = '手填数据';
+            spec.hero.text = '—'; spec.hero.sub = null;
+        }
+        return spec;
+        });
+        return { day, fr, ld, specs };
+    }
+    async openPoster(kind) {
+        const result = await this.makePosterData([kind]);
+        if (!result) return;
+        const {day, fr, ld, specs:[spec]} = result;
+        LedgerPoster.draw($('pstCanvas'), spec);
+        $('pstTitle').textContent = spec.title + ' · ' + day;
+        const notes = [];
+        notes.push(ld.ok ? ('支出明细 ' + spec.list.length + ' 笔，取自记账系统当日记录') : '⚠️ 记账系统该日无支出记录');
+        if (fr) notes.push(day === todayStr() ? '指标取自当前数据' : '指标取自该日结转存档');
+        else notes.push('该日期无财务存档，不显示财务指标');
+        $('pstNote').textContent = notes.join('；');
+        this._pstKind = kind; this._pstDay = day;
+        try {   // 收起自制数字键盘,别占掉预览区
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            const kp = $('vk-keypad');
+            if (kp) kp.classList.remove('vk-show');
+            document.body.classList.remove('vk-open');
+        } catch (_) {}
+        $('pstModal').classList.add('show');
+    }
+    posterJPEG(canvas) {
+        return new Promise((resolve, reject) => canvas.toBlob(blob => {
+            if (blob && blob.size && blob.type === 'image/jpeg') resolve(blob);
+            else reject(new Error('JPEG 图片生成失败'));
+        }, 'image/jpeg', 0.94));
+    }
+    async savePosterToAlbum() {
+        const button = $('pstSavePhotos');
+        if (button.disabled) return;
+        const bridge = window.NativeBridge;
+        if (!bridge?.available || !bridge.savePosterToPhotos) {
+            this.showToast('请在新版 Caja App 内保存到相册；浏览器可使用分享导出', 'warning');
+            return;
+        }
+        const label = button.textContent;
+        button.disabled = true; button.textContent = '保存中…';
+        try {
+            const blob = await this.posterJPEG($('pstCanvas'));
+            const result = await bridge.savePosterToPhotos(blob);
+            if (result?.ok) this.showToast('已保存到相册', 'success');
+            else if (result?.error === 'denied') this.showToast('相册权限未开启，请到系统设置 → Caja → 照片中允许添加照片', 'warning');
+            else if (result?.error === 'restricted') this.showToast('系统限制了相册权限，无法保存', 'error');
+            else if (result?.error === 'timeout') this.showToast('保存结果尚未确认，请先查看相册，避免重复保存', 'warning');
+            else this.showToast('保存到相册失败：' + (result?.error || '请重试'), 'error');
+        } catch (e) { this.showToast('保存到相册失败，请重试', 'error'); }
+        finally { button.disabled = false; button.textContent = label; }
+    }
+    closePoster() { $('pstModal').classList.remove('show'); }
+    async savePoster() {
+        const canvas = $('pstCanvas');
+        const name = (this._pstKind === 'cash' ? '现金账本' : '转账账本') + '_' + (this._pstDay || '') + '.jpg';
+        let blob;
+        try { blob = await this.posterJPEG(canvas); }
+        catch (e) { this.showToast('JPEG 图片生成失败', 'error'); return; }
+        const NB = window.NativeBridge;
+        if (NB && NB.available && NB.shareBlob) {
+            const res = await NB.shareBlob(name, blob);
+            if (res && res.ok) { this.showToast('已调用分享', 'success'); if (NB.haptic) NB.haptic('success'); }
+            else this.showToast('分享未完成', 'warning');
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+    }
     _setCarryUI(show) { $('carryPreview').style.display = show ? 'block' : 'none'; $('btnCarry').disabled = !show; }
     previewCarryOver() {
         if (!this.isNotCarriedOver()) { this.showToast('当前无数据或已结转，无需重复结转', 'warning'); this._setCarryUI(false); return; }
@@ -3026,7 +3245,7 @@ class FinanceApp {
             <div style="text-align:left; font-family:monospace; font-size:13px; line-height:2;">
                 <div>昨日库存 (k) ← 总现金库 (h): ${fmt(r.vaultH)}</div>
                 <div>昨日累计 (b) ← 累计余额 (l): ${fmt(r.accumL)}</div>
-                <div>Orange昨日 ← 今日: ${this.data.orange_f}</div>
+                <div>pago24 昨日 ← 今日: ${this.data.orange_f}</div>
                 <div>DNI昨日 ← 今日: ${this.data.dni_a1}</div>
                 <div>Vtpay昨日 ← 今日: ${this.data.vtpay_a1}</div>
                 <div>Mercado昨日 ← 今日: ${this.data.merc_f2}</div>
@@ -3869,6 +4088,8 @@ window.settleApp = new CashAllocationApp();
 </script>
     <script src="./fx.js"></script>
     <script src="./common.js"></script>
+    <script src="./poster.js?v=zero-safe-save"></script>
+    <script src="./poster-extras.js?v=zero-safe-save"></script>
     <script src="./clipboard.js"></script>
 <script src="./keypad-extra.js"></script>
 <script src="./manual-log.js"></script>
