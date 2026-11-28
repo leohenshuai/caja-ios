@@ -158,7 +158,7 @@
       var canuelas = marker.test(note.normalize('NFC'));
       var key = JSON.stringify([canuelas, cat]), group = byCat.get(key);
       if (!group) {
-        group = { cat: canuelas ? 'Cañuelas · ' + cat : cat, canuelas: canuelas, rows: [] };
+        group = { cat: canuelas ? 'Cañuelas · ' + cat : 'Roque perez · ' + cat, canuelas: canuelas, rows: [] };
         byCat.set(key, group); groups.push(group);
       }
       var displayNote = canuelas ? note.normalize('NFC').replace(/[（(]\s*ca(?:n|ñ)uelas\s*[）)]/gi, '').trim() : note;
