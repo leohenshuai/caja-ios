@@ -200,7 +200,7 @@
         columnHeights[col] += row.height;
       });
       group.bodyHeight = Math.max.apply(null, columnHeights);
-      height += group.bodyHeight + 66; // 本组小计与下一个分组留白
+      height += group.bodyHeight + (groups.length > 1 ? 66 : 0);
     });
     return { groups: groups, cellW: cellW, height: height + SUM_H };
   }
@@ -293,10 +293,12 @@
           p.text(row.amount, right, amountY, '#fda4af', 'right', row.amountSize, 800);
         });
         ry += group.bodyHeight;
-        p.line(PAD + 28, ry, W - PAD - 28, 'rgba(255,255,255,.08)');
-        p.text('本组支出', PAD + 28, ry + 34, 'rgba(203,213,225,.85)', 'left', 23, 600);
-        p.text('-' + fmt(group.total), W - PAD - 28, ry + 34, '#fda4af', 'right', 28, 800);
-        ry += 66;
+        if (details.groups.length > 1) {
+          p.line(PAD + 28, ry, W - PAD - 28, 'rgba(255,255,255,.08)');
+          p.text('本组支出', PAD + 28, ry + 34, 'rgba(203,213,225,.85)', 'left', 23, 600);
+          p.text('-' + fmt(group.total), W - PAD - 28, ry + 34, '#fda4af', 'right', 28, 800);
+          ry += 66;
+        }
       });
       var sy = ry;
       p.line(PAD + 28, sy, W - PAD - 28, 'rgba(255,255,255,.14)');
